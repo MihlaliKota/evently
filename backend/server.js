@@ -210,6 +210,254 @@ app.put('/api/events/:eventId', async (req, res) => {
     }
 });
 
+// DELETE /api/events/:eventId - Delete an event by ID
+app.delete('/api/events/:eventId', async (req, res) => {
+    try {
+        // 1. Extract eventId from request parameters
+        const eventId = req.params.eventId;
+
+        // 2. Get database connection from the pool
+        const connection = await pool.getConnection();
+
+        try {
+            // 3. Construct and execute SQL DELETE query (parameterized query)
+            const [result] = await connection.query(
+                'DELETE FROM Events WHERE event_id = ?',
+                [eventId]
+            );
+
+            // 4. Check if any rows were affected (if event with given ID existed and was deleted)
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Event not found' }); // Event not found
+            }
+
+            // 5. If event was successfully deleted, send 204 No Content response
+            res.status(204).send(); // 204 No Content - successful deletion, no response body needed
+
+        } finally {
+            connection.release(); // Release connection back to the pool
+        }
+
+    } catch (error) {
+        // 6. Handle errors (e.g., database errors)
+        console.error('Error deleting event:', error);
+        res.status(500).json({ error: 'Failed to delete event.', details: error.message }); // Send 500 error
+    }
+});
+
+// POST /api/categories - Create a new event category
+app.post('/api/categories', async (req, res) => {
+    try {
+        // 1. Extract category name from request body
+        const { name } = req.body;
+
+        // 2. Basic input validation (ensure name is provided)
+        if (!name) {
+            return res.status(400).json({ error: 'Category name is required.' });
+        }
+
+        // 3. Get database connection from the pool
+        const connection = await pool.getConnection();
+
+        try {
+            // 4. Construct and execute SQL INSERT query (using parameterized query)
+            const [result] = await connection.query(
+                'INSERT INTO EventCategories (category_name) VALUES (?)',
+                [name]
+            );
+
+            // 5. Get the newly inserted category ID
+            const categoryId = result.insertId;
+
+            // 6. Fetch the newly created category from the database to return in response
+            const [newCategoryRows] = await connection.query(
+                'SELECT * FROM EventCategories WHERE category_id = ?',
+                [categoryId]
+            );
+            const newCategory = newCategoryRows[0]; // Assuming only one category is returned
+
+            // 7. Send successful response (201 Created) with the new category data
+            res.status(201).json(newCategory);
+
+        } finally {
+            connection.release(); // Release the connection back to the pool
+        }
+
+    } catch (error) {
+        // 8. Handle errors (e.g., database errors, validation errors)
+        console.error('Error creating category:', error);
+        res.status(500).json({ error: 'Failed to create category.', details: error.message }); // Send 500 error with a generic message and error details for debugging
+    }
+});
+
+// GET /api/categories - Get all event categories
+app.get('/api/categories', async (req, res) => {
+    try {
+        // 1. Get database connection from the pool
+        const connection = await pool.getConnection();
+
+        try {
+            // 2. Construct and execute SQL SELECT query to get all categories
+            const [rows] = await connection.query('SELECT * FROM EventCategories');
+
+            // 3. Send successful response (200 OK) with the array of categories
+            res.status(200).json(rows); // 'rows' will be an array of category objects
+
+        } finally {
+            connection.release(); // Release connection back to the pool
+        }
+
+    } catch (error) {
+        // 4. Handle errors (e.g., database errors)
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ error: 'Failed to fetch categories.', details: error.message }); // Send 500 error
+    }
+});
+
+// GET /api/categories/:categoryId - Get details of a specific category by ID
+app.get('/api/categories/:categoryId', async (req, res) => {
+    try {
+        // 1. Extract categoryId from request parameters
+        const categoryId = req.params.categoryId; // Access path parameter using req.params
+
+        // 2. Get database connection from the pool
+        const connection = await pool.getConnection();
+
+        try {
+            // 3. Construct and execute SQL SELECT query to get category by ID (parameterized query)
+            const [rows] = await connection.query(
+                'SELECT * FROM EventCategories WHERE category_id = ?',
+                [categoryId]
+            );
+
+            // 4. Check if a category was found
+            if (rows.length === 0) {
+                // If no category found with that ID, return 404 Not Found
+                return res.status(404).json({ error: 'Category not found' });
+            }
+
+            // 5. If category found, send successful response (200 OK) with the category data
+            const category = rows[0]; // Assuming only one category is returned (since category_id is unique)
+            res.status(200).json(category);
+
+        } finally {
+            connection.release(); // Release connection back to the pool
+        }
+
+    } catch (error) {
+        // 6. Handle errors (e.g., database errors, invalid categoryId format if needed)
+        console.error('Error fetching category details:', error);
+        res.status(500).json({ error: 'Failed to fetch category details.', details: error.message }); // Send 500 error
+    }
+});
+
+// PUT /api/categories/:categoryId - Update an existing category by ID
+app.put('/api/categories/:categoryId', async (req, res) => {
+    try {
+        // 1. Extract categoryId from request parameters
+        const categoryId = req.params.categoryId;
+        console.log(`PUT /api/categories/${categoryId}s - Start processing request`); // Added log
+
+        // 2. Extract updated category data from request body
+        const { name, description } = req.body; // Allow updating name and description
+
+        // 3. Basic validation (optional, but recommended - you can enhance this)
+        if (!name && !description) {
+            return res.status(400).json({ error: 'No fields to update provided.' }); // If no fields are sent to update
+        }
+
+        // 4. Get database connection from the pool
+        const connection = await pool.getConnection();
+        console.log(`PUT /api/categories/${categoryId} - Database connection acquired`); // Added log
+
+        try {
+            // 5. Construct the UPDATE SQL query dynamically
+            let updateQuery = 'UPDATE EventCategories SET ';
+            const updateValues = [];
+            const updates = []; // Array to build SET clauses
+
+            if (name !== undefined) { updates.push('category_name = ?'); updateValues.push(name); } // Use category_name here
+            if (description !== undefined) { updates.push('description = ?'); updateValues.push(description); }
+
+            updateQuery += updates.join(', '); // Join the SET clauses with commas
+            updateQuery += ' WHERE category_id = ?'; // Add WHERE clause to update specific category
+            updateValues.push(categoryId); // Add categoryId to the values array for the WHERE clause
+
+            // 6. Execute the UPDATE query
+            const [result] = await connection.query(updateQuery, updateValues);
+            console.log(`PUT /api/categories/${categoryId} - UPDATE query executed. affectedRows: ${result.affectedRows}`); // Added log
+
+            // 7. Check if any rows were affected (if category with given ID existed)
+            if (result.affectedRows === 0) {
+                console.log(`PUT /api/categories/${categoryId} - affectedRows is 0, category not found`); // Added log
+                return res.status(404).json({ error: 'Category not found' }); // Category not found
+            }
+
+            // 8. Fetch the updated category from the database to return in response
+            const [updatedCategoryRows] = await connection.query(
+                'SELECT * FROM EventCategories WHERE category_id = ?',
+                [categoryId]
+            );
+            const updatedCategory = updatedCategoryRows[0];
+
+            // 9. Send successful response (200 OK) with the updated category data
+            res.status(200).json(updatedCategory);
+            console.log(`PUT /api/categories/${categoryId} - Successful update, 200 response sent`); // Added log
+
+
+        } finally {
+            connection.release(); // Release connection back to the pool
+            console.log(`PUT /api/categories/${categoryId} - Database connection released`); // Added log
+        }
+
+    } catch (error) {
+        // 10. Handle errors (e.g., database errors, validation errors)
+        console.error('Error updating category:', error);
+        res.status(500).json({ error: 'Failed to update category.', details: error.message }); // Send 500 error
+    }
+});
+
+// DELETE /api/categories/:categoryId - Delete a category by ID
+app.delete('/api/categories/:categoryId', async (req, res) => {
+    console.log(`DELETE /api/categories/${req.params.categoryId} - Start processing request`); // Added log
+    try {
+        // 1. Extract categoryId from request parameters
+        const categoryId = req.params.categoryId;
+
+        // 2. Get database connection from the pool
+        const connection = await pool.getConnection();
+        console.log(`DELETE /api/categories/${categoryId} - Database connection acquired`); // Added log
+
+        try {
+            // 3. Construct and execute SQL DELETE query (parameterized query)
+            const [result] = await connection.query(
+                'DELETE FROM EventCategories WHERE category_id = ?',
+                [categoryId]
+            );
+            console.log(`DELETE /api/categories/${categoryId} - DELETE query executed. affectedRows: ${result.affectedRows}`); // Added log
+
+            // 4. Check if any rows were affected (if category with given ID existed and was deleted)
+            if (result.affectedRows === 0) {
+                console.log(`DELETE /api/categories/${categoryId} - affectedRows is 0, category not found`); // Added log
+                return res.status(404).json({ error: 'Category not found' }); // Category not found
+            }
+
+            // 5. If category was successfully deleted, send 204 No Content response
+            res.status(204).send(); // 204 No Content - successful deletion, no response body needed
+            console.log(`DELETE /api/categories/${categoryId} - Successful deletion, 204 response sent`); // Added log
+
+        } finally {
+            connection.release(); // Release connection back to the pool
+            console.log(`DELETE /api/categories/${categoryId} - Database connection released`); // Added log
+        }
+
+    } catch (error) {
+        // 6. Handle errors (e.g., database errors)
+        console.error('Error deleting category:', error);
+        res.status(500).json({ error: 'Failed to delete category.', details: error.message }); // Send 500 error
+    }
+});
+
 app.get('/', (req, res) => {
     res.send('Hello from Evently Backend! (Database connection status in console)');
 });
