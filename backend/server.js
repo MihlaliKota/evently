@@ -86,27 +86,59 @@ app.post('/api/events', async (req, res) => {
     }
 });
 
-// GET /api/events - Get all events
+// GET /api/events - Step 4.3: Add Pagination Metadata to Response Headers
 app.get('/api/events', async (req, res) => {
+    console.log(`GET /api/events - Start processing request, query parameters:`, req.query);
+
+    // 1. Pagination parameters (from query parameters, with defaults)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    console.log(`GET /api/events - Pagination parameters: page=${page}, limit=${limit}, offset=${offset}`);
+
+    // 2. Database connection
     try {
-        // 1. Get database connection from the pool
         const connection = await pool.getConnection();
+        console.log(`GET /api/events - Database connection acquired`);
 
         try {
-            // 2. Construct and execute SQL SELECT query to get all events
-            const [rows] = await connection.query('SELECT * FROM Events');
+            // --- 4.3.1: Get total count of events (for metadata) ---
+            const countQuery = 'SELECT COUNT(*) AS total_count FROM Events'; // Count query
+            console.log(`GET /api/events - SQL query for total count: ${countQuery}`); // Log count query
+            const [countResult] = await connection.query(countQuery);
+            const totalCount = countResult[0].total_count;
+            console.log(`GET /api/events - Total events count: ${totalCount}`);
 
-            // 3. Send successful response (200 OK) with the array of events
-            res.status(200).json(rows); // 'rows' is already an array of event objects
+            // --- 4.3.2: Modified SQL query with LIMIT and OFFSET (for events) ---
+            const eventsQuery = 'SELECT * FROM Events LIMIT ? OFFSET ?';
+            const sqlParams = [limit, offset];
+            console.log(`GET /api/events - SQL query for events: ${eventsQuery} Parameters:`, sqlParams);
+            const [rows] = await connection.query(eventsQuery, sqlParams);
+
+            // --- 4.3.3: Calculate pagination metadata ---
+            const totalPages = Math.ceil(totalCount / limit);
+            const currentPage = page;
+            const perPage = limit;
+
+            // --- 4.3.4: Add pagination metadata to response headers ---
+            res.setHeader('X-Total-Count', totalCount);
+            res.setHeader('X-Total-Pages', totalPages);
+            res.setHeader('X-Current-Page', currentPage);
+            res.setHeader('X-Per-Page', perPage);
+
+            // 5. Send response with events (and now with metadata in headers!)
+            res.status(200).json(rows);
+            console.log(`GET /api/events - Retrieved ${rows.length} events, 200 response sent (with pagination metadata in headers)`);
 
         } finally {
-            connection.release(); // Release connection back to the pool
+            connection.release();
+            console.log(`GET /api/events - Database connection released`);
         }
 
     } catch (error) {
-        // 4. Handle errors (e.g., database errors)
         console.error('Error fetching events:', error);
-        res.status(500).json({ error: 'Failed to fetch events.', details: error.message }); // Send 500 error
+        res.status(500).json({ error: 'Failed to fetch events.', details: error.message });
     }
 });
 
