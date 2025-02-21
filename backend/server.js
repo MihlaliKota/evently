@@ -86,7 +86,7 @@ app.post('/api/events', async (req, res) => {
     }
 });
 
-// GET /api/events - Step 4.3: Add Pagination Metadata to Response Headers
+// GET /api/events - Get all events - WITH PAGINATION AND SORTING
 app.get('/api/events', async (req, res) => {
     console.log(`GET /api/events - Start processing request, query parameters:`, req.query);
 
@@ -95,23 +95,51 @@ app.get('/api/events', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    console.log(`GET /api/events - Pagination parameters: page=${page}, limit=${limit}, offset=${offset}`);
+    // 2. Sorting parameters (new!)
+    const sortBy = req.query.sort_by;
+    const sortOrder = req.query.sort_order;
 
-    // 2. Database connection
+    console.log(`GET /api/events - Pagination parameters: page=${page}, limit=${limit}, offset=${offset}`);
+    console.log(`GET /api/events - Sorting parameters: sortBy=${sortBy}, sortOrder=${sortOrder}`); // Log sorting parameters
+
+    // 3. Validate and sanitize sort_by and sort_order
+    let orderByClause = '';
+    const validSortFields = ['name', 'event_date', 'category_id']; // Valid fields to sort by
+    const validSortOrders = ['asc', 'desc'];
+    let sqlSortBy = null; // Variable to hold validated sort field for SQL query
+
+    if (sortBy && validSortFields.includes(sortBy)) {
+        sqlSortBy = sortBy; // Use the provided sortBy if it's valid
+        let sqlSortOrder = 'ASC'; // Default sort order is ASC
+        if (sortOrder && validSortOrders.includes(sortOrder.toLowerCase())) {
+            sqlSortOrder = sortOrder.toUpperCase(); // Use provided sortOrder if valid, convert to uppercase for SQL
+        }
+        orderByClause = `ORDER BY ${sqlSortBy} ${sqlSortOrder}`; // Construct ORDER BY clause
+        console.log(`GET /api/events - ORDER BY clause: ${orderByClause}`); // Log ORDER BY clause
+    } else if (sortBy) {
+        console.log(`GET /api/events - Invalid sort_by field: ${sortBy}. Sorting will be disabled.`); // Log invalid sort field
+    }
+
+
+    // 4. Database connection
     try {
         const connection = await pool.getConnection();
         console.log(`GET /api/events - Database connection acquired`);
 
         try {
             // --- 4.3.1: Get total count of events (for metadata) ---
-            const countQuery = 'SELECT COUNT(*) AS total_count FROM Events'; // Count query
-            console.log(`GET /api/events - SQL query for total count: ${countQuery}`); // Log count query
+            const countQuery = 'SELECT COUNT(*) AS total_count FROM Events';
+            console.log(`GET /api/events - SQL query for total count: ${countQuery}`);
             const [countResult] = await connection.query(countQuery);
             const totalCount = countResult[0].total_count;
             console.log(`GET /api/events - Total events count: ${totalCount}`);
 
-            // --- 4.3.2: Modified SQL query with LIMIT and OFFSET (for events) ---
-            const eventsQuery = 'SELECT * FROM Events LIMIT ? OFFSET ?';
+            // --- 4.3.2 & 6.1: Modified SQL query with LIMIT, OFFSET, and ORDER BY (if applicable) ---
+            let eventsQuery = 'SELECT * FROM Events'; // Base query
+            if (orderByClause) {
+                eventsQuery += ` ${orderByClause}`; // Append ORDER BY if sorting is enabled
+            }
+            eventsQuery += ' LIMIT ? OFFSET ?'; // Append pagination LIMIT and OFFSET
             const sqlParams = [limit, offset];
             console.log(`GET /api/events - SQL query for events: ${eventsQuery} Parameters:`, sqlParams);
             const [rows] = await connection.query(eventsQuery, sqlParams);
@@ -127,9 +155,9 @@ app.get('/api/events', async (req, res) => {
             res.setHeader('X-Current-Page', currentPage);
             res.setHeader('X-Per-Page', perPage);
 
-            // 5. Send response with events (and now with metadata in headers!)
+            // 5. Send response with events (and metadata in headers!)
             res.status(200).json(rows);
-            console.log(`GET /api/events - Retrieved ${rows.length} events, 200 response sent (with pagination metadata in headers)`);
+            console.log(`GET /api/events - Retrieved ${rows.length} events, 200 response sent (with pagination metadata and sorting)`);
 
         } finally {
             connection.release();
