@@ -322,27 +322,59 @@ app.post('/api/categories', async (req, res) => {
     }
 });
 
-// GET /api/categories - Get all event categories
+// GET /api/categories - Get all event categories - WITH PAGINATION
 app.get('/api/categories', async (req, res) => {
+    console.log(`GET /api/categories - Start processing request, query parameters:`, req.query);
+
+    // 1. Pagination parameters (from query parameters, with defaults)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    console.log(`GET /api/categories - Pagination parameters: page=${page}, limit=${limit}, offset=${offset}`);
+
+    // 2. Database connection
     try {
-        // 1. Get database connection from the pool
         const connection = await pool.getConnection();
+        console.log(`GET /api/categories - Database connection acquired`);
 
         try {
-            // 2. Construct and execute SQL SELECT query to get all categories
-            const [rows] = await connection.query('SELECT * FROM EventCategories');
+            // --- 4.3.1 (Adapted): Get total count of categories ---
+            const countQuery = 'SELECT COUNT(*) AS total_count FROM EventCategories'; // Count for categories
+            console.log(`GET /api/categories - SQL query for total count: ${countQuery}`);
+            const [countResult] = await connection.query(countQuery);
+            const totalCount = countResult[0].total_count;
+            console.log(`GET /api/categories - Total categories count: ${totalCount}`);
 
-            // 3. Send successful response (200 OK) with the array of categories
-            res.status(200).json(rows); // 'rows' will be an array of category objects
+            // --- 4.3.2 (Adapted): Modified SQL query with LIMIT and OFFSET (for categories) ---
+            const categoriesQuery = 'SELECT * FROM EventCategories LIMIT ? OFFSET ?'; // Query for categories
+            const sqlParams = [limit, offset];
+            console.log(`GET /api/categories - SQL query for categories: ${categoriesQuery} Parameters:`, sqlParams);
+            const [rows] = await connection.query(categoriesQuery, sqlParams);
+
+            // --- 4.3.3: Calculate pagination metadata ---
+            const totalPages = Math.ceil(totalCount / limit);
+            const currentPage = page;
+            const perPage = limit;
+
+            // --- 4.3.4: Add pagination metadata to response headers ---
+            res.setHeader('X-Total-Count', totalCount);
+            res.setHeader('X-Total-Pages', totalPages);
+            res.setHeader('X-Current-Page', currentPage);
+            res.setHeader('X-Per-Page', perPage);
+
+            // 5. Send response with categories and pagination metadata
+            res.status(200).json(rows);
+            console.log(`GET /api/categories - Retrieved ${rows.length} categories, 200 response sent (with pagination metadata in headers)`);
 
         } finally {
-            connection.release(); // Release connection back to the pool
+            connection.release();
+            console.log(`GET /api/categories - Database connection released`);
         }
 
     } catch (error) {
-        // 4. Handle errors (e.g., database errors)
         console.error('Error fetching categories:', error);
-        res.status(500).json({ error: 'Failed to fetch categories.', details: error.message }); // Send 500 error
+        res.status(500).json({ error: 'Failed to fetch categories.', details: error.message });
     }
 });
 
