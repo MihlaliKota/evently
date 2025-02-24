@@ -1,12 +1,15 @@
-// backend/server.js
 require('dotenv').config(); // Load environment variables from .env file
 
 const express = require('express');
 const mysql = require('mysql2/promise'); // Import mysql2/promise for promise-based API
+const cors = require('cors');
+const bcrypt = require('bcrypt'); // For password hashing
+const jwt = require('jsonwebtoken'); // For JWT token generation
 
 const app = express();
 
 // Add middleware to parse JSON request bodies
+app.use(cors());
 app.use(express.json());
 
 const port = process.env.PORT || 5000;
@@ -41,8 +44,140 @@ async function testDatabaseConnection() {
 
 testDatabaseConnection(); // Run the database connection test when server starts
 
+// ------------------- JWT Middleware for Protected Routes -------------------
+
+const authenticateJWT = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1]; // Extract token from "Bearer <token>"
+
+        jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+            if (err) {
+                console.error('JWT Verification Error:', err); // Log detailed error for debugging
+                return res.sendStatus(403); // 403 Forbidden - Token invalid or expired
+            }
+
+            req.user = user; // Attach user info from token to the request object
+            next(); // Proceed to the next middleware or route handler
+
+        });
+    } else {
+        res.sendStatus(401); // 401 Unauthorized - No token provided
+    }
+};
+
+// ------------------- Authentication API Endpoints -------------------
+
+// POST /api/register - User Registration
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        // 1. Basic input validation
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required.' });
+        }
+
+        // 2. Check if username already exists
+        const connection = await pool.getConnection();
+        try {
+            const [existingUsers] = await connection.query(
+                'SELECT * FROM Users WHERE username = ?',
+                [username]
+            );
+            if (existingUsers.length > 0) {
+                return res.status(409).json({ error: 'Username already taken.' }); // 409 Conflict for resource conflict
+            }
+
+            // 3. Hash the password
+            const saltRounds = 10; // Recommended salt rounds for bcrypt
+            const passwordHash = await bcrypt.hash(password, saltRounds);
+
+            // 4. Insert new user into database - **Include email with a placeholder value**
+            const placeholderEmail = `${username}@example.com`; // Using username as placeholder email
+            const [result] = await connection.query(
+                'INSERT INTO Users (username, password_hash, email) VALUES (?, ?, ?)', // **Include 'email' in INSERT columns**
+                [username, passwordHash, placeholderEmail] // **Include placeholderEmail in values**
+            );
+
+            // 5. Send success response
+            res.status(201).json({ message: 'User registered successfully', userId: result.insertId }); // 201 Created
+
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Registration failed', details: error.message }); // 500 Internal Server Error
+    }
+});
+
+
+
+// POST /api/login - User Login and JWT Generation
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        // 1. Input validation
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required.' });
+        }
+
+        // 2. Retrieve user from database
+        const connection = await pool.getConnection();
+        try {
+            const [users] = await connection.query(
+                'SELECT * FROM Users WHERE username = ?',
+                [username]
+            );
+            if (users.length === 0) {
+                return res.status(401).json({ error: 'Invalid credentials' }); // 401 Unauthorized - incorrect username
+            }
+            const user = users[0]; // Get the first user from the results
+
+            // 3. Compare password hashes
+            const passwordMatch = await bcrypt.compare(password, user.password_hash);
+            if (!passwordMatch) {
+                return res.status(401).json({ error: 'Invalid credentials' }); // 401 Unauthorized - incorrect password
+            }
+
+            // 4. Generate JWT token
+            const payload = { userId: user.user_id, username: user.username }; // Payload data
+            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
+
+            // 5. Send successful login response with JWT token
+            res.status(200).json({ message: 'Login successful', token: token }); // 200 OK
+
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Server configuration error' }); // 500 Internal Server Error - generic error for login failures
+    }
+});
+
+// ------------------- Protected API Endpoint -------------------
+
+// GET /api/protected - Requires JWT authentication
+app.get('/api/protected', authenticateJWT, (req, res) => {
+    // If authenticateJWT middleware succeeds (calls next()), we reach here, meaning user is authenticated
+
+    res.json({
+        message: 'Protected endpoint accessed successfully!',
+        user: req.user, // You can access user information from req.user (set by authenticateJWT)
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
+
 // POST /api/events - Create a new event
-app.post('/api/events', async (req, res) => {
+app.post('/api/events', async (req, res) => { // ... (rest of your existing /api/events POST route code - no changes) ...
     try {
         // 1. Extract event data from request body
         const { name, description, location, event_date, category_id } = req.body;
@@ -87,7 +222,7 @@ app.post('/api/events', async (req, res) => {
 });
 
 // GET /api/events - Get all events - WITH PAGINATION AND SORTING
-app.get('/api/events', async (req, res) => {
+app.get('/api/events', async (req, res) => { // ... (rest of your existing /api/events GET route code - no changes) ...
     console.log(`GET /api/events - Start processing request, query parameters:`, req.query);
 
     // 1. Pagination parameters (from query parameters, with defaults)
@@ -171,7 +306,7 @@ app.get('/api/events', async (req, res) => {
 });
 
 // GET /api/events/:eventId - Get details of a specific event by ID
-app.get('/api/events/:eventId', async (req, res) => {
+app.get('/api/events/:eventId', async (req, res) => { // ... (rest of your existing /api/events/:eventId GET route code - no changes) ...
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId; // Access path parameter using req.params
@@ -209,7 +344,7 @@ app.get('/api/events/:eventId', async (req, res) => {
 
 
 // PUT /api/events/:eventId - Update an existing event by ID
-app.put('/api/events/:eventId', async (req, res) => {
+app.put('/api/events/:eventId', async (req, res) => { // ... (rest of your existing /api/events/:eventId PUT route code - no changes) ...
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId;
@@ -271,7 +406,7 @@ app.put('/api/events/:eventId', async (req, res) => {
 });
 
 // DELETE /api/events/:eventId - Delete an event by ID
-app.delete('/api/events/:eventId', async (req, res) => {
+app.delete('/api/events/:eventId', async (req, res) => { // ... (rest of your existing /api/events/:eventId DELETE route code - no changes) ...
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId;
@@ -306,7 +441,7 @@ app.delete('/api/events/:eventId', async (req, res) => {
 });
 
 // POST /api/categories - Create a new event category
-app.post('/api/categories', async (req, res) => {
+app.post('/api/categories', async (req, res) => { // ... (rest of your existing /api/categories POST route code - no changes) ...
     try {
         // 1. Extract category name from request body
         const { name } = req.body;
@@ -351,7 +486,7 @@ app.post('/api/categories', async (req, res) => {
 });
 
 // GET /api/categories - Get all event categories - WITH PAGINATION
-app.get('/api/categories', async (req, res) => {
+app.get('/api/categories', async (req, res) => { // ... (rest of your existing /api/categories GET route code - no changes) ...
     console.log(`GET /api/categories - Start processing request, query parameters:`, req.query);
 
     // 1. Pagination parameters (from query parameters, with defaults)
@@ -407,7 +542,7 @@ app.get('/api/categories', async (req, res) => {
 });
 
 // GET /api/categories/:categoryId - Get details of a specific category by ID
-app.get('/api/categories/:categoryId', async (req, res) => {
+app.get('/api/categories/:categoryId', async (req, res) => { // ... (rest of your existing /api/categories/:categoryId GET route code - no changes) ...
     try {
         // 1. Extract categoryId from request parameters
         const categoryId = req.params.categoryId; // Access path parameter using req.params
@@ -444,7 +579,7 @@ app.get('/api/categories/:categoryId', async (req, res) => {
 });
 
 // PUT /api/categories/:categoryId - Update an existing category by ID
-app.put('/api/categories/:categoryId', async (req, res) => {
+app.put('/api/categories/:categoryId', async (req, res) => { // ... (rest of your existing /api/categories/:categoryId PUT route code - no changes) ...
     try {
         // 1. Extract categoryId from request parameters
         const categoryId = req.params.categoryId;
@@ -510,7 +645,7 @@ app.put('/api/categories/:categoryId', async (req, res) => {
 });
 
 // DELETE /api/categories/:categoryId - Delete a category by ID
-app.delete('/api/categories/:categoryId', async (req, res) => {
+app.delete('/api/categories/:categoryId', async (req, res) => { // ... (rest of your existing /api/categories/:categoryId DELETE route code - no changes) ...
     console.log(`DELETE /api/categories/${req.params.categoryId} - Start processing request`); // Added log
     try {
         // 1. Extract categoryId from request parameters
@@ -549,6 +684,7 @@ app.delete('/api/categories/:categoryId', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete category.', details: error.message }); // Send 500 error
     }
 });
+
 
 app.get('/', (req, res) => {
     res.send('Hello from Evently Backend! (Database connection status in console)');
