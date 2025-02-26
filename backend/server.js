@@ -180,7 +180,8 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
 app.post('/api/events', async (req, res) => { // ... (rest of your existing /api/events POST route code - no changes) ...
     try {
         // 1. Extract event data from request body
-        const { name, description, location, event_date, category_id } = req.body;
+        // Modified line to include user_id from req.body
+        const { user_id, name, description, location, event_date, category_id } = req.body;
 
         // 2. Basic input validation (ensure name and category_id are provided)
         if (!name || !category_id) {
@@ -192,9 +193,11 @@ app.post('/api/events', async (req, res) => { // ... (rest of your existing /api
 
         try {
             // 4. Construct and execute SQL INSERT query (using parameterized query)
+            // Modified INSERT query to include user_id in the columns and values
             const [result] = await connection.query(
-                'INSERT INTO Events (category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?)',
-                [category_id, name, description, location, event_date]
+                'INSERT INTO Events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
+                // Modified parameter array to include user_id at the beginning
+                [user_id, category_id, name, description, location, event_date]
             );
 
             // 5. Get the newly inserted event ID

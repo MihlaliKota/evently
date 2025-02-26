@@ -47,9 +47,9 @@ const RegisterForm = ({ onLoginSuccess }) => {
                 setPassword('');
                 console.log('Registration successful:', data);
 
-                if (onLoginSuccess) {
-                    onLoginSuccess(username);
-                }
+                // if (onLoginSuccess) {
+                //     onLoginSuccess(username);
+                // }
 
 
             } else {
