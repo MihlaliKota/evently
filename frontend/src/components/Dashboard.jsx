@@ -29,7 +29,9 @@ function Dashboard({ username }) {
 
     // Get JWT token from localStorage - UPDATED to use authToken
     const getToken = () => {
-        return localStorage.getItem('authToken'); 
+        const token = localStorage.getItem('authToken');
+        console.log('Token found in Dashboard:', token ? 'Yes' : 'No');
+        return token;
     };
 
     // Fetch dashboard data
@@ -49,21 +51,32 @@ function Dashboard({ username }) {
                     'Content-Type': 'application/json'
                 };
 
-                // Fetch stats
-                const statsResponse = await fetch('/api/dashboard/stats', { headers });
-                if (!statsResponse.ok) throw new Error('Failed to fetch stats');
+                console.log('Dashboard: Fetching dashboard data');
+
+                // Fetch stats with full URL
+                const statsResponse = await fetch('http://localhost:5000/api/dashboard/stats', { headers });
+                if (!statsResponse.ok) {
+                    console.error('Stats fetch error:', statsResponse.status);
+                    throw new Error('Failed to fetch stats');
+                }
                 const statsData = await statsResponse.json();
                 setStats(statsData);
                 
-                // Fetch upcoming events
-                const upcomingEventsResponse = await fetch('/api/events/upcoming', { headers });
-                if (!upcomingEventsResponse.ok) throw new Error('Failed to fetch upcoming events');
+                // Fetch upcoming events with full URL
+                const upcomingEventsResponse = await fetch('http://localhost:5000/api/events/upcoming', { headers });
+                if (!upcomingEventsResponse.ok) {
+                    console.error('Upcoming events fetch error:', upcomingEventsResponse.status);
+                    throw new Error('Failed to fetch upcoming events');
+                }
                 const upcomingEventsData = await upcomingEventsResponse.json();
                 setUpcomingEvents(upcomingEventsData);
                 
-                // Fetch past events with review info
-                const pastEventsResponse = await fetch('/api/events/past', { headers });
-                if (!pastEventsResponse.ok) throw new Error('Failed to fetch past events');
+                // Fetch past events with review info with full URL
+                const pastEventsResponse = await fetch('http://localhost:5000/api/events/past', { headers });
+                if (!pastEventsResponse.ok) {
+                    console.error('Past events fetch error:', pastEventsResponse.status);
+                    throw new Error('Failed to fetch past events');
+                }
                 const pastEventsData = await pastEventsResponse.json();
                 setPastEvents(pastEventsData);
             } catch (error) {
@@ -92,8 +105,12 @@ function Dashboard({ username }) {
                 'Content-Type': 'application/json'
             };
 
-            const response = await fetch(`/api/events/${eventId}/reviews`, { headers });
-            if (!response.ok) throw new Error('Failed to fetch reviews');
+            // Use full URL for API call
+            const response = await fetch(`http://localhost:5000/api/events/${eventId}/reviews`, { headers });
+            if (!response.ok) {
+                console.error('Reviews fetch error:', response.status);
+                throw new Error('Failed to fetch reviews');
+            }
             const data = await response.json();
             setEventReviews(data);
         } catch (error) {

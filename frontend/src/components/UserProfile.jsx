@@ -40,7 +40,10 @@ function UserProfile() {
 
     // Get JWT token from localStorage
     const getToken = () => {
-        return localStorage.getItem('authToken');
+        // Add debugging output
+        const token = localStorage.getItem('authToken');
+        console.log('Token found in UserProfile:', token ? 'Yes' : 'No');
+        return token;
     };
 
     // Fetch user profile
@@ -58,10 +61,20 @@ function UserProfile() {
                     'Content-Type': 'application/json'
                 };
 
-                const response = await fetch('/api/users/profile', { headers });
-                if (!response.ok) throw new Error('Failed to fetch profile');
+                console.log('UserProfile: Fetching profile with token');
+
+                // Make request to backend - ensure it includes the full URL
+                const response = await fetch('http://localhost:5000/api/users/profile', { headers });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Profile fetch error:', response.status, errorData);
+                    throw new Error(errorData.error || `Failed to fetch profile: ${response.status}`);
+                }
                 
                 const data = await response.json();
+                console.log('Profile data received');
+                
                 setProfile(data);
                 setFormData({
                     email: data.email || '',
@@ -71,7 +84,7 @@ function UserProfile() {
                 setError(null);
             } catch (err) {
                 console.error('Error fetching profile:', err);
-                setError('Failed to load profile data. Please try again.');
+                setError(`Failed to load profile data: ${err.message}`);
             } finally {
                 setLoading(false);
             }
@@ -96,8 +109,12 @@ function UserProfile() {
                 'Content-Type': 'application/json'
             };
 
-            const response = await fetch('/api/users/activities', { headers });
-            if (!response.ok) throw new Error('Failed to fetch activities');
+            // Use full URL for API call
+            const response = await fetch('http://localhost:5000/api/users/activities', { headers });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to fetch activities: ${response.status}`);
+            }
             
             const data = await response.json();
             setActivities(data);
@@ -154,15 +171,16 @@ function UserProfile() {
                 'Content-Type': 'application/json'
             };
 
-            const response = await fetch('/api/users/profile', { 
+            // Use full URL for API call
+            const response = await fetch('http://localhost:5000/api/users/profile', { 
                 method: 'PUT',
                 headers,
                 body: JSON.stringify(formData)
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to update profile');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to update profile: ${response.status}`);
             }
             
             const updatedProfile = await response.json();
@@ -198,7 +216,8 @@ function UserProfile() {
                 'Content-Type': 'application/json'
             };
 
-            const response = await fetch('/api/users/password', {
+            // Use full URL for API call
+            const response = await fetch('http://localhost:5000/api/users/password', {
                 method: 'PUT',
                 headers,
                 body: JSON.stringify({
@@ -208,8 +227,8 @@ function UserProfile() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to update password');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to update password: ${response.status}`);
             }
             
             setPasswordSuccess('Password updated successfully!');
