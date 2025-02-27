@@ -295,7 +295,7 @@ function UserProfile() {
     }
 
     return (
-        <Box sx={{ maxWidth: 'lg', width: '100%', mx: 'auto' }}>
+        <Box sx={{ width: '100%' }}>
             {/* Header Section */}
             <Paper sx={{ p: 4, mb: 3, borderRadius: 2 }}>
                 <Grid container spacing={3} alignItems="center">

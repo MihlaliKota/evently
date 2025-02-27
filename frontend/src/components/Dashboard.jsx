@@ -160,7 +160,7 @@ function Dashboard({ username }) {
     };
 
     return (
-        <Box sx={{ width: '100%', maxWidth: 'lg', mx: 'auto' }}>
+        <Box sx={{ width: '100%' }}>
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
                     Welcome back, {username || 'User'}!

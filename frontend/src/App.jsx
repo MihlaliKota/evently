@@ -6,13 +6,13 @@ import EventsList from './components/EventsList';
 import UserProfile from './components/UserProfile'; // Import UserProfile component
 
 // Material UI Components
-import { 
-    Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline, 
+import {
+    Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline,
     useTheme, ThemeProvider, createTheme, Avatar, Button, Drawer, List,
     ListItem, ListItemIcon, ListItemText, Divider
 } from '@mui/material';
-import { 
-    Brightness4, Brightness7, Dashboard as DashboardIcon, 
+import {
+    Brightness4, Brightness7, Dashboard as DashboardIcon,
     EventNote, AccountCircle, Menu as MenuIcon
 } from '@mui/icons-material';
 
@@ -52,11 +52,11 @@ function App() {
     const theme = createTheme({
         palette: {
             mode: darkMode ? 'dark' : 'light',
-            primary: { 
-                main: darkMode ? '#90caf9' : '#3f51b5' 
+            primary: {
+                main: darkMode ? '#90caf9' : '#3f51b5'
             },
-            secondary: { 
-                main: darkMode ? '#f48fb1' : '#f50057' 
+            secondary: {
+                main: darkMode ? '#f48fb1' : '#f50057'
             },
             background: {
                 default: darkMode ? '#303030' : '#f5f5f5',
@@ -138,9 +138,9 @@ function App() {
                     <AppBar position="static" color="primary" elevation={0}>
                         <Toolbar sx={{ justifyContent: 'space-between' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <IconButton 
-                                    edge="start" 
-                                    color="inherit" 
+                                <IconButton
+                                    edge="start"
+                                    color="inherit"
                                     aria-label="menu"
                                     onClick={toggleDrawer}
                                     sx={{ mr: 2 }}
@@ -155,11 +155,11 @@ function App() {
                                 <IconButton onClick={() => setDarkMode(!darkMode)} color="inherit">
                                     {darkMode ? <Brightness7 /> : <Brightness4 />}
                                 </IconButton>
-                                <Button 
-                                    color="inherit" 
+                                <Button
+                                    color="inherit"
                                     onClick={() => navigateTo('profile')}
                                     startIcon={
-                                        <Avatar 
+                                        <Avatar
                                             sx={{ width: 24, height: 24, bgcolor: 'primary.contrastText' }}
                                         >
                                             {username ? username[0].toUpperCase() : 'U'}
@@ -171,7 +171,7 @@ function App() {
                             </Box>
                         </Toolbar>
                     </AppBar>
-                    
+
                     <Drawer
                         anchor="left"
                         open={drawerOpen}
@@ -186,8 +186,8 @@ function App() {
                             <Divider />
                             <List>
                                 {sidebarItems.map((item) => (
-                                    <ListItem 
-                                        button 
+                                    <ListItem
+                                        button
                                         key={item.text}
                                         onClick={() => navigateTo(item.page)}
                                         selected={activePage === item.page}
@@ -199,9 +199,9 @@ function App() {
                             </List>
                             <Divider />
                             <Box sx={{ p: 2 }}>
-                                <Button 
-                                    variant="outlined" 
-                                    color="error" 
+                                <Button
+                                    variant="outlined"
+                                    color="error"
                                     fullWidth
                                     onClick={handleLogout}
                                 >
@@ -213,24 +213,25 @@ function App() {
                 </>
             )}
 
-            <Container 
-                maxWidth="lg" 
-                sx={{ 
-                    mt: 4, 
+            <Container
+                maxWidth={false} // Change from "lg" to false to allow full width
+                sx={{
+                    mt: 4,
                     mb: 8,
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    // Remove alignItems: 'center' to allow content to expand
+                    width: '100%', // Ensure container takes full width
                     px: { xs: 2, sm: 3 }
                 }}
             >
                 {!isLoggedIn && (
-                    <Typography 
-                        variant="h2" 
-                        component="h1" 
-                        align="center" 
+                    <Typography
+                        variant="h2"
+                        component="h1"
+                        align="center"
                         gutterBottom
-                        sx={{ 
+                        sx={{
                             fontWeight: 'bold',
                             backgroundImage: 'linear-gradient(45deg, #3f51b5, #f50057)',
                             backgroundClip: 'text',

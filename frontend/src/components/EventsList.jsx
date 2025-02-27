@@ -189,7 +189,7 @@ function EventsList() {
     };
 
     return (
-        <Container maxWidth="lg">
+        <Container maxWidth={false} sx={{ width: '100%' }}>
             <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography 
                     variant="h4" 
