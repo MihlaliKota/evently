@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Box, Typography, Grid, Card, CardContent, 
-    Divider, CircularProgress, Paper, IconButton,
+    Divider, CircularProgress, Paper, 
     List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
-    Chip, LinearProgress
+    Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
+    Button
 } from '@mui/material';
 import { 
     EventAvailable, People, CalendarToday, Check,
-    TrendingUp, AccessTime, Event, CheckCircle,
-    DonutSmall
+    Event, History, Star, Comment
 } from '@mui/icons-material';
 
 function Dashboard({ username }) {
@@ -20,35 +20,100 @@ function Dashboard({ username }) {
     });
     const [loading, setLoading] = useState(true);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [pastEvents, setPastEvents] = useState([]);
+    const [eventTab, setEventTab] = useState(0);
+    const [openReviewsDialog, setOpenReviewsDialog] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [eventReviews, setEventReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(false);
 
-    // Simulated data fetch 
+    // Get JWT token from localStorage
+    const getToken = () => {
+        return localStorage.getItem('token'); // Adjust if your token is stored differently
+    };
+
+    // Fetch dashboard data
     useEffect(() => {
-        // In a real app, this would be an API call
-        const fetchDashboardData = () => {
+        const fetchDashboardData = async () => {
             setLoading(true);
-            
-            // Simulate API delay
-            setTimeout(() => {
-                // Mock data
-                setStats({
-                    totalEvents: 12,
-                    upcomingEvents: 5,
-                    totalAttendees: 248,
-                    completedEvents: 7
-                });
+            try {
+                const token = getToken();
+                if (!token) {
+                    console.error('No authentication token found');
+                    setLoading(false);
+                    return;
+                }
+
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+
+                // Fetch stats
+                const statsResponse = await fetch('/api/dashboard/stats', { headers });
+                if (!statsResponse.ok) throw new Error('Failed to fetch stats');
+                const statsData = await statsResponse.json();
+                setStats(statsData);
                 
-                setUpcomingEvents([
-                    { id: 1, name: 'Team Meeting', date: '2024-02-28T10:00:00', location: 'Conference Room A', attendees: 8 },
-                    { id: 2, name: 'Product Launch', date: '2024-03-15T09:00:00', location: 'Main Hall', attendees: 120 },
-                    { id: 3, name: 'Client Workshop', date: '2024-03-02T14:00:00', location: 'Training Center', attendees: 25 }
-                ]);
+                // Fetch upcoming events
+                const upcomingEventsResponse = await fetch('/api/events/upcoming', { headers });
+                if (!upcomingEventsResponse.ok) throw new Error('Failed to fetch upcoming events');
+                const upcomingEventsData = await upcomingEventsResponse.json();
+                setUpcomingEvents(upcomingEventsData);
                 
+                // Fetch past events with review info
+                const pastEventsResponse = await fetch('/api/events/past', { headers });
+                if (!pastEventsResponse.ok) throw new Error('Failed to fetch past events');
+                const pastEventsData = await pastEventsResponse.json();
+                setPastEvents(pastEventsData);
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+            } finally {
                 setLoading(false);
-            }, 1000);
+            }
         };
         
         fetchDashboardData();
     }, []);
+
+    // Fetch reviews for a specific event
+    const fetchEventReviews = async (eventId) => {
+        setLoadingReviews(true);
+        try {
+            const token = getToken();
+            if (!token) {
+                console.error('No authentication token found');
+                setLoadingReviews(false);
+                return;
+            }
+
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            const response = await fetch(`/api/events/${eventId}/reviews`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch reviews');
+            const data = await response.json();
+            setEventReviews(data);
+        } catch (error) {
+            console.error('Error fetching event reviews:', error);
+        } finally {
+            setLoadingReviews(false);
+        }
+    };
+
+    const handleOpenReviews = (event) => {
+        setSelectedEvent(event);
+        setOpenReviewsDialog(true);
+        fetchEventReviews(event.event_id);
+    };
+
+    const handleCloseReviews = () => {
+        setOpenReviewsDialog(false);
+        setSelectedEvent(null);
+        setEventReviews([]);
+    };
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -69,6 +134,14 @@ function Dashboard({ username }) {
         return diffDays;
     };
 
+    const formatRating = (rating) => {
+        return rating ? parseFloat(rating).toFixed(1) : 'No ratings';
+    };
+
+    const handleTabChange = (event, newValue) => {
+        setEventTab(newValue);
+    };
+
     return (
         <Box sx={{ width: '100%', maxWidth: 'lg', mx: 'auto' }}>
             <Box sx={{ mb: 4 }}>
@@ -83,36 +156,16 @@ function Dashboard({ username }) {
             {/* Stats Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} lg={3}>
-                    <Card 
-                        sx={{ 
-                            height: '100%',
-                            borderRadius: 2,
-                            transition: 'transform 0.2s',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                            }
-                        }}
-                    >
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
                         <CardContent>
                             {loading ? (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                                     <CircularProgress size={30} />
                                 </Box>
                             ) : (
                                 <>
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box 
-                                            sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                justifyContent: 'center',
-                                                p: 1,
-                                                borderRadius: '50%',
-                                                bgcolor: 'primary.light',
-                                                color: 'primary.main',
-                                                mr: 2
-                                            }}
-                                        >
+                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'primary.light', color: 'primary.main', mr: 2 }}>
                                             <EventAvailable />
                                         </Box>
                                         <Typography color="text.secondary" variant="body2">
@@ -129,36 +182,16 @@ function Dashboard({ username }) {
                 </Grid>
                 
                 <Grid item xs={12} sm={6} lg={3}>
-                    <Card 
-                        sx={{ 
-                            height: '100%',
-                            borderRadius: 2,
-                            transition: 'transform 0.2s',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                            }
-                        }}
-                    >
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
                         <CardContent>
                             {loading ? (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                                     <CircularProgress size={30} />
                                 </Box>
                             ) : (
                                 <>
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box 
-                                            sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                justifyContent: 'center',
-                                                p: 1,
-                                                borderRadius: '50%',
-                                                bgcolor: 'secondary.light',
-                                                color: 'secondary.main',
-                                                mr: 2
-                                            }}
-                                        >
+                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'secondary.light', color: 'secondary.main', mr: 2 }}>
                                             <CalendarToday />
                                         </Box>
                                         <Typography color="text.secondary" variant="body2">
@@ -175,36 +208,16 @@ function Dashboard({ username }) {
                 </Grid>
                 
                 <Grid item xs={12} sm={6} lg={3}>
-                    <Card 
-                        sx={{ 
-                            height: '100%',
-                            borderRadius: 2,
-                            transition: 'transform 0.2s',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                            }
-                        }}
-                    >
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
                         <CardContent>
                             {loading ? (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                                     <CircularProgress size={30} />
                                 </Box>
                             ) : (
                                 <>
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box 
-                                            sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                justifyContent: 'center',
-                                                p: 1,
-                                                borderRadius: '50%',
-                                                bgcolor: 'info.light',
-                                                color: 'info.main',
-                                                mr: 2
-                                            }}
-                                        >
+                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'info.light', color: 'info.main', mr: 2 }}>
                                             <People />
                                         </Box>
                                         <Typography color="text.secondary" variant="body2">
@@ -221,36 +234,16 @@ function Dashboard({ username }) {
                 </Grid>
                 
                 <Grid item xs={12} sm={6} lg={3}>
-                    <Card 
-                        sx={{ 
-                            height: '100%',
-                            borderRadius: 2,
-                            transition: 'transform 0.2s',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                            }
-                        }}
-                    >
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
                         <CardContent>
                             {loading ? (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                                     <CircularProgress size={30} />
                                 </Box>
                             ) : (
                                 <>
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box 
-                                            sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                justifyContent: 'center',
-                                                p: 1,
-                                                borderRadius: '50%',
-                                                bgcolor: 'success.light',
-                                                color: 'success.main',
-                                                mr: 2
-                                            }}
-                                        >
+                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'success.light', color: 'success.main', mr: 2 }}>
                                             <Check />
                                         </Box>
                                         <Typography color="text.secondary" variant="body2">
@@ -267,26 +260,103 @@ function Dashboard({ username }) {
                 </Grid>
             </Grid>
 
-            {/* Upcoming Events Section */}
-            <Box>
-                <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
-                    Next Up
-                </Typography>
-                
-                <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                    {loading ? (
-                        <Box sx={{ p: 3 }}>
-                            <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
-                        </Box>
-                    ) : upcomingEvents.length > 0 ? (
-                        <List disablePadding>
-                            {upcomingEvents.map((event, index) => {
-                                const daysRemaining = getDaysRemaining(event.date);
-                                return (
-                                    <React.Fragment key={event.id}>
-                                        <ListItem sx={{ px: 3, py: 2 }}>
+            {/* Events Tabs */}
+            <Box sx={{ mb: 2 }}>
+                <Tabs 
+                    value={eventTab} 
+                    onChange={handleTabChange} 
+                    aria-label="event tabs"
+                    sx={{ borderBottom: 1, borderColor: 'divider' }}
+                >
+                    <Tab 
+                        label="Upcoming Events" 
+                        icon={<CalendarToday fontSize="small" />} 
+                        iconPosition="start"
+                    />
+                    <Tab 
+                        label="Past Events" 
+                        icon={<History fontSize="small" />} 
+                        iconPosition="start"
+                    />
+                </Tabs>
+            </Box>
+
+            {/* Events Content */}
+            <Box sx={{ mb: 4 }}>
+                {/* Upcoming Events Tab Panel */}
+                {eventTab === 0 && (
+                    <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                        {loading ? (
+                            <Box sx={{ p: 3 }}>
+                                <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
+                            </Box>
+                        ) : upcomingEvents.length > 0 ? (
+                            <List disablePadding>
+                                {upcomingEvents.map((event, index) => {
+                                    const daysRemaining = getDaysRemaining(event.event_date);
+                                    return (
+                                        <React.Fragment key={event.event_id}>
+                                            <ListItem sx={{ px: 3, py: 2 }}>
+                                                <ListItemIcon>
+                                                    <Event color="primary" />
+                                                </ListItemIcon>
+                                                <ListItemText
+                                                    primary={
+                                                        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'medium' }}>
+                                                            {event.name}
+                                                        </Typography>
+                                                    }
+                                                    secondary={
+                                                        <>
+                                                            <Typography variant="body2" component="span" display="block">
+                                                                {formatDate(event.event_date)} • {event.location}
+                                                            </Typography>
+                                                            <Typography variant="body2" component="span" display="block">
+                                                                {event.attendees || 0} attendees
+                                                            </Typography>
+                                                        </>
+                                                    }
+                                                />
+                                                <ListItemSecondaryAction>
+                                                    <Chip 
+                                                        label={daysRemaining > 0 ? `${daysRemaining} days left` : 'Today!'} 
+                                                        color={daysRemaining <= 1 ? "error" : daysRemaining <= 3 ? "warning" : "primary"}
+                                                        size="small"
+                                                    />
+                                                </ListItemSecondaryAction>
+                                            </ListItem>
+                                            {index < upcomingEvents.length - 1 && <Divider component="li" />}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </List>
+                        ) : (
+                            <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography variant="body1" color="text.secondary">
+                                    No upcoming events scheduled
+                                </Typography>
+                            </Box>
+                        )}
+                    </Paper>
+                )}
+
+                {/* Past Events Tab Panel */}
+                {eventTab === 1 && (
+                    <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                        {loading ? (
+                            <Box sx={{ p: 3 }}>
+                                <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
+                            </Box>
+                        ) : pastEvents.length > 0 ? (
+                            <List disablePadding>
+                                {pastEvents.map((event, index) => (
+                                    <React.Fragment key={event.event_id}>
+                                        <ListItem 
+                                            sx={{ px: 3, py: 2, cursor: 'pointer' }}
+                                            onClick={() => handleOpenReviews(event)}
+                                        >
                                             <ListItemIcon>
-                                                <Event color="primary" />
+                                                <Event color="action" />
                                             </ListItemIcon>
                                             <ListItemText
                                                 primary={
@@ -297,36 +367,120 @@ function Dashboard({ username }) {
                                                 secondary={
                                                     <>
                                                         <Typography variant="body2" component="span" display="block">
-                                                            {formatDate(event.date)} • {event.location}
+                                                            {formatDate(event.event_date)} • {event.location || 'No location'}
                                                         </Typography>
                                                         <Typography variant="body2" component="span" display="block">
-                                                            {event.attendees} attendees
+                                                            {event.attendees || 0} attendees
                                                         </Typography>
+                                                        {event.review_count > 0 && (
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                                                <Star sx={{ color: 'gold', fontSize: 16, mr: 0.5 }} />
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    {formatRating(event.avg_rating)} ({event.review_count} reviews)
+                                                                </Typography>
+                                                            </Box>
+                                                        )}
                                                     </>
                                                 }
                                             />
                                             <ListItemSecondaryAction>
                                                 <Chip 
-                                                    label={daysRemaining > 0 ? `${daysRemaining} days left` : 'Today!'} 
-                                                    color={daysRemaining <= 1 ? "error" : daysRemaining <= 3 ? "warning" : "primary"}
+                                                    icon={<Comment fontSize="small" />}
+                                                    label={event.review_count > 0 ? `${event.review_count} Reviews` : "No Reviews"} 
+                                                    color={event.review_count > 0 ? "primary" : "default"}
                                                     size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenReviews(event);
+                                                    }}
                                                 />
                                             </ListItemSecondaryAction>
                                         </ListItem>
-                                        {index < upcomingEvents.length - 1 && <Divider component="li" />}
+                                        {index < pastEvents.length - 1 && <Divider component="li" />}
                                     </React.Fragment>
-                                );
-                            })}
-                        </List>
-                    ) : (
-                        <Box sx={{ p: 3, textAlign: 'center' }}>
-                            <Typography variant="body1" color="text.secondary">
-                                No upcoming events scheduled
-                            </Typography>
-                        </Box>
-                    )}
-                </Paper>
+                                ))}
+                            </List>
+                        ) : (
+                            <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography variant="body1" color="text.secondary">
+                                    No past events found
+                                </Typography>
+                            </Box>
+                        )}
+                    </Paper>
+                )}
             </Box>
+
+            {/* Reviews Dialog */}
+            <Dialog 
+                open={openReviewsDialog} 
+                onClose={handleCloseReviews}
+                fullWidth
+                maxWidth="md"
+            >
+                {selectedEvent && (
+                    <>
+                        <DialogTitle>
+                            <Typography variant="h6">{selectedEvent.name} - Reviews</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">
+                                {formatDate(selectedEvent.event_date)} • {selectedEvent.location || 'No location'}
+                            </Typography>
+                            {selectedEvent.review_count > 0 && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                                    <Rating 
+                                        value={parseFloat(selectedEvent.avg_rating) || 0} 
+                                        precision={0.1} 
+                                        readOnly 
+                                        size="small"
+                                    />
+                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                        {formatRating(selectedEvent.avg_rating)} ({selectedEvent.review_count} reviews)
+                                    </Typography>
+                                </Box>
+                            )}
+                        </DialogTitle>
+                        <DialogContent dividers>
+                            {loadingReviews ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                                    <CircularProgress size={30} />
+                                </Box>
+                            ) : eventReviews.length > 0 ? (
+                                <List>
+                                    {eventReviews.map((review) => (
+                                        <ListItem key={review.review_id} alignItems="flex-start" sx={{ px: 1, py: 2 }}>
+                                            <Box sx={{ width: '100%' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                    <Avatar sx={{ width: 32, height: 32, mr: 1 }}>
+                                                        {review.username.charAt(0).toUpperCase()}
+                                                    </Avatar>
+                                                    <Typography variant="subtitle2">
+                                                        {review.username}
+                                                    </Typography>
+                                                    <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+                                                        <Rating value={review.rating} readOnly size="small" />
+                                                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                                            {formatDate(review.created_at)}
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                                    {review.review_text || "No comment provided"}
+                                                </Typography>
+                                            </Box>
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            ) : (
+                                <Box sx={{ p: 3, textAlign: 'center' }}>
+                                    <Typography variant="body1" color="text.secondary">
+                                        No reviews available for this event
+                                    </Typography>
+                                </Box>
+                            )}
+                        </DialogContent>
+                    </>
+                )}
+            </Dialog>
         </Box>
     );
 }

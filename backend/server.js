@@ -688,6 +688,162 @@ app.delete('/api/categories/:categoryId', async (req, res) => { // ... (rest of 
     }
 });
 
+// ------------------- Dashboard API Endpoints -------------------
+
+// GET /api/dashboard/stats - Get dashboard statistics
+app.get('/api/dashboard/stats', authenticateJWT, async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Get stats for the dashboard
+            const [stats] = await connection.query(`
+                SELECT 
+                    (SELECT COUNT(*) FROM Events) AS totalEvents,
+                    (SELECT COUNT(*) FROM Events WHERE event_date >= CURDATE()) AS upcomingEvents,
+                    (SELECT COUNT(*) FROM Events WHERE event_date < CURDATE()) AS completedEvents,
+                    (SELECT SUM(attendees) FROM Events) AS totalAttendees
+            `);
+            
+            res.status(200).json(stats[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        res.status(500).json({ error: 'Failed to fetch dashboard statistics.', details: error.message });
+    }
+});
+
+// GET /api/events/upcoming - Get upcoming events
+app.get('/api/events/upcoming', authenticateJWT, async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Get upcoming events (limited to next 5)
+            const [events] = await connection.query(`
+                SELECT * FROM Events 
+                WHERE event_date >= CURDATE()
+                ORDER BY event_date ASC
+                LIMIT 5
+            `);
+            
+            res.status(200).json(events);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching upcoming events:', error);
+        res.status(500).json({ error: 'Failed to fetch upcoming events.', details: error.message });
+    }
+});
+
+// GET /api/events/past - Get past events with review info
+app.get('/api/events/past', authenticateJWT, async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Get past events with review count and average rating
+            const [events] = await connection.query(`
+                SELECT e.*, 
+                    (SELECT COUNT(*) FROM reviews r WHERE r.event_id = e.event_id) AS review_count,
+                    (SELECT AVG(rating) FROM reviews r WHERE r.event_id = e.event_id) AS avg_rating
+                FROM Events e
+                WHERE e.event_date < CURDATE()
+                ORDER BY e.event_date DESC
+                LIMIT 10
+            `);
+            
+            res.status(200).json(events);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching past events:', error);
+        res.status(500).json({ error: 'Failed to fetch past events.', details: error.message });
+    }
+});
+
+// GET /api/events/:eventId/reviews - Get reviews for a specific event
+app.get('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
+    try {
+        const eventId = req.params.eventId;
+        const connection = await pool.getConnection();
+        
+        try {
+            // Get all reviews for this event with username
+            const [reviews] = await connection.query(`
+                SELECT r.*, u.username 
+                FROM reviews r
+                JOIN Users u ON r.user_id = u.user_id
+                WHERE r.event_id = ?
+                ORDER BY r.created_at DESC
+            `, [eventId]);
+            
+            res.status(200).json(reviews);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching event reviews:', error);
+        res.status(500).json({ error: 'Failed to fetch event reviews.', details: error.message });
+    }
+});
+
+// POST /api/events/:eventId/reviews - Add a review to an event
+app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
+    try {
+        const eventId = req.params.eventId;
+        const userId = req.user.userId; // Get from JWT token
+        const { review_text, rating } = req.body;
+        
+        // Validate rating is between 1-5
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Check if event exists
+            const [eventCheck] = await connection.query(
+                'SELECT * FROM Events WHERE event_id = ?',
+                [eventId]
+            );
+            
+            if (eventCheck.length === 0) {
+                return res.status(404).json({ error: 'Event not found.' });
+            }
+            
+            // Check if user already reviewed this event
+            const [existingReview] = await connection.query(
+                'SELECT * FROM reviews WHERE event_id = ? AND user_id = ?',
+                [eventId, userId]
+            );
+            
+            if (existingReview.length > 0) {
+                return res.status(409).json({ error: 'You have already reviewed this event.' });
+            }
+            
+            // Create new review
+            const [result] = await connection.query(
+                'INSERT INTO reviews (event_id, user_id, review_text, rating) VALUES (?, ?, ?, ?)',
+                [eventId, userId, review_text, rating]
+            );
+            
+            // Get the newly created review
+            const [newReview] = await connection.query(
+                'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
+                [result.insertId]
+            );
+            
+            res.status(201).json(newReview[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error creating review:', error);
+        res.status(500).json({ error: 'Failed to create review.', details: error.message });
+    }
+});
 
 app.get('/', (req, res) => {
     res.send('Hello from Evently Backend! (Database connection status in console)');
