@@ -27,9 +27,9 @@ function Dashboard({ username }) {
     const [eventReviews, setEventReviews] = useState([]);
     const [loadingReviews, setLoadingReviews] = useState(false);
 
-    // Get JWT token from localStorage
+    // Get JWT token from localStorage - UPDATED to use authToken
     const getToken = () => {
-        return localStorage.getItem('token'); // Adjust if your token is stored differently
+        return localStorage.getItem('authToken'); 
     };
 
     // Fetch dashboard data

@@ -3,6 +3,7 @@ import LogoutButton from './components/LogOutButton';
 import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
+import UserProfile from './components/UserProfile'; // Import UserProfile component
 
 // Material UI Components
 import { 
@@ -118,27 +119,8 @@ function App() {
         } else if (activePage === 'events') {
             return <EventsList />;
         } else if (activePage === 'profile') {
-            return (
-                <Box sx={{ mt: 4, textAlign: 'center' }}>
-                    <Avatar sx={{ width: 100, height: 100, mx: 'auto', mb: 2, bgcolor: 'primary.main' }}>
-                        {username ? username[0].toUpperCase() : 'U'}
-                    </Avatar>
-                    <Typography variant="h4" gutterBottom>
-                        {username || 'User'}
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary" gutterBottom>
-                        Member since {new Date().toLocaleDateString()}
-                    </Typography>
-                    <Button 
-                        variant="outlined" 
-                        color="primary" 
-                        sx={{ mt: 2 }}
-                        onClick={handleLogout}
-                    >
-                        Logout
-                    </Button>
-                </Box>
-            );
+            // Replace the simple profile view with the full UserProfile component
+            return <UserProfile />;
         }
     };
 

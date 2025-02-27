@@ -845,6 +845,223 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
     }
 });
 
+// ------------------- User Profile API Endpoints -------------------
+
+// GET /api/users/profile - Make sure this uses the correct User fields
+app.get('/api/users/profile', authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        
+        const connection = await pool.getConnection();
+        try {
+            // Get user profile data - Make sure column names match your database
+            const [users] = await connection.query(
+                'SELECT user_id, username, email, bio, profile_picture, created_at FROM Users WHERE user_id = ?',
+                [userId]
+            );
+            
+            if (users.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            res.status(200).json(users[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ error: 'Failed to fetch user profile', details: error.message });
+    }
+});
+
+// PUT /api/users/profile - Update current user's profile
+app.put('/api/users/profile', authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { email, bio, location, avatar_url } = req.body;
+        
+        // Validate email if provided
+        if (email && !email.includes('@')) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Build update query dynamically based on provided fields
+            let updateQuery = 'UPDATE Users SET ';
+            const updateValues = [];
+            const updates = [];
+            
+            if (email !== undefined) { updates.push('email = ?'); updateValues.push(email); }
+            if (bio !== undefined) { updates.push('bio = ?'); updateValues.push(bio); }
+            if (location !== undefined) { updates.push('location = ?'); updateValues.push(location); }
+            if (avatar_url !== undefined) { updates.push('avatar_url = ?'); updateValues.push(avatar_url); }
+            
+            if (updates.length === 0) {
+                return res.status(400).json({ error: 'No fields to update provided' });
+            }
+            
+            updateQuery += updates.join(', ');
+            updateQuery += ' WHERE user_id = ?';
+            updateValues.push(userId);
+            
+            // Execute update query
+            const [result] = await connection.query(updateQuery, updateValues);
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            // Get updated user profile
+            const [users] = await connection.query(
+                'SELECT user_id, username, email, created_at, bio, location, avatar_url FROM Users WHERE user_id = ?',
+                [userId]
+            );
+            
+            res.status(200).json(users[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating user profile:', error);
+        res.status(500).json({ error: 'Failed to update user profile', details: error.message });
+    }
+});
+
+// PUT /api/users/password - Change user's password
+app.put('/api/users/password', authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Current password and new password are required' });
+        }
+        
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Get current user data to verify password
+            const [users] = await connection.query(
+                'SELECT password_hash FROM Users WHERE user_id = ?',
+                [userId]
+            );
+            
+            if (users.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            // Verify current password
+            const passwordMatch = await bcrypt.compare(currentPassword, users[0].password_hash);
+            if (!passwordMatch) {
+                return res.status(401).json({ error: 'Current password is incorrect' });
+            }
+            
+            // Hash new password
+            const saltRounds = 10;
+            const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+            
+            // Update password
+            const [result] = await connection.query(
+                'UPDATE Users SET password_hash = ? WHERE user_id = ?',
+                [newPasswordHash, userId]
+            );
+            
+            res.status(200).json({ message: 'Password updated successfully' });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating password:', error);
+        res.status(500).json({ error: 'Failed to update password', details: error.message });
+    }
+});
+
+// GET /api/users/activities - Get user's recent activities
+app.get('/api/users/activities', authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        
+        const connection = await pool.getConnection();
+        try {
+            // Get user's recent events created
+            const [createdEvents] = await connection.query(
+                `SELECT 'event_created' AS activity_type, event_id, name, event_date, created_at 
+                FROM Events 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC LIMIT 5`,
+                [userId]
+            );
+            
+            // Get user's recent reviews
+            const [submittedReviews] = await connection.query(
+                `SELECT 'review_submitted' AS activity_type, r.review_id, r.event_id, e.name, r.rating, r.created_at 
+                FROM reviews r
+                JOIN Events e ON r.event_id = e.event_id
+                WHERE r.user_id = ? 
+                ORDER BY r.created_at DESC LIMIT 5`,
+                [userId]
+            );
+            
+            // Combine and sort activities
+            const activities = [...createdEvents, ...submittedReviews]
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 10);
+            
+            res.status(200).json(activities);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching user activities:', error);
+        res.status(500).json({ error: 'Failed to fetch user activities', details: error.message });
+    }
+});
+
+// GET /api/users/activities - Get user's recent activities
+app.get('/api/users/activities', authenticateJWT, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        
+        const connection = await pool.getConnection();
+        try {
+            // Get user's recent events created
+            const [createdEvents] = await connection.query(
+                `SELECT 'event_created' AS activity_type, event_id, name, event_date, created_at 
+                FROM Events 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC LIMIT 5`,
+                [userId]
+            );
+            
+            // Get user's recent reviews
+            const [submittedReviews] = await connection.query(
+                `SELECT 'review_submitted' AS activity_type, r.review_id, r.event_id, e.name, r.rating, r.created_at 
+                FROM reviews r
+                JOIN Events e ON r.event_id = e.event_id
+                WHERE r.user_id = ? 
+                ORDER BY r.created_at DESC LIMIT 5`,
+                [userId]
+            );
+            
+            // Combine and sort activities
+            const activities = [...createdEvents, ...submittedReviews]
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 10);
+            
+            res.status(200).json(activities);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching user activities:', error);
+        res.status(500).json({ error: 'Failed to fetch user activities', details: error.message });
+    }
+});
+
 app.get('/', (req, res) => {
     res.send('Hello from Evently Backend! (Database connection status in console)');
 });
