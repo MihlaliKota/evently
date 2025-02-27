@@ -1,10 +1,24 @@
+// RegisterForm.jsx
 import React, { useState } from 'react';
+import { 
+    TextField, Button, Typography, Box, Alert, 
+    InputAdornment, IconButton, CircularProgress,
+    Paper
+} from '@mui/material';
+import { 
+    Visibility, VisibilityOff, PersonAdd
+} from '@mui/icons-material';
 
 const RegisterForm = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [email, setEmail] = useState('');
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleUsernameChange = (e) => {
         setUsername(e.target.value);
@@ -18,13 +32,33 @@ const RegisterForm = ({ onLoginSuccess }) => {
         setSuccessMessage('');
     };
 
+    const handleConfirmPasswordChange = (e) => {
+        setConfirmPassword(e.target.value);
+        setError('');
+        setSuccessMessage('');
+    };
+
+    const handleEmailChange = (e) => {
+        setEmail(e.target.value);
+        setError('');
+        setSuccessMessage('');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccessMessage('');
+        setLoading(true);
 
-        if (!username || !password) {
-            setError('Username and password are required.');
+        if (!username || !password || !confirmPassword || !email) {
+            setError('All fields are required.');
+            setLoading(false);
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match.');
+            setLoading(false);
             return;
         }
 
@@ -34,24 +68,29 @@ const RegisterForm = ({ onLoginSuccess }) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, email }),
             });
 
             const data = await response.json();
 
             if (response.ok) {
                 // Registration successful
-                setSuccessMessage(data.message || 'Registration successful!');
+                setSuccessMessage(data.message || 'Registration successful! You can now log in.');
                 setError('');
                 setUsername('');
                 setPassword('');
-                console.log('Registration successful:', data);
-
-                // if (onLoginSuccess) {
-                //     onLoginSuccess(username);
-                // }
-
-
+                setConfirmPassword('');
+                setEmail('');
+                
+                // If the API returns a token automatically after registration
+                if (data.token) {
+                    localStorage.setItem('authToken', data.token);
+                    console.log('JWT token stored in localStorage after registration');
+                    
+                    if (onLoginSuccess) {
+                        onLoginSuccess(username);
+                    }
+                }
             } else {
                 // Registration failed
                 setError(data.error || 'Registration failed.');
@@ -63,60 +102,118 @@ const RegisterForm = ({ onLoginSuccess }) => {
             setError('Failed to connect to server. Please try again later.');
             setSuccessMessage('');
             console.error('Fetch error during registration:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div style={{
-            padding: '20px',
-        }}>
-            <h2 style={{ marginBottom: '20px', textAlign: 'center', color: '#333' }}>Register</h2>
-            {successMessage && <p style={{ color: 'green', marginBottom: '15px', fontWeight: 'bold' }}>{successMessage}</p>}
-            {error && <p style={{ color: 'red', marginBottom: '15px', fontWeight: 'bold' }}>{error}</p>}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label htmlFor="username" style={{ marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>Username:</label>
-                    <input
-                        type="text"
-                        id="username"
-                        value={username}
-                        onChange={handleUsernameChange}
-                        style={{
-                            padding: '10px',
-                            borderRadius: '5px',
-                            border: '1px solid #ccc',
-                            fontSize: '1em'
-                        }}
-                    />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label htmlFor="password" style={{ marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>Password:</label>
-                    <input
-                        type="password"
-                        id="password"
-                        value={password}
-                        onChange={handlePasswordChange}
-                        style={{
-                            padding: '10px',
-                            borderRadius: '5px',
-                            border: '1px solid #ccc',
-                            fontSize: '1em'
-                        }}
-                    />
-                </div>
-                <button type="submit" style={{
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    fontSize: '1.1em',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    ':hover': { backgroundColor: '#0056b3' } // Example of hover effect (might not work directly in inline styles)
-                }}>Register</button>
-            </form>
-        </div>
+        <Box>
+            <Typography variant="h5" component="h2" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Create New Account
+            </Typography>
+            
+            {successMessage && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                    {successMessage}
+                </Alert>
+            )}
+            
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                </Alert>
+            )}
+            
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+                <TextField
+                    label="Username"
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={username}
+                    onChange={handleUsernameChange}
+                    disabled={loading}
+                    required
+                    autoFocus
+                />
+                
+                <TextField
+                    label="Email"
+                    type="email"
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={email}
+                    onChange={handleEmailChange}
+                    disabled={loading}
+                    required
+                />
+                
+                <TextField
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    disabled={loading}
+                    required
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    edge="end"
+                                >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        )
+                    }}
+                />
+                
+                <TextField
+                    label="Confirm Password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={confirmPassword}
+                    onChange={handleConfirmPasswordChange}
+                    disabled={loading}
+                    required
+                    error={password !== confirmPassword && confirmPassword !== ''}
+                    helperText={password !== confirmPassword && confirmPassword !== '' ? 'Passwords do not match' : ''}
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    edge="end"
+                                >
+                                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        )
+                    }}
+                />
+                
+                <Button
+                    type="submit"
+                    variant="contained"
+                    color="secondary"
+                    fullWidth
+                    size="large"
+                    disabled={loading}
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PersonAdd />}
+                    sx={{ mt: 3, mb: 2, py: 1.5, fontWeight: 'bold' }}
+                >
+                    {loading ? 'Registering...' : 'Create Account'}
+                </Button>
+            </Box>
+        </Box>
     );
 };
 

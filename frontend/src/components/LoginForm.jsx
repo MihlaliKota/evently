@@ -1,10 +1,21 @@
+// LoginForm.jsx
 import React, { useState } from 'react';
+import { 
+    TextField, Button, Typography, Box, Alert, 
+    InputAdornment, IconButton, CircularProgress,
+    Paper
+} from '@mui/material';
+import { 
+    Visibility, VisibilityOff, Login as LoginIcon
+} from '@mui/icons-material';
 
 const LoginForm = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleUsernameChange = (e) => {
         setUsername(e.target.value);
@@ -22,9 +33,11 @@ const LoginForm = ({ onLoginSuccess }) => {
         e.preventDefault();
         setError('');
         setSuccessMessage('');
+        setLoading(true);
 
         if (!username || !password) {
             setError('Username and password are required.');
+            setLoading(false);
             return;
         }
 
@@ -66,60 +79,80 @@ const LoginForm = ({ onLoginSuccess }) => {
             setError('Failed to connect to server. Please try again later.');
             setSuccessMessage('');
             console.error('Fetch error during login:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div style={{
-            padding: '20px',
-        }}>
-            <h2 style={{ marginBottom: '20px', textAlign: 'center', color: '#333' }}>Login</h2>
-            {successMessage && <p style={{ color: 'green', marginBottom: '15px', fontWeight: 'bold' }}>{successMessage}</p>}
-            {error && <p style={{ color: 'red', marginBottom: '15px', fontWeight: 'bold' }}>{error}</p>}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label htmlFor="loginUsername" style={{ marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>Username:</label>
-                    <input
-                        type="text"
-                        id="loginUsername"
-                        value={username}
-                        onChange={handleUsernameChange}
-                        style={{
-                            padding: '10px',
-                            borderRadius: '5px',
-                            border: '1px solid #ccc',
-                            fontSize: '1em'
-                        }}
-                    />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label htmlFor="loginPassword" style={{ marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>Password:</label>
-                    <input
-                        type="password"
-                        id="loginPassword"
-                        value={password}
-                        onChange={handlePasswordChange}
-                        style={{
-                            padding: '10px',
-                            borderRadius: '5px',
-                            border: '1px solid #ccc',
-                            fontSize: '1em'
-                        }}
-                    />
-                </div>
-                <button type="submit" style={{
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    fontSize: '1.1em',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    ':hover': { backgroundColor: '#0056b3' } // Example of hover effect (might not work directly in inline styles, will need CSS for better hover)
-                }}>Login</button>
-            </form>
-        </div>
+        <Box>
+            <Typography variant="h5" component="h2" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Login to Your Account
+            </Typography>
+            
+            {successMessage && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                    {successMessage}
+                </Alert>
+            )}
+            
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                </Alert>
+            )}
+            
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+                <TextField
+                    label="Username"
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={username}
+                    onChange={handleUsernameChange}
+                    disabled={loading}
+                    required
+                    autoFocus
+                />
+                
+                <TextField
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    disabled={loading}
+                    required
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    edge="end"
+                                >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        )
+                    }}
+                />
+                
+                <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    size="large"
+                    disabled={loading}
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
+                    sx={{ mt: 3, mb: 2, py: 1.5, fontWeight: 'bold' }}
+                >
+                    {loading ? 'Logging in...' : 'Login'}
+                </Button>
+            </Box>
+        </Box>
     );
 };
 
