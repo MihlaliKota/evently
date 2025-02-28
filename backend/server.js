@@ -1062,6 +1062,117 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
     }
 });
 
+// Add these endpoints to your server.js file after the existing dashboard API endpoints
+
+// GET /api/calendar/events - Get events within a date range
+app.get('/api/calendar/events', authenticateJWT, async (req, res) => {
+    try {
+        // Get date range from query parameters
+        const { start_date, end_date, category_id } = req.query;
+        
+        // Validate dates
+        if (!start_date || !end_date) {
+            return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            let query = `
+                SELECT e.*, c.category_name 
+                FROM Events e
+                LEFT JOIN EventCategories c ON e.category_id = c.category_id
+                WHERE e.event_date BETWEEN ? AND ?
+            `;
+            
+            const queryParams = [start_date, end_date];
+            
+            // Add category filter if provided
+            if (category_id && category_id !== 'all') {
+                query += ' AND e.category_id = ?';
+                queryParams.push(category_id);
+            }
+            
+            // Order by date
+            query += ' ORDER BY e.event_date ASC';
+            
+            const [events] = await connection.query(query, queryParams);
+            
+            res.status(200).json(events);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching calendar events:', error);
+        res.status(500).json({ error: 'Failed to fetch calendar events', details: error.message });
+    }
+});
+
+// GET /api/calendar/events/:date - Get events for a specific date
+app.get('/api/calendar/events/:date', authenticateJWT, async (req, res) => {
+    try {
+        const date = req.params.date; // Format: YYYY-MM-DD
+        
+        if (!date) {
+            return res.status(400).json({ error: 'Date parameter is required' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Get events for the specific date 
+            // Using DATE() to extract just the date part from event_date
+            const [events] = await connection.query(`
+                SELECT e.*, c.category_name 
+                FROM Events e
+                LEFT JOIN EventCategories c ON e.category_id = c.category_id
+                WHERE DATE(e.event_date) = DATE(?)
+                ORDER BY e.event_date ASC
+            `, [date]);
+            
+            res.status(200).json(events);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching events for date:', error);
+        res.status(500).json({ error: 'Failed to fetch events for date', details: error.message });
+    }
+});
+
+// GET /api/calendar/dates-with-events - Get all dates that have events within a month
+app.get('/api/calendar/dates-with-events', authenticateJWT, async (req, res) => {
+    try {
+        // Get year and month from query parameters (e.g., year=2024&month=7 for July 2024)
+        const { year, month } = req.query;
+        
+        if (!year || !month) {
+            return res.status(400).json({ error: 'Year and month parameters are required' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Extract dates with events for the specified month
+            // Use DATE() to get just the date part
+            const [results] = await connection.query(`
+                SELECT DISTINCT DATE(event_date) as date
+                FROM Events
+                WHERE YEAR(event_date) = ? 
+                AND MONTH(event_date) = ?
+                ORDER BY date ASC
+            `, [year, month]);
+            
+            // Extract just the dates
+            const dates = results.map(row => row.date);
+            
+            res.status(200).json(dates);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching dates with events:', error);
+        res.status(500).json({ error: 'Failed to fetch dates with events', details: error.message });
+    }
+});
+
 app.get('/', (req, res) => {
     res.send('Hello from Evently Backend! (Database connection status in console)');
 });

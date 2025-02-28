@@ -3,7 +3,8 @@ import LogoutButton from './components/LogOutButton';
 import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
-import UserProfile from './components/UserProfile'; // Import UserProfile component
+import UserProfile from './components/UserProfile';
+import SimpleEventCalendar from './components/SimpleEventCalendar';
 
 // Material UI Components
 import {
@@ -13,7 +14,7 @@ import {
 } from '@mui/material';
 import {
     Brightness4, Brightness7, Dashboard as DashboardIcon,
-    EventNote, AccountCircle, Menu as MenuIcon
+    EventNote, AccountCircle, Menu as MenuIcon, CalendarMonth
 } from '@mui/icons-material';
 
 function App() {
@@ -33,6 +34,21 @@ function App() {
                 setUsername(savedUsername);
             }
         }
+    }, []);
+
+    // Add event listener for navigation events
+    useEffect(() => {
+        const handleNavigation = (event) => {
+            if (event.detail && typeof event.detail === 'string') {
+                setActivePage(event.detail);
+            }
+        };
+        
+        window.addEventListener('navigate', handleNavigation);
+        
+        return () => {
+            window.removeEventListener('navigate', handleNavigation);
+        };
     }, []);
 
     const handleLoginSuccess = (loggedInUsername) => {
@@ -118,8 +134,9 @@ function App() {
             );
         } else if (activePage === 'events') {
             return <EventsList />;
+        } else if (activePage === 'calendar') {
+            return <SimpleEventCalendar />;
         } else if (activePage === 'profile') {
-            // Replace the simple profile view with the full UserProfile component
             return <UserProfile />;
         }
     };
@@ -127,6 +144,7 @@ function App() {
     const sidebarItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, page: 'dashboard' },
         { text: 'Events', icon: <EventNote />, page: 'events' },
+        { text: 'Calendar', icon: <CalendarMonth />, page: 'calendar' },
         { text: 'Profile', icon: <AccountCircle />, page: 'profile' },
     ];
 
@@ -214,14 +232,13 @@ function App() {
             )}
 
             <Container
-                maxWidth={false} // Change from "lg" to false to allow full width
+                maxWidth={false}
                 sx={{
                     mt: 4,
                     mb: 8,
                     display: 'flex',
                     flexDirection: 'column',
-                    // Remove alignItems: 'center' to allow content to expand
-                    width: '100%', // Ensure container takes full width
+                    width: '100%',
                     px: { xs: 2, sm: 3 }
                 }}
             >

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Container, Typography, Box, Grid, Card, CardContent, 
+import {
+    Container, Typography, Box, Grid, Card, CardContent,
     CardMedia, CardActions, Button, Chip, IconButton,
     Skeleton, Alert, Divider, CircularProgress, Avatar
 } from '@mui/material';
-import { 
-    LocationOn, AccessTime, CalendarToday, 
+import {
+    LocationOn, AccessTime, CalendarToday,
     Share, BookmarkBorder, Bookmark, FavoriteBorder, Favorite
 } from '@mui/icons-material';
 
@@ -73,7 +73,7 @@ function EventsList() {
 
     const renderEvents = () => {
         const displayEvents = loading && events.length === 0 ? sampleEvents : events;
-        
+
         if (displayEvents.length === 0 && !loading) {
             return (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -91,10 +91,10 @@ function EventsList() {
             <Grid container spacing={3}>
                 {displayEvents.map(event => (
                     <Grid item xs={12} sm={6} md={4} key={event.event_id}>
-                        <Card 
-                            sx={{ 
-                                height: '100%', 
-                                display: 'flex', 
+                        <Card
+                            sx={{
+                                height: '100%',
+                                display: 'flex',
                                 flexDirection: 'column',
                                 transition: 'transform 0.2s, box-shadow 0.2s',
                                 '&:hover': {
@@ -128,21 +128,21 @@ function EventsList() {
                                         <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
                                             <IconButton
                                                 onClick={() => toggleFavorite(event.event_id)}
-                                                sx={{ 
+                                                sx={{
                                                     bgcolor: 'rgba(255,255,255,0.8)',
                                                     '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' }
                                                 }}
                                                 size="small"
                                             >
-                                                {favorites[event.event_id] ? 
-                                                    <Favorite color="error" /> : 
+                                                {favorites[event.event_id] ?
+                                                    <Favorite color="error" /> :
                                                     <FavoriteBorder />
                                                 }
                                             </IconButton>
                                         </Box>
-                                        <Typography 
-                                            variant="h6" 
-                                            component="h2" 
+                                        <Typography
+                                            variant="h6"
+                                            component="h2"
                                             gutterBottom
                                             sx={{ fontWeight: 'bold' }}
                                         >
@@ -171,10 +171,10 @@ function EventsList() {
                                 {loading ? (
                                     <Skeleton variant="rectangular" height={36} width={120} />
                                 ) : (
-                                    <Button 
-                                        variant="contained" 
-                                        size="small" 
-                                        color="primary" 
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        color="primary"
                                         sx={{ borderRadius: 4, px: 2 }}
                                     >
                                         View Details
@@ -191,35 +191,41 @@ function EventsList() {
     return (
         <Container maxWidth={false} sx={{ width: '100%' }}>
             <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography 
-                    variant="h4" 
-                    component="h1" 
+                <Typography
+                    variant="h4"
+                    component="h1"
                     sx={{ fontWeight: 'bold' }}
                 >
                     Upcoming Events
                 </Typography>
-                <Button 
-                    variant="outlined" 
-                    color="primary" 
+                <Button
+                    variant="outlined"
+                    color="primary"
                     startIcon={<CalendarToday />}
+                    onClick={() => {
+                        // Dispatch a custom event to navigate to the calendar
+                        window.dispatchEvent(new CustomEvent('navigate', {
+                            detail: 'calendar'
+                        }));
+                    }}
                 >
                     View Calendar
                 </Button>
             </Box>
-            
+
             {error && (
-                <Alert 
-                    severity="error" 
+                <Alert
+                    severity="error"
                     sx={{ mb: 4 }}
                 >
                     Error loading events: {error.message}
                 </Alert>
             )}
-            
+
             {loading && events.length === 0 && (
                 <Box sx={{ position: 'relative' }}>
-                    <Box 
-                        sx={{ 
+                    <Box
+                        sx={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
@@ -240,7 +246,7 @@ function EventsList() {
                     </Box>
                 </Box>
             )}
-            
+
             {renderEvents()}
         </Container>
     );
