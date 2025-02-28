@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, Typography, Grid, Card, CardContent, 
-    Divider, CircularProgress, Paper, 
+import {
+    Box, Typography, Grid, Card, CardContent,
+    Divider, CircularProgress, Paper,
     List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
     Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
     Button
 } from '@mui/material';
-import { 
+import {
     EventAvailable, People, CalendarToday, Check,
     Event, History, Star, Comment
 } from '@mui/icons-material';
@@ -51,9 +51,17 @@ function Dashboard({ username }) {
                     'Content-Type': 'application/json'
                 };
 
-                console.log('Dashboard: Fetching dashboard data');
+                console.log('Dashboard: Fetching all events');
 
-                // Fetch stats with full URL
+                // Fetch all events from a single endpoint
+                const eventsResponse = await fetch('http://localhost:5000/api/events', { headers });
+                if (!eventsResponse.ok) {
+                    console.error('Events fetch error:', eventsResponse.status);
+                    throw new Error('Failed to fetch events');
+                }
+                const eventsData = await eventsResponse.json();
+
+                // Fetch stats
                 const statsResponse = await fetch('http://localhost:5000/api/dashboard/stats', { headers });
                 if (!statsResponse.ok) {
                     console.error('Stats fetch error:', statsResponse.status);
@@ -61,31 +69,31 @@ function Dashboard({ username }) {
                 }
                 const statsData = await statsResponse.json();
                 setStats(statsData);
-                
-                // Fetch upcoming events with full URL
-                const upcomingEventsResponse = await fetch('http://localhost:5000/api/events/upcoming', { headers });
-                if (!upcomingEventsResponse.ok) {
-                    console.error('Upcoming events fetch error:', upcomingEventsResponse.status);
-                    throw new Error('Failed to fetch upcoming events');
-                }
-                const upcomingEventsData = await upcomingEventsResponse.json();
-                setUpcomingEvents(upcomingEventsData);
-                
-                // Fetch past events with review info with full URL
-                const pastEventsResponse = await fetch('http://localhost:5000/api/events/past', { headers });
-                if (!pastEventsResponse.ok) {
-                    console.error('Past events fetch error:', pastEventsResponse.status);
-                    throw new Error('Failed to fetch past events');
-                }
-                const pastEventsData = await pastEventsResponse.json();
-                setPastEvents(pastEventsData);
+
+                // Categorize events by date
+                const upcomingEvents = eventsData.filter(event => {
+                    const eventDate = new Date(event.event_date);
+                    const today = new Date();
+                    return eventDate >= today;
+                });
+
+                const pastEvents = eventsData.filter(event => {
+                    const eventDate = new Date(event.event_date);
+                    const today = new Date();
+                    return eventDate < today;
+                });
+
+                // Set events
+                setUpcomingEvents(upcomingEvents);
+                setPastEvents(pastEvents);
+
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
             } finally {
                 setLoading(false);
             }
         };
-        
+
         fetchDashboardData();
     }, []);
 
@@ -171,168 +179,184 @@ function Dashboard({ username }) {
             </Box>
 
             {/* Stats Cards */}
-<Grid container spacing={3} sx={{ mb: 4 }}>
-    <Grid item xs={12} sm={6} lg={3}>
-        <Card sx={{ height: '100%', borderRadius: 2 }}>
-            <CardContent>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                        <CircularProgress size={30} />
-                    </Box>
-                ) : (
-                    <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Box sx={{ 
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: 40, 
-                                height: 40, 
-                                borderRadius: '50%', 
-                                bgcolor: 'primary.light', 
-                                color: 'primary.main', 
-                                mr: 2 
-                            }}>
-                                <EventAvailable sx={{ fontSize: 20 }} />
-                            </Box>
-                            <Typography color="text.secondary" variant="body2">
-                                Total Events
-                            </Typography>
-                        </Box>
-                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                            {stats.totalEvents}
-                        </Typography>
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    </Grid>
-    
-    <Grid item xs={12} sm={6} lg={3}>
-        <Card sx={{ height: '100%', borderRadius: 2 }}>
-            <CardContent>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                        <CircularProgress size={30} />
-                    </Box>
-                ) : (
-                    <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Box sx={{ 
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: 40, 
-                                height: 40, 
-                                borderRadius: '50%', 
-                                bgcolor: 'secondary.light', 
-                                color: 'secondary.main', 
-                                mr: 2 
-                            }}>
-                                <CalendarToday sx={{ fontSize: 20 }} />
-                            </Box>
-                            <Typography color="text.secondary" variant="body2">
-                                Upcoming Events
-                            </Typography>
-                        </Box>
-                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                            {stats.upcomingEvents}
-                        </Typography>
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    </Grid>
-    
-    <Grid item xs={12} sm={6} lg={3}>
-        <Card sx={{ height: '100%', borderRadius: 2 }}>
-            <CardContent>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                        <CircularProgress size={30} />
-                    </Box>
-                ) : (
-                    <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Box sx={{ 
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: 40, 
-                                height: 40, 
-                                borderRadius: '50%', 
-                                bgcolor: 'info.light', 
-                                color: 'info.main', 
-                                mr: 2 
-                            }}>
-                                <People sx={{ fontSize: 20 }} />
-                            </Box>
-                            <Typography color="text.secondary" variant="body2">
-                                Total Attendees
-                            </Typography>
-                        </Box>
-                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                            {stats.totalAttendees}
-                        </Typography>
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    </Grid>
-    
-    <Grid item xs={12} sm={6} lg={3}>
-        <Card sx={{ height: '100%', borderRadius: 2 }}>
-            <CardContent>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                        <CircularProgress size={30} />
-                    </Box>
-                ) : (
-                    <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Box sx={{ 
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: 40, 
-                                height: 40, 
-                                borderRadius: '50%', 
-                                bgcolor: 'success.light', 
-                                color: 'success.main', 
-                                mr: 2 
-                            }}>
-                                <Check sx={{ fontSize: 20 }} />
-                            </Box>
-                            <Typography color="text.secondary" variant="body2">
-                                Completed Events
-                            </Typography>
-                        </Box>
-                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                            {stats.completedEvents}
-                        </Typography>
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    </Grid>
-</Grid>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+                <Grid item xs={12} sm={6} lg={3}>
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
+                        <CardContent>
+                            {loading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                    <CircularProgress size={30} />
+                                </Box>
+                            ) : (
+                                <>
+                                    <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        mb: 2
+                                    }}>
+                                        <Box sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '50%',
+                                            bgcolor: 'primary.light',
+                                            color: 'primary.main',
+                                            mr: 2
+                                        }}>
+                                            <EventAvailable sx={{ fontSize: 20 }} />
+                                        </Box>
+                                        <Typography color="text.secondary" variant="body2">
+                                            Total Events
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                                        {stats.totalEvents}
+                                    </Typography>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} lg={3}>
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
+                        <CardContent>
+                            {loading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                    <CircularProgress size={30} />
+                                </Box>
+                            ) : (
+                                <>
+                                    <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        mb: 2
+                                    }}>
+                                        <Box sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '50%',
+                                            bgcolor: 'secondary.light',
+                                            color: 'secondary.main',
+                                            mr: 2
+                                        }}>
+                                            <CalendarToday sx={{ fontSize: 20 }} />
+                                        </Box>
+                                        <Typography color="text.secondary" variant="body2">
+                                            Upcoming Events
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                                        {upcomingEvents.length}
+                                    </Typography>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} lg={3}>
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
+                        <CardContent>
+                            {loading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                    <CircularProgress size={30} />
+                                </Box>
+                            ) : (
+                                <>
+                                    <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        mb: 2
+                                    }}>
+                                        <Box sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '50%',
+                                            bgcolor: 'info.light',
+                                            color: 'info.main',
+                                            mr: 2
+                                        }}>
+                                            <People sx={{ fontSize: 20 }} />
+                                        </Box>
+                                        <Typography color="text.secondary" variant="body2">
+                                            Total Attendees
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                                        {stats.totalAttendees}
+                                    </Typography>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} lg={3}>
+                    <Card sx={{ height: '100%', borderRadius: 2 }}>
+                        <CardContent>
+                            {loading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                    <CircularProgress size={30} />
+                                </Box>
+                            ) : (
+                                <>
+                                    <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        mb: 2
+                                    }}>
+                                        <Box sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '50%',
+                                            bgcolor: 'success.light',
+                                            color: 'success.main',
+                                            mr: 2
+                                        }}>
+                                            <Check sx={{ fontSize: 20 }} />
+                                        </Box>
+                                        <Typography color="text.secondary" variant="body2">
+                                            Completed Events
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                                        {pastEvents.length}
+                                    </Typography>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
 
             {/* Events Tabs */}
             <Box sx={{ mb: 2 }}>
-                <Tabs 
-                    value={eventTab} 
-                    onChange={handleTabChange} 
+                <Tabs
+                    value={eventTab}
+                    onChange={handleTabChange}
                     aria-label="event tabs"
                     sx={{ borderBottom: 1, borderColor: 'divider' }}
                 >
-                    <Tab 
-                        label="Upcoming Events" 
-                        icon={<CalendarToday fontSize="small" />} 
+                    <Tab
+                        label="Upcoming Events"
+                        icon={<CalendarToday fontSize="small" />}
                         iconPosition="start"
                     />
-                    <Tab 
-                        label="Past Events" 
-                        icon={<History fontSize="small" />} 
+                    <Tab
+                        label="Past Events"
+                        icon={<History fontSize="small" />}
                         iconPosition="start"
                     />
                 </Tabs>
@@ -375,8 +399,8 @@ function Dashboard({ username }) {
                                                     }
                                                 />
                                                 <ListItemSecondaryAction>
-                                                    <Chip 
-                                                        label={daysRemaining > 0 ? `${daysRemaining} days left` : 'Today!'} 
+                                                    <Chip
+                                                        label={daysRemaining > 0 ? `${daysRemaining} days left` : 'Today!'}
                                                         color={daysRemaining <= 1 ? "error" : daysRemaining <= 3 ? "warning" : "primary"}
                                                         size="small"
                                                     />
@@ -408,7 +432,7 @@ function Dashboard({ username }) {
                             <List disablePadding>
                                 {pastEvents.map((event, index) => (
                                     <React.Fragment key={event.event_id}>
-                                        <ListItem 
+                                        <ListItem
                                             sx={{ px: 3, py: 2, cursor: 'pointer' }}
                                             onClick={() => handleOpenReviews(event)}
                                         >
@@ -441,9 +465,9 @@ function Dashboard({ username }) {
                                                 }
                                             />
                                             <ListItemSecondaryAction>
-                                                <Chip 
+                                                <Chip
                                                     icon={<Comment fontSize="small" />}
-                                                    label={event.review_count > 0 ? `${event.review_count} Reviews` : "No Reviews"} 
+                                                    label={event.review_count > 0 ? `${event.review_count} Reviews` : "No Reviews"}
                                                     color={event.review_count > 0 ? "primary" : "default"}
                                                     size="small"
                                                     onClick={(e) => {
@@ -469,8 +493,8 @@ function Dashboard({ username }) {
             </Box>
 
             {/* Reviews Dialog */}
-            <Dialog 
-                open={openReviewsDialog} 
+            <Dialog
+                open={openReviewsDialog}
                 onClose={handleCloseReviews}
                 fullWidth
                 maxWidth="md"
@@ -484,10 +508,10 @@ function Dashboard({ username }) {
                             </Typography>
                             {selectedEvent.review_count > 0 && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                    <Rating 
-                                        value={parseFloat(selectedEvent.avg_rating) || 0} 
-                                        precision={0.1} 
-                                        readOnly 
+                                    <Rating
+                                        value={parseFloat(selectedEvent.avg_rating) || 0}
+                                        precision={0.1}
+                                        readOnly
                                         size="small"
                                     />
                                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
