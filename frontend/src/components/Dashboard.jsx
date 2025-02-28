@@ -171,111 +171,151 @@ function Dashboard({ username }) {
             </Box>
 
             {/* Stats Cards */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item xs={12} sm={6} lg={3}>
-                    <Card sx={{ height: '100%', borderRadius: 2 }}>
-                        <CardContent>
-                            {loading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <CircularProgress size={30} />
-                                </Box>
-                            ) : (
-                                <>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'primary.light', color: 'primary.main', mr: 2 }}>
-                                            <EventAvailable />
-                                        </Box>
-                                        <Typography color="text.secondary" variant="body2">
-                                            Total Events
-                                        </Typography>
-                                    </Box>
-                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                        {stats.totalEvents}
-                                    </Typography>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-                
-                <Grid item xs={12} sm={6} lg={3}>
-                    <Card sx={{ height: '100%', borderRadius: 2 }}>
-                        <CardContent>
-                            {loading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <CircularProgress size={30} />
-                                </Box>
-                            ) : (
-                                <>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'secondary.light', color: 'secondary.main', mr: 2 }}>
-                                            <CalendarToday />
-                                        </Box>
-                                        <Typography color="text.secondary" variant="body2">
-                                            Upcoming Events
-                                        </Typography>
-                                    </Box>
-                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                        {stats.upcomingEvents}
-                                    </Typography>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-                
-                <Grid item xs={12} sm={6} lg={3}>
-                    <Card sx={{ height: '100%', borderRadius: 2 }}>
-                        <CardContent>
-                            {loading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <CircularProgress size={30} />
-                                </Box>
-                            ) : (
-                                <>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'info.light', color: 'info.main', mr: 2 }}>
-                                            <People />
-                                        </Box>
-                                        <Typography color="text.secondary" variant="body2">
-                                            Total Attendees
-                                        </Typography>
-                                    </Box>
-                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                        {stats.totalAttendees}
-                                    </Typography>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-                
-                <Grid item xs={12} sm={6} lg={3}>
-                    <Card sx={{ height: '100%', borderRadius: 2 }}>
-                        <CardContent>
-                            {loading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <CircularProgress size={30} />
-                                </Box>
-                            ) : (
-                                <>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'success.light', color: 'success.main', mr: 2 }}>
-                                            <Check />
-                                        </Box>
-                                        <Typography color="text.secondary" variant="body2">
-                                            Completed Events
-                                        </Typography>
-                                    </Box>
-                                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                        {stats.completedEvents}
-                                    </Typography>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
+<Grid container spacing={3} sx={{ mb: 4 }}>
+    <Grid item xs={12} sm={6} lg={3}>
+        <Card sx={{ height: '100%', borderRadius: 2 }}>
+            <CardContent>
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                        <CircularProgress size={30} />
+                    </Box>
+                ) : (
+                    <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 40, 
+                                height: 40, 
+                                borderRadius: '50%', 
+                                bgcolor: 'primary.light', 
+                                color: 'primary.main', 
+                                mr: 2 
+                            }}>
+                                <EventAvailable sx={{ fontSize: 20 }} />
+                            </Box>
+                            <Typography color="text.secondary" variant="body2">
+                                Total Events
+                            </Typography>
+                        </Box>
+                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                            {stats.totalEvents}
+                        </Typography>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    </Grid>
+    
+    <Grid item xs={12} sm={6} lg={3}>
+        <Card sx={{ height: '100%', borderRadius: 2 }}>
+            <CardContent>
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                        <CircularProgress size={30} />
+                    </Box>
+                ) : (
+                    <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 40, 
+                                height: 40, 
+                                borderRadius: '50%', 
+                                bgcolor: 'secondary.light', 
+                                color: 'secondary.main', 
+                                mr: 2 
+                            }}>
+                                <CalendarToday sx={{ fontSize: 20 }} />
+                            </Box>
+                            <Typography color="text.secondary" variant="body2">
+                                Upcoming Events
+                            </Typography>
+                        </Box>
+                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                            {stats.upcomingEvents}
+                        </Typography>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    </Grid>
+    
+    <Grid item xs={12} sm={6} lg={3}>
+        <Card sx={{ height: '100%', borderRadius: 2 }}>
+            <CardContent>
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                        <CircularProgress size={30} />
+                    </Box>
+                ) : (
+                    <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 40, 
+                                height: 40, 
+                                borderRadius: '50%', 
+                                bgcolor: 'info.light', 
+                                color: 'info.main', 
+                                mr: 2 
+                            }}>
+                                <People sx={{ fontSize: 20 }} />
+                            </Box>
+                            <Typography color="text.secondary" variant="body2">
+                                Total Attendees
+                            </Typography>
+                        </Box>
+                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                            {stats.totalAttendees}
+                        </Typography>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    </Grid>
+    
+    <Grid item xs={12} sm={6} lg={3}>
+        <Card sx={{ height: '100%', borderRadius: 2 }}>
+            <CardContent>
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                        <CircularProgress size={30} />
+                    </Box>
+                ) : (
+                    <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 40, 
+                                height: 40, 
+                                borderRadius: '50%', 
+                                bgcolor: 'success.light', 
+                                color: 'success.main', 
+                                mr: 2 
+                            }}>
+                                <Check sx={{ fontSize: 20 }} />
+                            </Box>
+                            <Typography color="text.secondary" variant="body2">
+                                Completed Events
+                            </Typography>
+                        </Box>
+                        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                            {stats.completedEvents}
+                        </Typography>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    </Grid>
+</Grid>
 
             {/* Events Tabs */}
             <Box sx={{ mb: 2 }}>
