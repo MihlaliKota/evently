@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import LogoutButton from './components/LogOutButton';
 import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
@@ -43,9 +42,9 @@ function App() {
                 setActivePage(event.detail);
             }
         };
-        
+
         window.addEventListener('navigate', handleNavigation);
-        
+
         return () => {
             window.removeEventListener('navigate', handleNavigation);
         };
@@ -127,9 +126,6 @@ function App() {
             return (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                     <Dashboard username={username} />
-                    <Box sx={{ mt: 4, width: '100%', maxWidth: 'md' }}>
-                        <EventsList />
-                    </Box>
                 </Box>
             );
         } else if (activePage === 'events') {
