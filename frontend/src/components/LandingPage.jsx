@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
 import { 
     Box, Typography, Paper, Grid, Container, useTheme,
-    Card, CardContent, CardMedia, Button, Stack, Divider
+    Card, CardContent, CardMedia, Button, Stack, Divider,
+    Tabs, Tab
 } from '@mui/material';
 import { 
     EventAvailable, Security, People, BarChart,
@@ -47,6 +48,11 @@ const FeatureCard = ({ icon, title, description }) => {
 
 const LandingPage = ({ onLoginSuccess }) => {
     const theme = useTheme();
+    const [authTab, setAuthTab] = useState(0);
+
+    const handleAuthTabChange = (event, newValue) => {
+        setAuthTab(newValue);
+    };
     
     const features = [
         {
@@ -168,7 +174,7 @@ const LandingPage = ({ onLoginSuccess }) => {
                     Get Started Today
                 </Typography>
                 <Grid container spacing={4} justifyContent="center">
-                    <Grid item xs={12} md={5}>
+                    <Grid item xs={12} md={6}>
                         <Paper 
                             elevation={3} 
                             sx={{ 
@@ -181,23 +187,20 @@ const LandingPage = ({ onLoginSuccess }) => {
                                 }
                             }}
                         >
-                            <RegisterForm onLoginSuccess={onLoginSuccess} />
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={12} md={5}>
-                        <Paper 
-                            elevation={3} 
-                            sx={{ 
-                                p: 4, 
-                                height: '100%',
-                                borderRadius: 2,
-                                transition: 'transform 0.3s',
-                                '&:hover': {
-                                    transform: 'scale(1.02)',
-                                }
-                            }}
-                        >
-                            <LoginForm onLoginSuccess={onLoginSuccess} />
+                            <Tabs 
+                                value={authTab} 
+                                onChange={handleAuthTabChange} 
+                                centered 
+                                sx={{ mb: 3 }}
+                            >
+                                <Tab label="Login" />
+                                <Tab label="Create Account" />
+                            </Tabs>
+                            {authTab === 0 ? (
+                                <LoginForm onLoginSuccess={onLoginSuccess} />
+                            ) : (
+                                <RegisterForm onLoginSuccess={onLoginSuccess} />
+                            )}
                         </Paper>
                     </Grid>
                 </Grid>
@@ -207,7 +210,7 @@ const LandingPage = ({ onLoginSuccess }) => {
             <Divider sx={{ my: 4 }} />
             <Box component="footer" sx={{ py: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                    &copy; 2024 Evently. All rights reserved.
+                    &copy; 2025 Evently. All rights reserved.
                 </Typography>
             </Box>
         </Container>
