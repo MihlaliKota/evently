@@ -4,21 +4,26 @@ import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
 import UserProfile from './components/UserProfile';
 import SimpleEventCalendar from './components/SimpleEventCalendar';
+import AdminDashboard from './components/AdminDashboard';
+import EventsManagement from './components/EventsManagement';
+import ReviewManagement from './components/ReviewManagement';
 
 // Material UI Components
 import {
     Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline,
     useTheme, ThemeProvider, createTheme, Avatar, Button, Drawer, List,
-    ListItem, ListItemIcon, ListItemText, Divider
+    ListItem, ListItemIcon, ListItemText, Divider, Chip
 } from '@mui/material';
 import {
     Brightness4, Brightness7, Dashboard as DashboardIcon,
-    EventNote, AccountCircle, Menu as MenuIcon, CalendarMonth
+    EventNote, AccountCircle, Menu as MenuIcon, CalendarMonth,
+    Event, Comment
 } from '@mui/icons-material';
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState(null);
+    const [userRole, setUserRole] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [activePage, setActivePage] = useState('dashboard');
@@ -31,6 +36,19 @@ function App() {
             const savedUsername = localStorage.getItem('username');
             if (savedUsername) {
                 setUsername(savedUsername);
+            }
+            
+            // Get the user role from the JWT token
+            try {
+                // JWT token consists of three parts separated by dots
+                const payload = token.split('.')[1];
+                // Decode the base64 payload
+                const decodedPayload = JSON.parse(atob(payload));
+                // Set the user role
+                setUserRole(decodedPayload.role || 'user');
+            } catch (error) {
+                console.error('Error decoding JWT token:', error);
+                setUserRole('user'); // Default to user role
             }
         }
     }, []);
@@ -50,9 +68,10 @@ function App() {
         };
     }, []);
 
-    const handleLoginSuccess = (loggedInUsername) => {
+    const handleLoginSuccess = (loggedInUsername, role = 'user') => {
         setIsLoggedIn(true);
         setUsername(loggedInUsername);
+        setUserRole(role);
         localStorage.setItem('username', loggedInUsername);
     };
 
@@ -61,6 +80,8 @@ function App() {
         localStorage.removeItem('username');
         setIsLoggedIn(false);
         setUsername(null);
+        setUserRole(null);
+        setActivePage('dashboard');
         console.log('JWT token removed from localStorage. User logged out.');
     };
 
@@ -134,7 +155,35 @@ function App() {
             return <SimpleEventCalendar />;
         } else if (activePage === 'profile') {
             return <UserProfile />;
+        } 
+        // Admin routes
+        else if (activePage === 'admin-dashboard' && userRole === 'admin') {
+            return <AdminDashboard />;
+        } else if (activePage === 'events-management' && userRole === 'admin') {
+            return <EventsManagement />;
+        } else if (activePage === 'reviews-management' && userRole === 'admin') {
+            return <ReviewManagement />;
+        } else {
+            // Fallback to dashboard if page not found or not authorized
+            return (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                    <Dashboard username={username} />
+                </Box>
+            );
         }
+    };
+
+    const AdminBadge = () => {
+        if (userRole !== 'admin') return null;
+        
+        return (
+            <Chip
+                label="Admin"
+                color="secondary"
+                size="small"
+                sx={{ ml: 1 }}
+            />
+        );
     };
 
     const sidebarItems = [
@@ -142,6 +191,12 @@ function App() {
         { text: 'Events', icon: <EventNote />, page: 'events' },
         { text: 'Calendar', icon: <CalendarMonth />, page: 'calendar' },
         { text: 'Profile', icon: <AccountCircle />, page: 'profile' },
+        // Admin-only items
+        ...(userRole === 'admin' ? [
+            { text: 'Admin Dashboard', icon: <DashboardIcon />, page: 'admin-dashboard' },
+            { text: 'Events Management', icon: <Event />, page: 'events-management' },
+            { text: 'Reviews Management', icon: <Comment />, page: 'reviews-management' }
+        ] : [])
     ];
 
     return (
@@ -181,6 +236,7 @@ function App() {
                                     }
                                 >
                                     {username || 'User'}
+                                    <AdminBadge />
                                 </Button>
                             </Box>
                         </Toolbar>

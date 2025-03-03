@@ -67,12 +67,35 @@ const authenticateJWT = (req, res, next) => {
     }
 };
 
+// Role-based authorization middleware 
+const authorizeRole = (roles = []) => {
+    // Convert string to array if roles is a single string
+    if (typeof roles === 'string') {
+        roles = [roles];
+    }
+
+    return (req, res, next) => {
+        // Check if user exists and has a role
+        if (!req.user || !req.user.role) {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+
+        // Check if user's role is in the allowed roles
+        if (roles.length && !roles.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Insufficient permissions for this operation' });
+        }
+
+        // User has required role, proceed to next middleware
+        next();
+    };
+};
+
 // ------------------- Authentication API Endpoints -------------------
 
 // POST /api/register - User Registration
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, email, adminCode } = req.body;
 
         // 1. Basic input validation
         if (!username || !password) {
@@ -94,15 +117,25 @@ app.post('/api/register', async (req, res) => {
             const saltRounds = 10; // Recommended salt rounds for bcrypt
             const passwordHash = await bcrypt.hash(password, saltRounds);
 
-            // 4. Insert new user into database - **Include email with a placeholder value**
-            const placeholderEmail = `${username}@example.com`; // Using username as placeholder email
+            // 4. Determine role - check if admin code is correct
+            let role = 'user'; // Default role
+            if (adminCode && adminCode === process.env.ADMIN_CODE) {
+                role = 'admin';
+            }
+
+            // 5. Insert new user into database
+            const userEmail = email || `${username}@example.com`; // Use provided email or a placeholder
             const [result] = await connection.query(
-                'INSERT INTO Users (username, password_hash, email) VALUES (?, ?, ?)', // **Include 'email' in INSERT columns**
-                [username, passwordHash, placeholderEmail] // **Include placeholderEmail in values**
+                'INSERT INTO Users (username, password_hash, email, role) VALUES (?, ?, ?, ?)',
+                [username, passwordHash, userEmail, role]
             );
 
-            // 5. Send success response
-            res.status(201).json({ message: 'User registered successfully', userId: result.insertId }); // 201 Created
+            // 6. Send success response
+            res.status(201).json({ 
+                message: 'User registered successfully', 
+                userId: result.insertId,
+                role: role 
+            }); // 201 Created
 
         } finally {
             connection.release();
@@ -113,8 +146,6 @@ app.post('/api/register', async (req, res) => {
         res.status(500).json({ error: 'Registration failed', details: error.message }); // 500 Internal Server Error
     }
 });
-
-
 
 // POST /api/login - User Login and JWT Generation
 app.post('/api/login', async (req, res) => {
@@ -144,12 +175,21 @@ app.post('/api/login', async (req, res) => {
                 return res.status(401).json({ error: 'Invalid credentials' }); // 401 Unauthorized - incorrect password
             }
 
-            // 4. Generate JWT token
-            const payload = { userId: user.user_id, username: user.username }; // Payload data
+            // 4. Generate JWT token with role included in payload
+            const payload = { 
+                userId: user.user_id, 
+                username: user.username,
+                role: user.role || 'user' // Include the user's role
+            };
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
 
             // 5. Send successful login response with JWT token
-            res.status(200).json({ message: 'Login successful', token: token }); // 200 OK
+            res.status(200).json({ 
+                message: 'Login successful', 
+                token: token,
+                username: user.username,
+                role: user.role || 'user'
+            }); // 200 OK
 
         } finally {
             connection.release();
@@ -174,10 +214,90 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
     });
 });
 
+// ------------------- Admin-Only Endpoints -------------------
+
+// GET /api/admin/stats - Get admin dashboard statistics
+app.get('/api/admin/stats', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Get admin dashboard stats
+            const [stats] = await connection.query(`
+                SELECT 
+                    (SELECT COUNT(*) FROM Events) AS totalEvents,
+                    (SELECT COUNT(*) FROM Users WHERE role = 'user') AS totalUsers,
+                    (SELECT COUNT(*) FROM reviews) AS totalReviews,
+                    (SELECT AVG(rating) FROM reviews) AS avgRating
+            `);
+            
+            res.status(200).json(stats[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching admin stats:', error);
+        res.status(500).json({ error: 'Failed to fetch admin statistics', details: error.message });
+    }
+});
+
+// GET /api/admin/users - List all users (admin only)
+app.get('/api/admin/users', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Get all users (except password hash)
+            const [users] = await connection.query(`
+                SELECT user_id, username, email, bio, created_at, role
+                FROM Users
+                ORDER BY created_at DESC
+            `);
+            
+            res.status(200).json(users);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
+    }
+});
+
+// PUT /api/admin/users/:userId - Update user role (admin only)
+app.put('/api/admin/users/:userId/role', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const { role } = req.body;
+        
+        if (!role || !['user', 'admin'].includes(role)) {
+            return res.status(400).json({ error: 'Valid role is required (user or admin)' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Update user role
+            const [result] = await connection.query(
+                'UPDATE Users SET role = ? WHERE user_id = ?',
+                [role, userId]
+            );
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            res.status(200).json({ message: `User role updated to ${role}` });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        res.status(500).json({ error: 'Failed to update user role', details: error.message });
+    }
+});
+
 // ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
 
 // POST /api/events - Create a new event
-app.post('/api/events', async (req, res) => { // ... (rest of your existing /api/events POST route code - no changes) ...
+app.post('/api/events', async (req, res) => { 
     try {
         // 1. Extract event data from request body
         // Modified line to include user_id from req.body
@@ -225,7 +345,7 @@ app.post('/api/events', async (req, res) => { // ... (rest of your existing /api
 });
 
 // GET /api/events - Get all events - WITH PAGINATION AND SORTING
-app.get('/api/events', async (req, res) => { // ... (rest of your existing /api/events GET route code - no changes) ...
+app.get('/api/events', async (req, res) => { 
     console.log(`GET /api/events - Start processing request, query parameters:`, req.query);
 
     // 1. Pagination parameters (from query parameters, with defaults)
@@ -309,7 +429,7 @@ app.get('/api/events', async (req, res) => { // ... (rest of your existing /api/
 });
 
 // GET /api/events/:eventId - Get details of a specific event by ID
-app.get('/api/events/:eventId', async (req, res) => { // ... (rest of your existing /api/events/:eventId GET route code - no changes) ...
+app.get('/api/events/:eventId', async (req, res) => { 
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId; // Access path parameter using req.params
@@ -347,7 +467,7 @@ app.get('/api/events/:eventId', async (req, res) => { // ... (rest of your exist
 
 
 // PUT /api/events/:eventId - Update an existing event by ID
-app.put('/api/events/:eventId', async (req, res) => { // ... (rest of your existing /api/events/:eventId PUT route code - no changes) ...
+app.put('/api/events/:eventId', async (req, res) => { 
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId;
@@ -409,7 +529,7 @@ app.put('/api/events/:eventId', async (req, res) => { // ... (rest of your exist
 });
 
 // DELETE /api/events/:eventId - Delete an event by ID
-app.delete('/api/events/:eventId', async (req, res) => { // ... (rest of your existing /api/events/:eventId DELETE route code - no changes) ...
+app.delete('/api/events/:eventId', async (req, res) => { 
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId;
@@ -444,7 +564,7 @@ app.delete('/api/events/:eventId', async (req, res) => { // ... (rest of your ex
 });
 
 // POST /api/categories - Create a new event category
-app.post('/api/categories', async (req, res) => { // ... (rest of your existing /api/categories POST route code - no changes) ...
+app.post('/api/categories', async (req, res) => { 
     try {
         // 1. Extract category name from request body
         const { name } = req.body;
@@ -489,7 +609,7 @@ app.post('/api/categories', async (req, res) => { // ... (rest of your existing 
 });
 
 // GET /api/categories - Get all event categories - WITH PAGINATION
-app.get('/api/categories', async (req, res) => { // ... (rest of your existing /api/categories GET route code - no changes) ...
+app.get('/api/categories', async (req, res) => { 
     console.log(`GET /api/categories - Start processing request, query parameters:`, req.query);
 
     // 1. Pagination parameters (from query parameters, with defaults)
@@ -545,7 +665,7 @@ app.get('/api/categories', async (req, res) => { // ... (rest of your existing /
 });
 
 // GET /api/categories/:categoryId - Get details of a specific category by ID
-app.get('/api/categories/:categoryId', async (req, res) => { // ... (rest of your existing /api/categories/:categoryId GET route code - no changes) ...
+app.get('/api/categories/:categoryId', async (req, res) => { 
     try {
         // 1. Extract categoryId from request parameters
         const categoryId = req.params.categoryId; // Access path parameter using req.params
@@ -582,7 +702,7 @@ app.get('/api/categories/:categoryId', async (req, res) => { // ... (rest of you
 });
 
 // PUT /api/categories/:categoryId - Update an existing category by ID
-app.put('/api/categories/:categoryId', async (req, res) => { // ... (rest of your existing /api/categories/:categoryId PUT route code - no changes) ...
+app.put('/api/categories/:categoryId', async (req, res) => { 
     try {
         // 1. Extract categoryId from request parameters
         const categoryId = req.params.categoryId;
@@ -648,7 +768,7 @@ app.put('/api/categories/:categoryId', async (req, res) => { // ... (rest of you
 });
 
 // DELETE /api/categories/:categoryId - Delete a category by ID
-app.delete('/api/categories/:categoryId', async (req, res) => { // ... (rest of your existing /api/categories/:categoryId DELETE route code - no changes) ...
+app.delete('/api/categories/:categoryId', async (req, res) => { 
     console.log(`DELETE /api/categories/${req.params.categoryId} - Start processing request`); // Added log
     try {
         // 1. Extract categoryId from request parameters
@@ -845,6 +965,343 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
     }
 });
 
+// ------------------- Review API Endpoints -------------------
+
+// PUT /api/reviews/:reviewId - Update a review
+app.put('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
+    try {
+        const reviewId = req.params.reviewId;
+        const userId = req.user.userId;
+        const { review_text, rating } = req.body;
+        
+        // Validate rating is between 1-5
+        if (rating !== undefined && (rating < 1 || rating > 5)) {
+            return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Check if review exists and belongs to the user
+            const [reviewCheck] = await connection.query(
+                'SELECT * FROM reviews WHERE review_id = ?',
+                [reviewId]
+            );
+            
+            if (reviewCheck.length === 0) {
+                return res.status(404).json({ error: 'Review not found.' });
+            }
+            
+            // Only allow users to edit their own reviews (unless admin)
+            if (reviewCheck[0].user_id !== userId && req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'You can only edit your own reviews.' });
+            }
+            
+            // Update the review
+            const updateFields = [];
+            const updateValues = [];
+            
+            if (review_text !== undefined) {
+                updateFields.push('review_text = ?');
+                updateValues.push(review_text);
+            }
+            
+            if (rating !== undefined) {
+                updateFields.push('rating = ?');
+                updateValues.push(rating);
+            }
+            
+            if (updateFields.length === 0) {
+                return res.status(400).json({ error: 'No fields to update.' });
+            }
+            
+            // Add review_id to values array for WHERE clause
+            updateValues.push(reviewId);
+            
+            await connection.query(
+                `UPDATE reviews SET ${updateFields.join(', ')} WHERE review_id = ?`,
+                updateValues
+            );
+            
+            // Get the updated review
+            const [updatedReview] = await connection.query(
+                'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
+                [reviewId]
+            );
+            
+            res.status(200).json(updatedReview[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating review:', error);
+        res.status(500).json({ error: 'Failed to update review.', details: error.message });
+    }
+});
+
+// DELETE /api/reviews/:reviewId - Delete a review
+app.delete('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
+    try {
+        const reviewId = req.params.reviewId;
+        const userId = req.user.userId;
+        
+        const connection = await pool.getConnection();
+        try {
+            // Check if review exists and belongs to the user
+            const [reviewCheck] = await connection.query(
+                'SELECT * FROM reviews WHERE review_id = ?',
+                [reviewId]
+            );
+            
+            if (reviewCheck.length === 0) {
+                return res.status(404).json({ error: 'Review not found.' });
+            }
+            
+            // Only allow users to delete their own reviews (unless admin)
+            if (reviewCheck[0].user_id !== userId && req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'You can only delete your own reviews.' });
+            }
+            
+            // Delete the review
+            await connection.query(
+                'DELETE FROM reviews WHERE review_id = ?',
+                [reviewId]
+            );
+            
+            res.status(204).send();
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ error: 'Failed to delete review.', details: error.message });
+    }
+});
+
+// GET /api/reviews - Get all reviews with filtering and sorting
+app.get('/api/reviews', authenticateJWT, async (req, res) => {
+    try {
+        const { event_id, user_id, min_rating, max_rating, sort_by, sort_order, status } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        
+        let query = `
+            SELECT r.*, u.username, e.name as event_name
+            FROM reviews r
+            JOIN Users u ON r.user_id = u.user_id
+            JOIN Events e ON r.event_id = e.event_id
+            WHERE 1=1
+        `;
+        
+        const queryParams = [];
+        
+        // Apply filters
+        if (event_id) {
+            query += ' AND r.event_id = ?';
+            queryParams.push(event_id);
+        }
+        
+        if (user_id) {
+            query += ' AND r.user_id = ?';
+            queryParams.push(user_id);
+        }
+        
+        if (min_rating) {
+            query += ' AND r.rating >= ?';
+            queryParams.push(min_rating);
+        }
+        
+        if (max_rating) {
+            query += ' AND r.rating <= ?';
+            queryParams.push(max_rating);
+        }
+        
+        if (status && status !== 'all') {
+            query += ' AND r.moderation_status = ?';
+            queryParams.push(status);
+        }
+        
+        // Apply sorting
+        const validSortFields = ['created_at', 'rating', 'event_id', 'user_id'];
+        const validSortOrders = ['asc', 'desc'];
+        
+        let orderBy = ' ORDER BY r.created_at DESC';
+        
+        if (sort_by && validSortFields.includes(sort_by)) {
+            const direction = sort_order && validSortOrders.includes(sort_order.toLowerCase()) 
+                ? sort_order.toUpperCase() 
+                : 'DESC';
+            orderBy = ` ORDER BY r.${sort_by} ${direction}`;
+        }
+        
+        query += orderBy;
+        
+        // Apply pagination
+        query += ' LIMIT ? OFFSET ?';
+        queryParams.push(limit, offset);
+        
+        const connection = await pool.getConnection();
+        try {
+            // Get total count for pagination metadata
+            let countQuery = `
+                SELECT COUNT(*) AS total
+                FROM reviews r
+                JOIN Users u ON r.user_id = u.user_id
+                JOIN Events e ON r.event_id = e.event_id
+                WHERE 1=1
+            `;
+            
+            const countParams = [];
+            
+            if (event_id) {
+                countQuery += ' AND r.event_id = ?';
+                countParams.push(event_id);
+            }
+            
+            if (user_id) {
+                countQuery += ' AND r.user_id = ?';
+                countParams.push(user_id);
+            }
+            
+            if (min_rating) {
+                countQuery += ' AND r.rating >= ?';
+                countParams.push(min_rating);
+            }
+            
+            if (max_rating) {
+                countQuery += ' AND r.rating <= ?';
+                countParams.push(max_rating);
+            }
+            
+            if (status && status !== 'all') {
+                countQuery += ' AND r.moderation_status = ?';
+                countParams.push(status);
+            }
+            
+            const [countResult] = await connection.query(countQuery, countParams);
+            const total = countResult[0].total;
+            
+            // Execute main query
+            const [reviews] = await connection.query(query, queryParams);
+            
+            // Set pagination headers
+            res.setHeader('X-Total-Count', total);
+            res.setHeader('X-Total-Pages', Math.ceil(total / limit));
+            res.setHeader('X-Current-Page', page);
+            res.setHeader('X-Per-Page', limit);
+            
+            res.status(200).json(reviews);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        res.status(500).json({ error: 'Failed to fetch reviews.', details: error.message });
+    }
+});
+
+// GET /api/reviews/analytics - Get review analytics
+app.get('/api/reviews/analytics', authenticateJWT, async (req, res) => {
+    try {
+        const { event_id } = req.query;
+        
+        const connection = await pool.getConnection();
+        try {
+            let query = `
+                SELECT 
+                    COUNT(*) as total_reviews,
+                    AVG(rating) as average_rating,
+                    COUNT(CASE WHEN rating = 5 THEN 1 END) as five_star,
+                    COUNT(CASE WHEN rating = 4 THEN 1 END) as four_star,
+                    COUNT(CASE WHEN rating = 3 THEN 1 END) as three_star,
+                    COUNT(CASE WHEN rating = 2 THEN 1 END) as two_star,
+                    COUNT(CASE WHEN rating = 1 THEN 1 END) as one_star,
+                    COUNT(CASE WHEN rating >= 4 THEN 1 END) as positive_reviews,
+                    COUNT(CASE WHEN rating <= 2 THEN 1 END) as negative_reviews
+                FROM reviews
+            `;
+            
+            const queryParams = [];
+            
+            if (event_id) {
+                query += ' WHERE event_id = ?';
+                queryParams.push(event_id);
+            }
+            
+            const [analytics] = await connection.query(query, queryParams);
+            
+            // Get recent reviews
+            let recentQuery = `
+                SELECT r.*, u.username
+                FROM reviews r
+                JOIN Users u ON r.user_id = u.user_id
+            `;
+            
+            if (event_id) {
+                recentQuery += ' WHERE r.event_id = ?';
+            }
+            
+            recentQuery += ' ORDER BY r.created_at DESC LIMIT 5';
+            
+            const [recentReviews] = await connection.query(recentQuery, event_id ? [event_id] : []);
+            
+            res.status(200).json({
+                analytics: analytics[0],
+                recentReviews
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching review analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch review analytics.', details: error.message });
+    }
+});
+
+// PUT /api/reviews/:reviewId/moderate - Moderate a review (for admins)
+app.put('/api/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const reviewId = req.params.reviewId;
+        const { status, moderation_notes } = req.body;
+        
+        if (!status || !['approved', 'rejected', 'flagged'].includes(status)) {
+            return res.status(400).json({ error: 'Valid status is required (approved, rejected, or flagged).' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            // Check if review exists
+            const [reviewCheck] = await connection.query(
+                'SELECT * FROM reviews WHERE review_id = ?',
+                [reviewId]
+            );
+            
+            if (reviewCheck.length === 0) {
+                return res.status(404).json({ error: 'Review not found.' });
+            }
+            
+            // Update the review's moderation status
+            await connection.query(
+                'UPDATE reviews SET moderation_status = ?, moderation_notes = ?, moderated_at = NOW(), moderated_by = ? WHERE review_id = ?',
+                [status, moderation_notes, req.user.userId, reviewId]
+            );
+            
+            // Get the updated review
+            const [updatedReview] = await connection.query(
+                'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
+                [reviewId]
+            );
+            
+            res.status(200).json(updatedReview[0]);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error moderating review:', error);
+        res.status(500).json({ error: 'Failed to moderate review.', details: error.message });
+    }
+});
+
 // ------------------- User Profile API Endpoints -------------------
 
 // GET /api/users/profile - Make sure this uses the correct User fields
@@ -856,7 +1313,7 @@ app.get('/api/users/profile', authenticateJWT, async (req, res) => {
         try {
             // Get user profile data - Make sure column names match your database
             const [users] = await connection.query(
-                'SELECT user_id, username, email, bio, profile_picture, created_at FROM Users WHERE user_id = ?',
+                'SELECT user_id, username, email, bio, profile_picture, created_at, role FROM Users WHERE user_id = ?',
                 [userId]
             );
             
@@ -914,7 +1371,7 @@ app.put('/api/users/profile', authenticateJWT, async (req, res) => {
             
             // Get updated user profile
             const [users] = await connection.query(
-                'SELECT user_id, username, email, created_at, bio, location, avatar_url FROM Users WHERE user_id = ?',
+                'SELECT user_id, username, email, created_at, bio, location, avatar_url, role FROM Users WHERE user_id = ?',
                 [userId]
             );
             
@@ -1021,48 +1478,7 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
     }
 });
 
-// GET /api/users/activities - Get user's recent activities
-app.get('/api/users/activities', authenticateJWT, async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        
-        const connection = await pool.getConnection();
-        try {
-            // Get user's recent events created
-            const [createdEvents] = await connection.query(
-                `SELECT 'event_created' AS activity_type, event_id, name, event_date, created_at 
-                FROM Events 
-                WHERE user_id = ? 
-                ORDER BY created_at DESC LIMIT 5`,
-                [userId]
-            );
-            
-            // Get user's recent reviews
-            const [submittedReviews] = await connection.query(
-                `SELECT 'review_submitted' AS activity_type, r.review_id, r.event_id, e.name, r.rating, r.created_at 
-                FROM reviews r
-                JOIN Events e ON r.event_id = e.event_id
-                WHERE r.user_id = ? 
-                ORDER BY r.created_at DESC LIMIT 5`,
-                [userId]
-            );
-            
-            // Combine and sort activities
-            const activities = [...createdEvents, ...submittedReviews]
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 10);
-            
-            res.status(200).json(activities);
-        } finally {
-            connection.release();
-        }
-    } catch (error) {
-        console.error('Error fetching user activities:', error);
-        res.status(500).json({ error: 'Failed to fetch user activities', details: error.message });
-    }
-});
-
-// Add these endpoints to your server.js file after the existing dashboard API endpoints
+// ------------------- Calendar API Endpoints -------------------
 
 // GET /api/calendar/events - Get events within a date range
 app.get('/api/calendar/events', authenticateJWT, async (req, res) => {

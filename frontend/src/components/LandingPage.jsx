@@ -10,6 +10,7 @@ import {
     EventAvailable, Security, People, BarChart,
     CalendarMonth, Dashboard as DashboardIcon
 } from '@mui/icons-material';
+import eventIllustration from '../assets/landing.jpg';
 
 const FeatureCard = ({ icon, title, description }) => {
     const theme = useTheme();
@@ -125,7 +126,7 @@ const LandingPage = ({ onLoginSuccess }) => {
                 </Box>
                 <Box 
                     component="img"
-                    src="/api/placeholder/500/400" 
+                    src={eventIllustration}
                     alt="Event illustration"
                     sx={{
                         width: { xs: '100%', md: '45%' },

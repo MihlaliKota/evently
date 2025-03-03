@@ -10,6 +10,8 @@ import {
     EventAvailable, People, CalendarToday, Check,
     Event, History, Star, Comment
 } from '@mui/icons-material';
+import StarRating from './StarRating';
+import ReviewDialog from './ReviewDialog';
 
 function Dashboard({ username }) {
     const [stats, setStats] = useState({
@@ -223,10 +225,10 @@ function Dashboard({ username }) {
         }
     };
 
+    // Replace the existing reviews dialog opening function with this enhanced version
     const handleOpenReviews = (event) => {
         setSelectedEvent(event);
         setOpenReviewsDialog(true);
-        fetchEventReviews(event.event_id);
     };
 
     const handleCloseReviews = () => {
@@ -556,8 +558,12 @@ function Dashboard({ username }) {
                                                         </Typography>
                                                         {event.review_count > 0 && (
                                                             <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                                                <Star sx={{ color: 'gold', fontSize: 16, mr: 0.5 }} />
-                                                                <Typography variant="body2" color="text.secondary">
+                                                                <StarRating 
+                                                                    value={parseFloat(event.avg_rating) || 0} 
+                                                                    readOnly 
+                                                                    size="small" 
+                                                                />
+                                                                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                                                                     {formatRating(event.avg_rating)} ({event.review_count} reviews)
                                                                 </Typography>
                                                             </Box>
@@ -593,76 +599,22 @@ function Dashboard({ username }) {
                 )}
             </Box>
 
-            {/* Reviews Dialog */}
-            <Dialog
+            {/* Enhanced Reviews Dialog */}
+            <ReviewDialog
                 open={openReviewsDialog}
-                onClose={handleCloseReviews}
-                fullWidth
-                maxWidth="md"
-            >
-                {selectedEvent && (
-                    <>
-                        <DialogTitle>
-                            <Typography variant="h6">{selectedEvent.name} - Reviews</Typography>
-                            <Typography variant="subtitle2" color="text.secondary">
-                                {formatDate(selectedEvent.event_date)} • {selectedEvent.location || 'No location'}
-                            </Typography>
-                            {selectedEvent.review_count > 0 && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                    <Rating
-                                        value={parseFloat(selectedEvent.avg_rating) || 0}
-                                        precision={0.1}
-                                        readOnly
-                                        size="small"
-                                    />
-                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                                        {formatRating(selectedEvent.avg_rating)} ({selectedEvent.review_count} reviews)
-                                    </Typography>
-                                </Box>
-                            )}
-                        </DialogTitle>
-                        <DialogContent dividers>
-                            {loadingReviews ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                                    <CircularProgress size={30} />
-                                </Box>
-                            ) : eventReviews.length > 0 ? (
-                                <List>
-                                    {eventReviews.map((review) => (
-                                        <ListItem key={review.review_id} alignItems="flex-start" sx={{ px: 1, py: 2 }}>
-                                            <Box sx={{ width: '100%' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                                    <Avatar sx={{ width: 32, height: 32, mr: 1 }}>
-                                                        {review.username.charAt(0).toUpperCase()}
-                                                    </Avatar>
-                                                    <Typography variant="subtitle2">
-                                                        {review.username}
-                                                    </Typography>
-                                                    <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
-                                                        <Rating value={review.rating} readOnly size="small" />
-                                                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                                            {formatDate(review.created_at)}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                                    {review.review_text || "No comment provided"}
-                                                </Typography>
-                                            </Box>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            ) : (
-                                <Box sx={{ p: 3, textAlign: 'center' }}>
-                                    <Typography variant="body1" color="text.secondary">
-                                        No reviews available for this event
-                                    </Typography>
-                                </Box>
-                            )}
-                        </DialogContent>
-                    </>
-                )}
-            </Dialog>
+                onClose={() => {
+                    setOpenReviewsDialog(false);
+                    setSelectedEvent(null);
+                    // Refresh dashboard data to show updated review counts/ratings
+                    fetchDashboardData();
+                }}
+                eventId={selectedEvent?.event_id}
+                eventName={selectedEvent?.name}
+                eventDate={selectedEvent?.event_date}
+                eventLocation={selectedEvent?.location}
+                initialRating={selectedEvent?.avg_rating}
+                reviewCount={selectedEvent?.review_count}
+            />
         </Box>
     );
 }
