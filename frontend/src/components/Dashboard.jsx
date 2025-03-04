@@ -37,7 +37,6 @@ function Dashboard({ username }) {
         return token;
     };
 
-    // Fetch dashboard data
     useEffect(() => {
         const fetchDashboardData = async () => {
             setLoading(true);
@@ -49,27 +48,28 @@ function Dashboard({ username }) {
                     setLoading(false);
                     return;
                 }
-
+    
                 const headers = {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 };
-
+    
                 console.log('Dashboard: Fetching all events');
-
+    
+                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
                 // Fetch all events from a single endpoint
-                const eventsResponse = await fetch('http://localhost:5000/api/events', { headers });
+                const eventsResponse = await fetch(`${apiUrl}/api/events`, { headers });
                 if (!eventsResponse.ok) {
                     console.error('Events fetch error:', eventsResponse.status);
                     throw new Error('Failed to fetch events');
                 }
                 const eventsData = await eventsResponse.json();
                 console.log('Events data received:', eventsData.length, 'events');
-
+    
                 // Try to fetch stats, but use calculated values if it fails
                 let statsData = {};
                 try {
-                    const statsResponse = await fetch('http://localhost:5000/api/dashboard/stats', { headers });
+                    const statsResponse = await fetch(`${apiUrl}/api/dashboard/stats`, { headers });
                     if (statsResponse.ok) {
                         statsData = await statsResponse.json();
                         console.log('Stats data received:', statsData);
@@ -166,7 +166,7 @@ function Dashboard({ username }) {
                 setLoading(false);
             }
         };
-
+    
         fetchDashboardData();
     }, []);
 

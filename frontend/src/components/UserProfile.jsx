@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, Typography, Paper, Avatar, TextField, Button, 
+import {
+    Box, Typography, Paper, Avatar, TextField, Button,
     Grid, Divider, Tab, Tabs, CircularProgress, Alert,
-    Card, CardContent, List, ListItem, ListItemText, 
+    Card, CardContent, List, ListItem, ListItemText,
     ListItemAvatar, ListItemSecondaryAction, Chip, Dialog,
     DialogTitle, DialogContent, DialogActions, IconButton,
     InputAdornment
 } from '@mui/material';
-import { 
-    Edit, Save, Cancel, Event, Star, 
-    CalendarToday, Email, AccountCircle, 
+import {
+    Edit, Save, Cancel, Event, Star,
+    CalendarToday, Email, AccountCircle,
     Visibility, VisibilityOff
 } from '@mui/icons-material';
 
@@ -38,7 +38,7 @@ function UserProfile() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
 
-    // Get JWT token from localStorage
+    // Get token from localStorage
     const getToken = () => {
         // Add debugging output
         const token = localStorage.getItem('authToken');
@@ -63,18 +63,19 @@ function UserProfile() {
 
                 console.log('UserProfile: Fetching profile with token');
 
+                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
                 // Make request to backend - ensure it includes the full URL
-                const response = await fetch('http://localhost:5000/api/users/profile', { headers });
-                
+                const response = await fetch(`${apiUrl}/api/users/profile`, { headers });
+
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     console.error('Profile fetch error:', response.status, errorData);
                     throw new Error(errorData.error || `Failed to fetch profile: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('Profile data received');
-                
+
                 setProfile(data);
                 setFormData({
                     email: data.email || '',
@@ -96,7 +97,7 @@ function UserProfile() {
     // Fetch user activities
     const fetchUserActivities = async () => {
         if (tabValue !== 1) return;
-        
+
         setLoadingActivities(true);
         try {
             const token = getToken();
@@ -115,7 +116,7 @@ function UserProfile() {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Failed to fetch activities: ${response.status}`);
             }
-            
+
             const data = await response.json();
             setActivities(data);
         } catch (err) {
@@ -172,7 +173,7 @@ function UserProfile() {
             };
 
             // Use full URL for API call
-            const response = await fetch('http://localhost:5000/api/users/profile', { 
+            const response = await fetch('http://localhost:5000/api/users/profile', {
                 method: 'PUT',
                 headers,
                 body: JSON.stringify(formData)
@@ -182,7 +183,7 @@ function UserProfile() {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Failed to update profile: ${response.status}`);
             }
-            
+
             const updatedProfile = await response.json();
             setProfile(updatedProfile);
             setEditMode(false);
@@ -230,14 +231,14 @@ function UserProfile() {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Failed to update password: ${response.status}`);
             }
-            
+
             setPasswordSuccess('Password updated successfully!');
             setPasswordData({
                 currentPassword: '',
                 newPassword: '',
                 confirmPassword: ''
             });
-            
+
             // Close dialog after 2 seconds
             setTimeout(() => {
                 setChangePasswordOpen(false);
@@ -283,9 +284,9 @@ function UserProfile() {
         return (
             <Box sx={{ maxWidth: 'sm', mx: 'auto', mt: 4 }}>
                 <Alert severity="error">{error}</Alert>
-                <Button 
-                    variant="contained" 
-                    sx={{ mt: 2 }} 
+                <Button
+                    variant="contained"
+                    sx={{ mt: 2 }}
                     onClick={() => window.location.reload()}
                 >
                     Retry
@@ -317,8 +318,8 @@ function UserProfile() {
                         </Typography>
                     </Grid>
                     <Grid item xs={12} sm={2}>
-                        <Button 
-                            variant="contained" 
+                        <Button
+                            variant="contained"
                             color={editMode ? "error" : "primary"}
                             startIcon={editMode ? <Cancel /> : <Edit />}
                             onClick={handleEditToggle}
@@ -328,24 +329,24 @@ function UserProfile() {
                         </Button>
                     </Grid>
                 </Grid>
-                
+
                 {successMessage && (
                     <Alert severity="success" sx={{ mt: 2 }}>
                         {successMessage}
                     </Alert>
                 )}
-                
+
                 {error && editMode && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                         {error}
                     </Alert>
                 )}
             </Paper>
-            
+
             {/* Tabs and Content */}
             <Paper sx={{ borderRadius: 2 }}>
-                <Tabs 
-                    value={tabValue} 
+                <Tabs
+                    value={tabValue}
                     onChange={handleTabChange}
                     sx={{ borderBottom: 1, borderColor: 'divider' }}
                 >
@@ -353,7 +354,7 @@ function UserProfile() {
                     <Tab label="Activity" />
                     <Tab label="Security" />
                 </Tabs>
-                
+
                 {/* Profile Information Tab */}
                 {tabValue === 0 && (
                     <Box sx={{ p: 3 }}>
@@ -442,14 +443,14 @@ function UserProfile() {
                         )}
                     </Box>
                 )}
-                
+
                 {/* Activity Tab */}
                 {tabValue === 1 && (
                     <Box sx={{ p: 3 }}>
                         <Typography variant="h6" gutterBottom>
                             Recent Activity
                         </Typography>
-                        
+
                         {loadingActivities ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                 <CircularProgress />
@@ -473,8 +474,8 @@ function UserProfile() {
                                             <ListItemText
                                                 primary={
                                                     <Typography variant="subtitle1">
-                                                        {activity.activity_type === 'event_created' 
-                                                            ? 'Created event: ' 
+                                                        {activity.activity_type === 'event_created'
+                                                            ? 'Created event: '
                                                             : 'Reviewed event: '}
                                                         <Typography component="span" fontWeight="bold">
                                                             {activity.name}
@@ -489,13 +490,13 @@ function UserProfile() {
                                                         {activity.activity_type === 'review_submitted' && (
                                                             <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                                                                 {[...Array(5)].map((_, i) => (
-                                                                    <Star 
-                                                                        key={i} 
-                                                                        fontSize="small" 
-                                                                        sx={{ 
+                                                                    <Star
+                                                                        key={i}
+                                                                        fontSize="small"
+                                                                        sx={{
                                                                             color: i < activity.rating ? 'gold' : 'gray',
                                                                             mr: 0.5
-                                                                        }} 
+                                                                        }}
                                                                     />
                                                                 ))}
                                                             </Box>
@@ -512,10 +513,10 @@ function UserProfile() {
                                                 }
                                             />
                                             <ListItemSecondaryAction>
-                                                <Chip 
-                                                    label={activity.activity_type === 'event_created' ? 'Created' : 'Reviewed'} 
-                                                    color={activity.activity_type === 'event_created' ? 'primary' : 'secondary'} 
-                                                    size="small" 
+                                                <Chip
+                                                    label={activity.activity_type === 'event_created' ? 'Created' : 'Reviewed'}
+                                                    color={activity.activity_type === 'event_created' ? 'primary' : 'secondary'}
+                                                    size="small"
                                                 />
                                             </ListItemSecondaryAction>
                                         </ListItem>
@@ -526,14 +527,14 @@ function UserProfile() {
                         )}
                     </Box>
                 )}
-                
+
                 {/* Security Tab */}
                 {tabValue === 2 && (
                     <Box sx={{ p: 3 }}>
                         <Typography variant="h6" gutterBottom>
                             Account Security
                         </Typography>
-                        
+
                         <Card sx={{ mb: 3 }}>
                             <CardContent>
                                 <Typography variant="h6" component="div">
@@ -542,15 +543,15 @@ function UserProfile() {
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                     Change your account password regularly to keep your account secure.
                                 </Typography>
-                                <Button 
-                                    variant="outlined" 
+                                <Button
+                                    variant="outlined"
                                     onClick={() => setChangePasswordOpen(true)}
                                 >
                                     Change Password
                                 </Button>
                             </CardContent>
                         </Card>
-                        
+
                         <Card>
                             <CardContent>
                                 <Typography variant="h6" component="div">
@@ -572,7 +573,7 @@ function UserProfile() {
                     </Box>
                 )}
             </Paper>
-            
+
             {/* Change Password Dialog */}
             <Dialog
                 open={changePasswordOpen}
@@ -597,13 +598,13 @@ function UserProfile() {
                             {passwordError}
                         </Alert>
                     )}
-                    
+
                     {passwordSuccess && (
                         <Alert severity="success" sx={{ mb: 2 }}>
                             {passwordSuccess}
                         </Alert>
                     )}
-                    
+
                     <form id="change-password-form" onSubmit={handlePasswordChange}>
                         <TextField
                             label="Current Password"
@@ -627,7 +628,7 @@ function UserProfile() {
                                 ),
                             }}
                         />
-                        
+
                         <TextField
                             label="New Password"
                             name="newPassword"
@@ -650,7 +651,7 @@ function UserProfile() {
                                 ),
                             }}
                         />
-                        
+
                         <TextField
                             label="Confirm New Password"
                             name="confirmPassword"
@@ -662,14 +663,14 @@ function UserProfile() {
                             required
                             error={passwordData.newPassword !== passwordData.confirmPassword}
                             helperText={
-                                passwordData.newPassword !== passwordData.confirmPassword ? 
-                                "Passwords don't match" : ""
+                                passwordData.newPassword !== passwordData.confirmPassword ?
+                                    "Passwords don't match" : ""
                             }
                         />
                     </form>
                 </DialogContent>
                 <DialogActions>
-                    <Button 
+                    <Button
                         onClick={() => {
                             setChangePasswordOpen(false);
                             setPasswordData({
@@ -682,7 +683,7 @@ function UserProfile() {
                     >
                         Cancel
                     </Button>
-                    <Button 
+                    <Button
                         type="submit"
                         form="change-password-form"
                         variant="contained"

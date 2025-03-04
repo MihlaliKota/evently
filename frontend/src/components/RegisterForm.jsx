@@ -45,46 +45,85 @@ const RegisterForm = ({ onLoginSuccess }) => {
     };
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Add admin code input
-    const adminCode = prompt('Enter admin code (optional):');
-
-    try {
-        const response = await fetch('http://localhost:5000/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                username, 
-                password, 
-                email, 
-                adminCode  // Include admin code
-            }),
-        });
-
-        const data = await response.json();
+        e.preventDefault();
+        setError('');
+        setSuccessMessage('');
+        setLoading(true);
         
-        // Enhanced logging
-        console.group('Registration Response');
-        console.log('Status:', response.status);
-        console.log('Response Data:', data);
-        console.log('Assigned Role:', data.role);
-        console.groupEnd();
-
-        if (response.ok) {
-            // Additional checks
-            if (data.role === 'admin') {
-                console.log('🎉 Successfully registered as ADMIN');
-            } else {
-                console.warn('Registered as regular user');
-            }
+        // Add admin code input
+        const adminCode = prompt('Enter admin code (optional):');
+    
+        // Basic validation
+        if (!username || !password) {
+            setError('Username and password are required.');
+            setLoading(false);
+            return;
         }
-    } catch (err) {
-        console.error('Registration Error:', err);
-    }
-};
+    
+        if (password !== confirmPassword) {
+            setError('Passwords do not match.');
+            setLoading(false);
+            return;
+        }
+    
+        try {
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+            const response = await fetch(`${apiUrl}/api/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    username, 
+                    password, 
+                    email, 
+                    adminCode  // Include admin code
+                }),
+            });
+    
+            const data = await response.json();
+            
+            // Enhanced logging
+            console.group('Registration Response');
+            console.log('Status:', response.status);
+            console.log('Response Data:', data);
+            console.log('Assigned Role:', data.role);
+            console.groupEnd();
+    
+            if (response.ok) {
+                setSuccessMessage('Registration successful! You can now log in.');
+                setError('');
+                setUsername('');
+                setPassword('');
+                setConfirmPassword('');
+                setEmail('');
+                
+                // Additional checks
+                if (data.role === 'admin') {
+                    console.log('🎉 Successfully registered as ADMIN');
+                    setSuccessMessage('Admin registration successful! You can now log in.');
+                } else {
+                    console.warn('Registered as regular user');
+                }
+                
+                setTimeout(() => {
+                    if (onLoginSuccess) {
+                        onLoginSuccess(username, data.role);
+                    }
+                }, 2000);
+                
+            } else {
+                setError(data.error || 'Registration failed.');
+                console.error('Registration failed:', data);
+            }
+    
+        } catch (err) {
+            setError('Failed to connect to server. Please try again later.');
+            console.error('Registration Error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <Box>

@@ -28,25 +28,26 @@ function EventsList() {
             console.log("Fetching events...");
             // Get authentication token
             const token = localStorage.getItem('authToken');
-            
+
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             // Since we're having issues with the dedicated endpoints, let's use the main events endpoint
             // which doesn't require authentication
-            const response = await fetch('http://localhost:5000/api/events');
-            
+            const response = await fetch(`${apiUrl}/api/events`);
+
             if (!response.ok) {
                 throw new Error(`HTTP error fetching events: ${response.status}`);
             }
-            
+
             const data = await response.json();
             console.log('All events:', data);
-            
+
             // Now separate the events into upcoming and past based on date
             const today = new Date();
             today.setHours(0, 0, 0, 0); // Set to midnight for consistent comparison
-            
+
             const upcomingEvents = [];
             const pastEvents = [];
-            
+
             data.forEach(event => {
                 // Parse event date and set to midnight for comparison
                 const eventDate = new Date(event.event_date);
@@ -56,7 +57,7 @@ function EventsList() {
                     eventDate.getDate(),
                     0, 0, 0, 0
                 );
-                
+
                 if (normalizedEventDate >= today) {
                     upcomingEvents.push(event);
                 } else {
@@ -69,17 +70,17 @@ function EventsList() {
                     });
                 }
             });
-            
+
             // Sort events by date
             upcomingEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
             pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date)); // Past events in reverse
-            
+
             setEvents({ upcoming: upcomingEvents, past: pastEvents });
-            
+
         } catch (e) {
             setError(e);
             console.error("Error fetching events:", e);
-            
+
             // Set empty arrays to avoid undefined errors
             setEvents({ upcoming: [], past: [] });
         } finally {
@@ -131,7 +132,7 @@ function EventsList() {
     ] : [];
 
     const renderUpcomingEvents = () => {
-        const displayEvents = loading ? sampleEvents : 
+        const displayEvents = loading ? sampleEvents :
             (events && events.upcoming ? events.upcoming : []);
 
         if (displayEvents.length === 0 && !loading) {
@@ -249,7 +250,7 @@ function EventsList() {
     };
 
     const renderPastEvents = () => {
-        const displayEvents = loading ? sampleEvents : 
+        const displayEvents = loading ? sampleEvents :
             (events && events.past ? events.past : []);
 
         if (displayEvents.length === 0 && !loading) {
@@ -338,11 +339,11 @@ function EventsList() {
                                                 {event.location || 'No location specified'}
                                             </Typography>
                                         </Box>
-                                        
+
                                         {/* Show ratings for past events */}
                                         {event.review_count > 0 && (
                                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                                <Rating 
+                                                <Rating
                                                     value={parseFloat(event.avg_rating) || 0}
                                                     precision={0.5}
                                                     readOnly
@@ -353,7 +354,7 @@ function EventsList() {
                                                 </Typography>
                                             </Box>
                                         )}
-                                        
+
                                         <Divider sx={{ my: 1.5 }} />
                                         <Typography variant="body2" color="text.secondary">
                                             {event.description || 'No description provided'}
@@ -418,20 +419,20 @@ function EventsList() {
             )}
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                <Tabs 
-                    value={activeTab} 
-                    onChange={handleTabChange} 
+                <Tabs
+                    value={activeTab}
+                    onChange={handleTabChange}
                     aria-label="event tabs"
                     variant="fullWidth"
                 >
-                    <Tab 
-                        label="Upcoming Events" 
-                        icon={<Event />} 
+                    <Tab
+                        label="Upcoming Events"
+                        icon={<Event />}
                         iconPosition="start"
                     />
-                    <Tab 
-                        label="Past Events" 
-                        icon={<History />} 
+                    <Tab
+                        label="Past Events"
+                        icon={<History />}
                         iconPosition="start"
                     />
                 </Tabs>

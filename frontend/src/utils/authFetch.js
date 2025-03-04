@@ -1,4 +1,10 @@
 const authFetch = async (url, options = {}) => {
+    // Use environment variable for base URL
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    
+    // If URL doesn't start with http/https, prepend the base URL
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
+    
     const token = localStorage.getItem('authToken'); // Get JWT token from localStorage
 
     const defaultOptions = {
@@ -14,17 +20,16 @@ const authFetch = async (url, options = {}) => {
     }
 
     try {
-        const response = await fetch(url, defaultOptions);
+        const response = await fetch(fullUrl, defaultOptions);
 
         if (!response.ok && response.status === 401) {
-            // Token might be invalid or expired - handle logout (for example, clear localStorage and redirect to login)
+            // Token might be invalid or expired - handle logout
             localStorage.removeItem('authToken');
             console.error('Unauthorized access. JWT token likely invalid or expired.');
             // alert('Your session has expired. Please log in again.'); // Optional: Inform user session expired
-            // TODO: Implement more graceful logout/redirect - for now, just returning the response
         }
 
-        return response; // Return the response object (caller needs to handle response.ok and response.json())
+        return response; // Return the response object
 
     } catch (error) {
         console.error('Error during authenticated fetch:', error);

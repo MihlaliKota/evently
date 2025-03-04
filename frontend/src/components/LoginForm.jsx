@@ -1,11 +1,11 @@
 // LoginForm.jsx
 import React, { useState } from 'react';
-import { 
-    TextField, Button, Typography, Box, Alert, 
+import {
+    TextField, Button, Typography, Box, Alert,
     InputAdornment, IconButton, CircularProgress,
     Paper
 } from '@mui/material';
-import { 
+import {
     Visibility, VisibilityOff, Login as LoginIcon
 } from '@mui/icons-material';
 
@@ -42,7 +42,8 @@ const LoginForm = ({ onLoginSuccess }) => {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/login', {
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+            const response = await fetch(`${apiUrl}/api/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -89,19 +90,19 @@ const LoginForm = ({ onLoginSuccess }) => {
             <Typography variant="h5" component="h2" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
                 Login to Your Account
             </Typography>
-            
+
             {successMessage && (
                 <Alert severity="success" sx={{ mb: 2 }}>
                     {successMessage}
                 </Alert>
             )}
-            
+
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                     {error}
                 </Alert>
             )}
-            
+
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
                 <TextField
                     label="Username"
@@ -114,7 +115,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                     required
                     autoFocus
                 />
-                
+
                 <TextField
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
@@ -138,7 +139,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                         )
                     }}
                 />
-                
+
                 <Button
                     type="submit"
                     variant="contained"

@@ -41,43 +41,43 @@ const AdminDashboard = () => {
         }).format(date);
     };
 
-    // Fetch dashboard stats
     useEffect(() => {
         const fetchAdminData = async () => {
             setLoading(true);
             setError(null);
-
+    
             try {
                 const token = getToken();
                 if (!token) {
                     throw new Error('No authentication token found');
                 }
-
+    
                 const headers = {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 };
-
+    
+                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
                 // Fetch admin stats
-                const statsResponse = await fetch('http://localhost:5000/api/admin/stats', { headers });
+                const statsResponse = await fetch(`${apiUrl}/api/admin/stats`, { headers });
                 if (!statsResponse.ok) {
                     throw new Error(`Failed to fetch admin stats: ${statsResponse.status}`);
                 }
-
+    
                 const statsData = await statsResponse.json();
                 setStats(statsData);
-
+    
                 // Fetch recent events
-                const eventsResponse = await fetch('http://localhost:5000/api/events?limit=5', { headers });
+                const eventsResponse = await fetch(`${apiUrl}/api/events?limit=5`, { headers });
                 if (!eventsResponse.ok) {
                     throw new Error(`Failed to fetch recent events: ${eventsResponse.status}`);
                 }
-
+    
                 const eventsData = await eventsResponse.json();
                 setRecentEvents(eventsData);
-
+    
                 // Fetch pending reviews
-                const reviewsResponse = await fetch('http://localhost:5000/api/reviews?status=pending&limit=5', { headers });
+                const reviewsResponse = await fetch(`${apiUrl}/api/reviews?status=pending&limit=5`, { headers });
                 if (reviewsResponse.ok) {
                     const reviewsData = await reviewsResponse.json();
                     setPendingReviews(reviewsData);
@@ -85,8 +85,7 @@ const AdminDashboard = () => {
             } catch (error) {
                 console.error('Error fetching admin data:', error);
                 setError(error.message);
-
-                // Set mock data for development
+                
                 setStats({
                     totalEvents: 24,
                     totalUsers: 158,
@@ -140,7 +139,7 @@ const AdminDashboard = () => {
 
         fetchAdminData();
     }, []);
-
+    
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
     };

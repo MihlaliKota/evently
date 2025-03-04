@@ -74,12 +74,12 @@ function SimpleEventCalendar() {
         return date.toLocaleTimeString('en-US', options);
     };
 
-    // Fetch all events
     useEffect(() => {
         const fetchEvents = async () => {
             setLoading(true);
             try {
-                const response = await fetch('http://localhost:5000/api/events');
+                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                const response = await fetch(`${apiUrl}/api/events`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -92,10 +92,11 @@ function SimpleEventCalendar() {
                 console.error("Error fetching events:", e);
             }
         };
-
+    
         const fetchCategories = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/categories');
+                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                const response = await fetch(`${apiUrl}/api/categories`);
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data);
@@ -104,7 +105,7 @@ function SimpleEventCalendar() {
                 console.error("Error fetching categories:", error);
             }
         };
-
+    
         fetchEvents();
         fetchCategories();
     }, []);
