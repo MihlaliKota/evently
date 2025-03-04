@@ -97,53 +97,65 @@ app.post('/api/register', async (req, res) => {
     try {
         const { username, password, email, adminCode } = req.body;
 
-        // 1. Basic input validation
+        console.log('Registration Attempt:');
+        console.log('Username:', username);
+        console.log('Admin Code Provided:', !!adminCode);
+        console.log('Expected Admin Code:', process.env.ADMIN_CODE);
+
+        // Basic input validation
         if (!username || !password) {
             return res.status(400).json({ error: 'Username and password are required.' });
         }
 
-        // 2. Check if username already exists
         const connection = await pool.getConnection();
         try {
+            // Check if username already exists
             const [existingUsers] = await connection.query(
                 'SELECT * FROM Users WHERE username = ?',
                 [username]
             );
+            
             if (existingUsers.length > 0) {
-                return res.status(409).json({ error: 'Username already taken.' }); // 409 Conflict for resource conflict
+                return res.status(409).json({ error: 'Username already taken.' });
             }
 
-            // 3. Hash the password
-            const saltRounds = 10; // Recommended salt rounds for bcrypt
-            const passwordHash = await bcrypt.hash(password, saltRounds);
-
-            // 4. Determine role - check if admin code is correct
+            // Determine role
             let role = 'user'; // Default role
             if (adminCode && adminCode === process.env.ADMIN_CODE) {
+                console.log('🌟 ADMIN REGISTRATION VERIFIED');
                 role = 'admin';
+            } else if (adminCode) {
+                console.warn('❌ INVALID ADMIN CODE PROVIDED');
             }
 
-            // 5. Insert new user into database
-            const userEmail = email || `${username}@example.com`; // Use provided email or a placeholder
+            // Hash the password
+            const saltRounds = 10;
+            const passwordHash = await bcrypt.hash(password, saltRounds);
+
+            // Insert new user
             const [result] = await connection.query(
                 'INSERT INTO Users (username, password_hash, email, role) VALUES (?, ?, ?, ?)',
-                [username, passwordHash, userEmail, role]
+                [username, passwordHash, email || `${username}@example.com`, role]
             );
 
-            // 6. Send success response
+            // Send success response with role
             res.status(201).json({ 
                 message: 'User registered successfully', 
                 userId: result.insertId,
                 role: role 
-            }); // 201 Created
+            });
 
         } finally {
             connection.release();
         }
 
     } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).json({ error: 'Registration failed', details: error.message }); // 500 Internal Server Error
+        console.error('FULL REGISTRATION ERROR:', error);
+        res.status(500).json({ 
+            error: 'Registration failed', 
+            details: error.message,
+            fullError: error // Be cautious in production!
+        });
     }
 });
 

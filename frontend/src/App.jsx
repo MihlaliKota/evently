@@ -31,24 +31,34 @@ function App() {
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         if (token) {
-            setIsLoggedIn(true);
-            // Try to get username from localStorage if available
-            const savedUsername = localStorage.getItem('username');
-            if (savedUsername) {
-                setUsername(savedUsername);
-            }
-            
-            // Get the user role from the JWT token
             try {
-                // JWT token consists of three parts separated by dots
+                // Detailed token decoding
                 const payload = token.split('.')[1];
-                // Decode the base64 payload
                 const decodedPayload = JSON.parse(atob(payload));
-                // Set the user role
-                setUserRole(decodedPayload.role || 'user');
+
+                console.group('🔐 Token Inspection');
+                console.log('Payload Contents:', decodedPayload);
+
+                // Set role with extra validation
+                const detectedRole = decodedPayload.role || 'user';
+                console.log('Detected Role:', detectedRole);
+
+                setIsLoggedIn(true);
+                setUserRole(detectedRole);
+
+                if (detectedRole === 'admin') {
+                    console.log('✅ Admin Access Granted');
+                } else {
+                    console.warn('❌ Standard User Access');
+                }
+
+                console.groupEnd();
             } catch (error) {
-                console.error('Error decoding JWT token:', error);
-                setUserRole('user'); // Default to user role
+                console.error('Token Decoding Error:', error);
+                // Clear invalid token
+                localStorage.removeItem('authToken');
+                setIsLoggedIn(false);
+                setUserRole('user');
             }
         }
     }, []);
@@ -155,7 +165,7 @@ function App() {
             return <SimpleEventCalendar />;
         } else if (activePage === 'profile') {
             return <UserProfile />;
-        } 
+        }
         // Admin routes
         else if (activePage === 'admin-dashboard' && userRole === 'admin') {
             return <AdminDashboard />;
@@ -175,7 +185,7 @@ function App() {
 
     const AdminBadge = () => {
         if (userRole !== 'admin') return null;
-        
+
         return (
             <Chip
                 label="Admin"

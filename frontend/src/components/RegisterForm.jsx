@@ -45,67 +45,46 @@ const RegisterForm = ({ onLoginSuccess }) => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setSuccessMessage('');
-        setLoading(true);
+    e.preventDefault();
+    
+    // Add admin code input
+    const adminCode = prompt('Enter admin code (optional):');
 
-        if (!username || !password || !confirmPassword || !email) {
-            setError('All fields are required.');
-            setLoading(false);
-            return;
-        }
+    try {
+        const response = await fetch('http://localhost:5000/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                username, 
+                password, 
+                email, 
+                adminCode  // Include admin code
+            }),
+        });
 
-        if (password !== confirmPassword) {
-            setError('Passwords do not match.');
-            setLoading(false);
-            return;
-        }
+        const data = await response.json();
+        
+        // Enhanced logging
+        console.group('Registration Response');
+        console.log('Status:', response.status);
+        console.log('Response Data:', data);
+        console.log('Assigned Role:', data.role);
+        console.groupEnd();
 
-        try {
-            const response = await fetch('http://localhost:5000/api/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password, email }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                // Registration successful
-                setSuccessMessage(data.message || 'Registration successful! You can now log in.');
-                setError('');
-                setUsername('');
-                setPassword('');
-                setConfirmPassword('');
-                setEmail('');
-                
-                // If the API returns a token automatically after registration
-                if (data.token) {
-                    localStorage.setItem('authToken', data.token);
-                    console.log('JWT token stored in localStorage after registration');
-                    
-                    if (onLoginSuccess) {
-                        onLoginSuccess(username);
-                    }
-                }
+        if (response.ok) {
+            // Additional checks
+            if (data.role === 'admin') {
+                console.log('🎉 Successfully registered as ADMIN');
             } else {
-                // Registration failed
-                setError(data.error || 'Registration failed.');
-                setSuccessMessage('');
-                console.error('Registration failed:', data);
+                console.warn('Registered as regular user');
             }
-
-        } catch (err) {
-            setError('Failed to connect to server. Please try again later.');
-            setSuccessMessage('');
-            console.error('Fetch error during registration:', err);
-        } finally {
-            setLoading(false);
         }
-    };
+    } catch (err) {
+        console.error('Registration Error:', err);
+    }
+};
 
     return (
         <Box>
