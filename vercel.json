@@ -1,12 +1,17 @@
 {
-    "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-    "outputDirectory": "frontend/build",
-    "framework": "create-react-app",
+    "buildCommand": " cd frontend && npm install --legacy-peer-deps && npm run build",
+    "outputDirectory": "frontend/dist",
+    "framework": "vite",
     "routes": [
-      { "handle": "filesystem" },
-      { "src": "/(.*)", "dest": "/index.html" }
+        {
+            "handle": "filesystem"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
     ],
     "env": {
-      "REACT_APP_API_URL": "https://evently-production-cd21.up.railway.app"
+        "REACT_APP_API_URL": "https://evently-production-cd21.up.railway.app"
     }
-  }
+}
