@@ -29,6 +29,7 @@ function App() {
     const [activePage, setActivePage] = useState('dashboard');
 
     useEffect(() => {
+        console.log('API URL:', process.env.REACT_APP_API_URL);
         const token = localStorage.getItem('authToken');
         if (token) {
             try {

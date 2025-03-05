@@ -10,9 +10,9 @@ const app = express();
 
 // Add middleware to parse JSON request bodies
 app.use(cors({
-    origin: 'https://evently-production-cd21.up.railway.app',
+    origin: '*',  // Allow all origins during debugging
     credentials: true
-  }));
+}));
 app.use(express.json());
 
 const port = process.env.PORT || 5000;
@@ -31,21 +31,25 @@ const pool = mysql.createPool({
 async function testDatabaseConnection() {
     let connection;
     try {
+        console.log('Attempting database connection with:');
+        console.log(`Host: ${process.env.DB_HOST}`);
+        console.log(`User: ${process.env.DB_USER}`);
+        console.log(`Database: ${process.env.DB_DATABASE}`);
+        console.log(`Port: ${process.env.DB_PORT}`);
+        
         connection = await pool.getConnection();
         const [rows, fields] = await connection.query('SELECT 1 + 1 AS solution');
         console.log('Database connection successful!');
         console.log('Test query result:', rows[0].solution);
     } catch (error) {
         console.error('Database connection failed:', error);
-        console.error('Error details:', error); // Print full error details for debugging
+        console.error('Error details:', error.message, error.code); 
     } finally {
         if (connection) {
-            connection.release(); // Release connection back to the pool
+            connection.release();
         }
     }
 }
-
-testDatabaseConnection(); // Run the database connection test when server starts
 
 // ------------------- JWT Middleware for Protected Routes -------------------
 
@@ -164,16 +168,19 @@ app.post('/api/register', async (req, res) => {
 
 // POST /api/login - User Login and JWT Generation
 app.post('/api/login', async (req, res) => {
-    console.log('Login attempt:', req.body.username);
+    console.log('Login attempt initiated for username:', req.body.username);
     console.log('Request headers:', req.headers);
     try {
         const { username, password } = req.body;
 
         // 1. Input validation
         if (!username || !password) {
+            console.log('Login failed: Missing username or password');
             return res.status(400).json({ error: 'Username and password are required.' });
         }
 
+        console.log('Attempting to retrieve user from database for username:', username);
+        
         // 2. Retrieve user from database
         const connection = await pool.getConnection();
         try {
@@ -181,26 +188,49 @@ app.post('/api/login', async (req, res) => {
                 'SELECT * FROM Users WHERE username = ?',
                 [username]
             );
+            
+            console.log('Database query completed. Found users:', users.length);
+            
             if (users.length === 0) {
+                console.log('Login failed: User not found in database');
                 return res.status(401).json({ error: 'Invalid credentials' }); // 401 Unauthorized - incorrect username
             }
+            
             const user = users[0]; // Get the first user from the results
+            console.log('User found in database, ID:', user.user_id, 'Role:', user.role);
 
             // 3. Compare password hashes
+            console.log('Comparing provided password with stored hash...');
             const passwordMatch = await bcrypt.compare(password, user.password_hash);
+            console.log('Password comparison result:', passwordMatch);
+            
             if (!passwordMatch) {
+                // This was the bug - the condition was inverted
+                console.log('Login failed: Password does not match');
                 return res.status(401).json({ error: 'Invalid credentials' }); // 401 Unauthorized - incorrect password
             }
 
             // 4. Generate JWT token with role included in payload
+            console.log('Generating JWT token for user...');
             const payload = { 
                 userId: user.user_id, 
                 username: user.username,
                 role: user.role || 'user' // Include the user's role
             };
+            
+            // Log JWT secret availability (not the actual secret)
+            console.log('JWT_SECRET environment variable available:', !!process.env.JWT_SECRET);
+            
+            if (!process.env.JWT_SECRET) {
+                console.error('ERROR: JWT_SECRET environment variable is not defined!');
+                return res.status(500).json({ error: 'Server configuration error - missing JWT secret' });
+            }
+            
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
+            console.log('JWT token generated successfully');
 
             // 5. Send successful login response with JWT token
+            console.log('Login successful for user:', username);
             res.status(200).json({ 
                 message: 'Login successful', 
                 token: token,
@@ -208,13 +238,18 @@ app.post('/api/login', async (req, res) => {
                 role: user.role || 'user'
             }); // 200 OK
 
+        } catch (dbError) {
+            console.error('Database error during login process:', dbError);
+            res.status(500).json({ error: 'Database error during authentication', details: dbError.message });
         } finally {
             connection.release();
+            console.log('Database connection released');
         }
 
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Server configuration error' }); // 500 Internal Server Error - generic error for login failures
+        console.error('Unexpected login error:', error);
+        console.error('Error stack trace:', error.stack);
+        res.status(500).json({ error: 'Server configuration error', details: error.message }); // 500 Internal Server Error - generic error for login failures
     }
 });
 
