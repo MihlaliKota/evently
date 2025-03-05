@@ -34,48 +34,55 @@ const LoginForm = ({ onLoginSuccess }) => {
         setError('');
         setSuccessMessage('');
         setLoading(true);
-
+    
         if (!username || !password) {
             setError('Username and password are required.');
             setLoading(false);
             return;
         }
-
+    
         try {
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const response = await fetch(`${apiUrl}/api/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    // Add Origin header to help with CORS
+                    'Origin': window.location.origin
                 },
+                credentials: 'include', // This is important for CORS and cookies
                 body: JSON.stringify({ username, password }),
             });
-
+    
             const data = await response.json();
-
+    
+            // Log full response for debugging
+            console.log('Full login response:', {
+                status: response.status,
+                headers: Object.fromEntries(response.headers.entries()),
+                body: data
+            });
+    
             if (response.ok) {
                 // Login successful
                 setSuccessMessage(data.message || 'Login successful!');
                 setError('');
-                setUsername('');
-                setPassword('');
-                const token = data.token;
-                console.log('Login successful! Token:', token);
-
-                localStorage.setItem('authToken', token);
-                console.log('JWT token stored in localStorage');
-
+                
+                // Store token and user info
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('userRole', data.role);
+    
                 if (onLoginSuccess) {
-                    onLoginSuccess(username);
+                    onLoginSuccess(data.username);
                 }
-
             } else {
                 // Login failed
                 setError(data.error || 'Login failed.');
                 setSuccessMessage('');
                 console.error('Login failed:', data);
             }
-
+    
         } catch (err) {
             setError('Failed to connect to server. Please try again later.');
             setSuccessMessage('');

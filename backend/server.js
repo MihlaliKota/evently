@@ -9,7 +9,10 @@ const jwt = require('jsonwebtoken'); // For JWT token generation
 const app = express();
 
 // Add middleware to parse JSON request bodies
-app.use(cors());
+app.use(cors({
+    origin: 'https://evently-production-cd21.up.railway.app',
+    credentials: true
+  }));
 app.use(express.json());
 
 const port = process.env.PORT || 5000;
@@ -161,6 +164,8 @@ app.post('/api/register', async (req, res) => {
 
 // POST /api/login - User Login and JWT Generation
 app.post('/api/login', async (req, res) => {
+    console.log('Login attempt:', req.body.username);
+    console.log('Request headers:', req.headers);
     try {
         const { username, password } = req.body;
 
