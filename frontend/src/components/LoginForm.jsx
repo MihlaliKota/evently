@@ -42,7 +42,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         }
     
         try {
-            const apiUrl = window.ENV_CONFIG?.API_URL || 'http://localhost:5000';
+            const apiUrl = window.RUNTIME_CONFIG?.API_URL || 'http://localhost:5000';
             const response = await fetch(`${apiUrl}/api/login`, {
                 method: 'POST',
                 headers: {
