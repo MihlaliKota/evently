@@ -4,3 +4,5 @@ backend/node_modules/
 .env
 frontend/.env
 backend/.env
+database_backup.sql
+evently_db_backup.sql
