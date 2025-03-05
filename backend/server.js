@@ -10,9 +10,13 @@ const app = express();
 
 // Add middleware to parse JSON request bodies
 app.use(cors({
-    origin: ['https://evently-five-pi.vercel.app/', 'http://localhost:3000'],
-    credentials: true
-  }));
+    origin: [
+        'https://evently-five-pi.vercel.app/'  // Use your exact Vercel domain
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 const port = process.env.PORT || 5000;
@@ -36,14 +40,14 @@ async function testDatabaseConnection() {
         console.log(`User: ${process.env.DB_USER}`);
         console.log(`Database: ${process.env.DB_DATABASE}`);
         console.log(`Port: ${process.env.DB_PORT}`);
-        
+
         connection = await pool.getConnection();
         const [rows, fields] = await connection.query('SELECT 1 + 1 AS solution');
         console.log('Database connection successful!');
         console.log('Test query result:', rows[0].solution);
     } catch (error) {
         console.error('Database connection failed:', error);
-        console.error('Error details:', error.message, error.code); 
+        console.error('Error details:', error.message, error.code);
     } finally {
         if (connection) {
             connection.release();
@@ -121,7 +125,7 @@ app.post('/api/register', async (req, res) => {
                 'SELECT * FROM Users WHERE username = ?',
                 [username]
             );
-            
+
             if (existingUsers.length > 0) {
                 return res.status(409).json({ error: 'Username already taken.' });
             }
@@ -146,10 +150,10 @@ app.post('/api/register', async (req, res) => {
             );
 
             // Send success response with role
-            res.status(201).json({ 
-                message: 'User registered successfully', 
+            res.status(201).json({
+                message: 'User registered successfully',
                 userId: result.insertId,
-                role: role 
+                role: role
             });
 
         } finally {
@@ -158,8 +162,8 @@ app.post('/api/register', async (req, res) => {
 
     } catch (error) {
         console.error('FULL REGISTRATION ERROR:', error);
-        res.status(500).json({ 
-            error: 'Registration failed', 
+        res.status(500).json({
+            error: 'Registration failed',
             details: error.message,
             fullError: error // Be cautious in production!
         });
@@ -180,7 +184,7 @@ app.post('/api/login', async (req, res) => {
         }
 
         console.log('Attempting to retrieve user from database for username:', username);
-        
+
         // 2. Retrieve user from database
         const connection = await pool.getConnection();
         try {
@@ -188,14 +192,14 @@ app.post('/api/login', async (req, res) => {
                 'SELECT * FROM Users WHERE username = ?',
                 [username]
             );
-            
+
             console.log('Database query completed. Found users:', users.length);
-            
+
             if (users.length === 0) {
                 console.log('Login failed: User not found in database');
                 return res.status(401).json({ error: 'Invalid credentials' }); // 401 Unauthorized - incorrect username
             }
-            
+
             const user = users[0]; // Get the first user from the results
             console.log('User found in database, ID:', user.user_id, 'Role:', user.role);
 
@@ -203,7 +207,7 @@ app.post('/api/login', async (req, res) => {
             console.log('Comparing provided password with stored hash...');
             const passwordMatch = await bcrypt.compare(password, user.password_hash);
             console.log('Password comparison result:', passwordMatch);
-            
+
             if (!passwordMatch) {
                 // This was the bug - the condition was inverted
                 console.log('Login failed: Password does not match');
@@ -212,27 +216,27 @@ app.post('/api/login', async (req, res) => {
 
             // 4. Generate JWT token with role included in payload
             console.log('Generating JWT token for user...');
-            const payload = { 
-                userId: user.user_id, 
+            const payload = {
+                userId: user.user_id,
                 username: user.username,
                 role: user.role || 'user' // Include the user's role
             };
-            
+
             // Log JWT secret availability (not the actual secret)
             console.log('JWT_SECRET environment variable available:', !!process.env.JWT_SECRET);
-            
+
             if (!process.env.JWT_SECRET) {
                 console.error('ERROR: JWT_SECRET environment variable is not defined!');
                 return res.status(500).json({ error: 'Server configuration error - missing JWT secret' });
             }
-            
+
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
             console.log('JWT token generated successfully');
 
             // 5. Send successful login response with JWT token
             console.log('Login successful for user:', username);
-            res.status(200).json({ 
-                message: 'Login successful', 
+            res.status(200).json({
+                message: 'Login successful',
                 token: token,
                 username: user.username,
                 role: user.role || 'user'
@@ -281,7 +285,7 @@ app.get('/api/admin/stats', authenticateJWT, authorizeRole(['admin']), async (re
                     (SELECT COUNT(*) FROM reviews) AS totalReviews,
                     (SELECT AVG(rating) FROM reviews) AS avgRating
             `);
-            
+
             res.status(200).json(stats[0]);
         } finally {
             connection.release();
@@ -303,7 +307,7 @@ app.get('/api/admin/users', authenticateJWT, authorizeRole(['admin']), async (re
                 FROM Users
                 ORDER BY created_at DESC
             `);
-            
+
             res.status(200).json(users);
         } finally {
             connection.release();
@@ -319,11 +323,11 @@ app.put('/api/admin/users/:userId/role', authenticateJWT, authorizeRole(['admin'
     try {
         const userId = req.params.userId;
         const { role } = req.body;
-        
+
         if (!role || !['user', 'admin'].includes(role)) {
             return res.status(400).json({ error: 'Valid role is required (user or admin)' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Update user role
@@ -331,11 +335,11 @@ app.put('/api/admin/users/:userId/role', authenticateJWT, authorizeRole(['admin'
                 'UPDATE Users SET role = ? WHERE user_id = ?',
                 [role, userId]
             );
-            
+
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            
+
             res.status(200).json({ message: `User role updated to ${role}` });
         } finally {
             connection.release();
@@ -349,7 +353,7 @@ app.put('/api/admin/users/:userId/role', authenticateJWT, authorizeRole(['admin'
 // ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
 
 // POST /api/events - Create a new event
-app.post('/api/events', async (req, res) => { 
+app.post('/api/events', async (req, res) => {
     try {
         // 1. Extract event data from request body
         // Modified line to include user_id from req.body
@@ -397,7 +401,7 @@ app.post('/api/events', async (req, res) => {
 });
 
 // GET /api/events - Get all events - WITH PAGINATION AND SORTING
-app.get('/api/events', async (req, res) => { 
+app.get('/api/events', async (req, res) => {
     console.log(`GET /api/events - Start processing request, query parameters:`, req.query);
 
     // 1. Pagination parameters (from query parameters, with defaults)
@@ -481,7 +485,7 @@ app.get('/api/events', async (req, res) => {
 });
 
 // GET /api/events/:eventId - Get details of a specific event by ID
-app.get('/api/events/:eventId', async (req, res) => { 
+app.get('/api/events/:eventId', async (req, res) => {
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId; // Access path parameter using req.params
@@ -519,7 +523,7 @@ app.get('/api/events/:eventId', async (req, res) => {
 
 
 // PUT /api/events/:eventId - Update an existing event by ID
-app.put('/api/events/:eventId', async (req, res) => { 
+app.put('/api/events/:eventId', async (req, res) => {
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId;
@@ -581,7 +585,7 @@ app.put('/api/events/:eventId', async (req, res) => {
 });
 
 // DELETE /api/events/:eventId - Delete an event by ID
-app.delete('/api/events/:eventId', async (req, res) => { 
+app.delete('/api/events/:eventId', async (req, res) => {
     try {
         // 1. Extract eventId from request parameters
         const eventId = req.params.eventId;
@@ -616,7 +620,7 @@ app.delete('/api/events/:eventId', async (req, res) => {
 });
 
 // POST /api/categories - Create a new event category
-app.post('/api/categories', async (req, res) => { 
+app.post('/api/categories', async (req, res) => {
     try {
         // 1. Extract category name from request body
         const { name } = req.body;
@@ -661,7 +665,7 @@ app.post('/api/categories', async (req, res) => {
 });
 
 // GET /api/categories - Get all event categories - WITH PAGINATION
-app.get('/api/categories', async (req, res) => { 
+app.get('/api/categories', async (req, res) => {
     console.log(`GET /api/categories - Start processing request, query parameters:`, req.query);
 
     // 1. Pagination parameters (from query parameters, with defaults)
@@ -717,7 +721,7 @@ app.get('/api/categories', async (req, res) => {
 });
 
 // GET /api/categories/:categoryId - Get details of a specific category by ID
-app.get('/api/categories/:categoryId', async (req, res) => { 
+app.get('/api/categories/:categoryId', async (req, res) => {
     try {
         // 1. Extract categoryId from request parameters
         const categoryId = req.params.categoryId; // Access path parameter using req.params
@@ -754,7 +758,7 @@ app.get('/api/categories/:categoryId', async (req, res) => {
 });
 
 // PUT /api/categories/:categoryId - Update an existing category by ID
-app.put('/api/categories/:categoryId', async (req, res) => { 
+app.put('/api/categories/:categoryId', async (req, res) => {
     try {
         // 1. Extract categoryId from request parameters
         const categoryId = req.params.categoryId;
@@ -820,7 +824,7 @@ app.put('/api/categories/:categoryId', async (req, res) => {
 });
 
 // DELETE /api/categories/:categoryId - Delete a category by ID
-app.delete('/api/categories/:categoryId', async (req, res) => { 
+app.delete('/api/categories/:categoryId', async (req, res) => {
     console.log(`DELETE /api/categories/${req.params.categoryId} - Start processing request`); // Added log
     try {
         // 1. Extract categoryId from request parameters
@@ -875,7 +879,7 @@ app.get('/api/dashboard/stats', authenticateJWT, async (req, res) => {
                     (SELECT COUNT(*) FROM Events WHERE event_date < CURDATE()) AS completedEvents,
                     (SELECT SUM(attendees) FROM Events) AS totalAttendees
             `);
-            
+
             res.status(200).json(stats[0]);
         } finally {
             connection.release();
@@ -898,7 +902,7 @@ app.get('/api/events/upcoming', authenticateJWT, async (req, res) => {
                 ORDER BY event_date ASC
                 LIMIT 5
             `);
-            
+
             res.status(200).json(events);
         } finally {
             connection.release();
@@ -924,7 +928,7 @@ app.get('/api/events/past', authenticateJWT, async (req, res) => {
                 ORDER BY e.event_date DESC
                 LIMIT 10
             `);
-            
+
             res.status(200).json(events);
         } finally {
             connection.release();
@@ -940,7 +944,7 @@ app.get('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
     try {
         const eventId = req.params.eventId;
         const connection = await pool.getConnection();
-        
+
         try {
             // Get all reviews for this event with username
             const [reviews] = await connection.query(`
@@ -950,7 +954,7 @@ app.get('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
                 WHERE r.event_id = ?
                 ORDER BY r.created_at DESC
             `, [eventId]);
-            
+
             res.status(200).json(reviews);
         } finally {
             connection.release();
@@ -967,12 +971,12 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
         const eventId = req.params.eventId;
         const userId = req.user.userId; // Get from JWT token
         const { review_text, rating } = req.body;
-        
+
         // Validate rating is between 1-5
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Check if event exists
@@ -980,33 +984,33 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
                 'SELECT * FROM Events WHERE event_id = ?',
                 [eventId]
             );
-            
+
             if (eventCheck.length === 0) {
                 return res.status(404).json({ error: 'Event not found.' });
             }
-            
+
             // Check if user already reviewed this event
             const [existingReview] = await connection.query(
                 'SELECT * FROM reviews WHERE event_id = ? AND user_id = ?',
                 [eventId, userId]
             );
-            
+
             if (existingReview.length > 0) {
                 return res.status(409).json({ error: 'You have already reviewed this event.' });
             }
-            
+
             // Create new review
             const [result] = await connection.query(
                 'INSERT INTO reviews (event_id, user_id, review_text, rating) VALUES (?, ?, ?, ?)',
                 [eventId, userId, review_text, rating]
             );
-            
+
             // Get the newly created review
             const [newReview] = await connection.query(
                 'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
                 [result.insertId]
             );
-            
+
             res.status(201).json(newReview[0]);
         } finally {
             connection.release();
@@ -1025,12 +1029,12 @@ app.put('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
         const reviewId = req.params.reviewId;
         const userId = req.user.userId;
         const { review_text, rating } = req.body;
-        
+
         // Validate rating is between 1-5
         if (rating !== undefined && (rating < 1 || rating > 5)) {
             return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Check if review exists and belongs to the user
@@ -1038,48 +1042,48 @@ app.put('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
                 'SELECT * FROM reviews WHERE review_id = ?',
                 [reviewId]
             );
-            
+
             if (reviewCheck.length === 0) {
                 return res.status(404).json({ error: 'Review not found.' });
             }
-            
+
             // Only allow users to edit their own reviews (unless admin)
             if (reviewCheck[0].user_id !== userId && req.user.role !== 'admin') {
                 return res.status(403).json({ error: 'You can only edit your own reviews.' });
             }
-            
+
             // Update the review
             const updateFields = [];
             const updateValues = [];
-            
+
             if (review_text !== undefined) {
                 updateFields.push('review_text = ?');
                 updateValues.push(review_text);
             }
-            
+
             if (rating !== undefined) {
                 updateFields.push('rating = ?');
                 updateValues.push(rating);
             }
-            
+
             if (updateFields.length === 0) {
                 return res.status(400).json({ error: 'No fields to update.' });
             }
-            
+
             // Add review_id to values array for WHERE clause
             updateValues.push(reviewId);
-            
+
             await connection.query(
                 `UPDATE reviews SET ${updateFields.join(', ')} WHERE review_id = ?`,
                 updateValues
             );
-            
+
             // Get the updated review
             const [updatedReview] = await connection.query(
                 'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
                 [reviewId]
             );
-            
+
             res.status(200).json(updatedReview[0]);
         } finally {
             connection.release();
@@ -1095,7 +1099,7 @@ app.delete('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
     try {
         const reviewId = req.params.reviewId;
         const userId = req.user.userId;
-        
+
         const connection = await pool.getConnection();
         try {
             // Check if review exists and belongs to the user
@@ -1103,22 +1107,22 @@ app.delete('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
                 'SELECT * FROM reviews WHERE review_id = ?',
                 [reviewId]
             );
-            
+
             if (reviewCheck.length === 0) {
                 return res.status(404).json({ error: 'Review not found.' });
             }
-            
+
             // Only allow users to delete their own reviews (unless admin)
             if (reviewCheck[0].user_id !== userId && req.user.role !== 'admin') {
                 return res.status(403).json({ error: 'You can only delete your own reviews.' });
             }
-            
+
             // Delete the review
             await connection.query(
                 'DELETE FROM reviews WHERE review_id = ?',
                 [reviewId]
             );
-            
+
             res.status(204).send();
         } finally {
             connection.release();
@@ -1136,7 +1140,7 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
-        
+
         let query = `
             SELECT r.*, u.username, e.name as event_name
             FROM reviews r
@@ -1144,54 +1148,54 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
             JOIN Events e ON r.event_id = e.event_id
             WHERE 1=1
         `;
-        
+
         const queryParams = [];
-        
+
         // Apply filters
         if (event_id) {
             query += ' AND r.event_id = ?';
             queryParams.push(event_id);
         }
-        
+
         if (user_id) {
             query += ' AND r.user_id = ?';
             queryParams.push(user_id);
         }
-        
+
         if (min_rating) {
             query += ' AND r.rating >= ?';
             queryParams.push(min_rating);
         }
-        
+
         if (max_rating) {
             query += ' AND r.rating <= ?';
             queryParams.push(max_rating);
         }
-        
+
         if (status && status !== 'all') {
             query += ' AND r.moderation_status = ?';
             queryParams.push(status);
         }
-        
+
         // Apply sorting
         const validSortFields = ['created_at', 'rating', 'event_id', 'user_id'];
         const validSortOrders = ['asc', 'desc'];
-        
+
         let orderBy = ' ORDER BY r.created_at DESC';
-        
+
         if (sort_by && validSortFields.includes(sort_by)) {
-            const direction = sort_order && validSortOrders.includes(sort_order.toLowerCase()) 
-                ? sort_order.toUpperCase() 
+            const direction = sort_order && validSortOrders.includes(sort_order.toLowerCase())
+                ? sort_order.toUpperCase()
                 : 'DESC';
             orderBy = ` ORDER BY r.${sort_by} ${direction}`;
         }
-        
+
         query += orderBy;
-        
+
         // Apply pagination
         query += ' LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
-        
+
         const connection = await pool.getConnection();
         try {
             // Get total count for pagination metadata
@@ -1202,46 +1206,46 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
                 JOIN Events e ON r.event_id = e.event_id
                 WHERE 1=1
             `;
-            
+
             const countParams = [];
-            
+
             if (event_id) {
                 countQuery += ' AND r.event_id = ?';
                 countParams.push(event_id);
             }
-            
+
             if (user_id) {
                 countQuery += ' AND r.user_id = ?';
                 countParams.push(user_id);
             }
-            
+
             if (min_rating) {
                 countQuery += ' AND r.rating >= ?';
                 countParams.push(min_rating);
             }
-            
+
             if (max_rating) {
                 countQuery += ' AND r.rating <= ?';
                 countParams.push(max_rating);
             }
-            
+
             if (status && status !== 'all') {
                 countQuery += ' AND r.moderation_status = ?';
                 countParams.push(status);
             }
-            
+
             const [countResult] = await connection.query(countQuery, countParams);
             const total = countResult[0].total;
-            
+
             // Execute main query
             const [reviews] = await connection.query(query, queryParams);
-            
+
             // Set pagination headers
             res.setHeader('X-Total-Count', total);
             res.setHeader('X-Total-Pages', Math.ceil(total / limit));
             res.setHeader('X-Current-Page', page);
             res.setHeader('X-Per-Page', limit);
-            
+
             res.status(200).json(reviews);
         } finally {
             connection.release();
@@ -1256,7 +1260,7 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
 app.get('/api/reviews/analytics', authenticateJWT, async (req, res) => {
     try {
         const { event_id } = req.query;
-        
+
         const connection = await pool.getConnection();
         try {
             let query = `
@@ -1272,31 +1276,31 @@ app.get('/api/reviews/analytics', authenticateJWT, async (req, res) => {
                     COUNT(CASE WHEN rating <= 2 THEN 1 END) as negative_reviews
                 FROM reviews
             `;
-            
+
             const queryParams = [];
-            
+
             if (event_id) {
                 query += ' WHERE event_id = ?';
                 queryParams.push(event_id);
             }
-            
+
             const [analytics] = await connection.query(query, queryParams);
-            
+
             // Get recent reviews
             let recentQuery = `
                 SELECT r.*, u.username
                 FROM reviews r
                 JOIN Users u ON r.user_id = u.user_id
             `;
-            
+
             if (event_id) {
                 recentQuery += ' WHERE r.event_id = ?';
             }
-            
+
             recentQuery += ' ORDER BY r.created_at DESC LIMIT 5';
-            
+
             const [recentReviews] = await connection.query(recentQuery, event_id ? [event_id] : []);
-            
+
             res.status(200).json({
                 analytics: analytics[0],
                 recentReviews
@@ -1315,11 +1319,11 @@ app.put('/api/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admi
     try {
         const reviewId = req.params.reviewId;
         const { status, moderation_notes } = req.body;
-        
+
         if (!status || !['approved', 'rejected', 'flagged'].includes(status)) {
             return res.status(400).json({ error: 'Valid status is required (approved, rejected, or flagged).' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Check if review exists
@@ -1327,23 +1331,23 @@ app.put('/api/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admi
                 'SELECT * FROM reviews WHERE review_id = ?',
                 [reviewId]
             );
-            
+
             if (reviewCheck.length === 0) {
                 return res.status(404).json({ error: 'Review not found.' });
             }
-            
+
             // Update the review's moderation status
             await connection.query(
                 'UPDATE reviews SET moderation_status = ?, moderation_notes = ?, moderated_at = NOW(), moderated_by = ? WHERE review_id = ?',
                 [status, moderation_notes, req.user.userId, reviewId]
             );
-            
+
             // Get the updated review
             const [updatedReview] = await connection.query(
                 'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
                 [reviewId]
             );
-            
+
             res.status(200).json(updatedReview[0]);
         } finally {
             connection.release();
@@ -1360,7 +1364,7 @@ app.put('/api/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admi
 app.get('/api/users/profile', authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.userId;
-        
+
         const connection = await pool.getConnection();
         try {
             // Get user profile data - Make sure column names match your database
@@ -1368,11 +1372,11 @@ app.get('/api/users/profile', authenticateJWT, async (req, res) => {
                 'SELECT user_id, username, email, bio, profile_picture, created_at, role FROM Users WHERE user_id = ?',
                 [userId]
             );
-            
+
             if (users.length === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            
+
             res.status(200).json(users[0]);
         } finally {
             connection.release();
@@ -1388,45 +1392,45 @@ app.put('/api/users/profile', authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.userId;
         const { email, bio, location, avatar_url } = req.body;
-        
+
         // Validate email if provided
         if (email && !email.includes('@')) {
             return res.status(400).json({ error: 'Invalid email format' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Build update query dynamically based on provided fields
             let updateQuery = 'UPDATE Users SET ';
             const updateValues = [];
             const updates = [];
-            
+
             if (email !== undefined) { updates.push('email = ?'); updateValues.push(email); }
             if (bio !== undefined) { updates.push('bio = ?'); updateValues.push(bio); }
             if (location !== undefined) { updates.push('location = ?'); updateValues.push(location); }
             if (avatar_url !== undefined) { updates.push('avatar_url = ?'); updateValues.push(avatar_url); }
-            
+
             if (updates.length === 0) {
                 return res.status(400).json({ error: 'No fields to update provided' });
             }
-            
+
             updateQuery += updates.join(', ');
             updateQuery += ' WHERE user_id = ?';
             updateValues.push(userId);
-            
+
             // Execute update query
             const [result] = await connection.query(updateQuery, updateValues);
-            
+
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            
+
             // Get updated user profile
             const [users] = await connection.query(
                 'SELECT user_id, username, email, created_at, bio, location, avatar_url, role FROM Users WHERE user_id = ?',
                 [userId]
             );
-            
+
             res.status(200).json(users[0]);
         } finally {
             connection.release();
@@ -1442,15 +1446,15 @@ app.put('/api/users/password', authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.userId;
         const { currentPassword, newPassword } = req.body;
-        
+
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ error: 'Current password and new password are required' });
         }
-        
+
         if (newPassword.length < 6) {
             return res.status(400).json({ error: 'New password must be at least 6 characters long' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Get current user data to verify password
@@ -1458,27 +1462,27 @@ app.put('/api/users/password', authenticateJWT, async (req, res) => {
                 'SELECT password_hash FROM Users WHERE user_id = ?',
                 [userId]
             );
-            
+
             if (users.length === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            
+
             // Verify current password
             const passwordMatch = await bcrypt.compare(currentPassword, users[0].password_hash);
             if (!passwordMatch) {
                 return res.status(401).json({ error: 'Current password is incorrect' });
             }
-            
+
             // Hash new password
             const saltRounds = 10;
             const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
-            
+
             // Update password
             const [result] = await connection.query(
                 'UPDATE Users SET password_hash = ? WHERE user_id = ?',
                 [newPasswordHash, userId]
             );
-            
+
             res.status(200).json({ message: 'Password updated successfully' });
         } finally {
             connection.release();
@@ -1493,7 +1497,7 @@ app.put('/api/users/password', authenticateJWT, async (req, res) => {
 app.get('/api/users/activities', authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.userId;
-        
+
         const connection = await pool.getConnection();
         try {
             // Get user's recent events created
@@ -1504,7 +1508,7 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
                 ORDER BY created_at DESC LIMIT 5`,
                 [userId]
             );
-            
+
             // Get user's recent reviews
             const [submittedReviews] = await connection.query(
                 `SELECT 'review_submitted' AS activity_type, r.review_id, r.event_id, e.name, r.rating, r.created_at 
@@ -1514,12 +1518,12 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
                 ORDER BY r.created_at DESC LIMIT 5`,
                 [userId]
             );
-            
+
             // Combine and sort activities
             const activities = [...createdEvents, ...submittedReviews]
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                 .slice(0, 10);
-            
+
             res.status(200).json(activities);
         } finally {
             connection.release();
@@ -1537,12 +1541,12 @@ app.get('/api/calendar/events', authenticateJWT, async (req, res) => {
     try {
         // Get date range from query parameters
         const { start_date, end_date, category_id } = req.query;
-        
+
         // Validate dates
         if (!start_date || !end_date) {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             let query = `
@@ -1551,20 +1555,20 @@ app.get('/api/calendar/events', authenticateJWT, async (req, res) => {
                 LEFT JOIN EventCategories c ON e.category_id = c.category_id
                 WHERE e.event_date BETWEEN ? AND ?
             `;
-            
+
             const queryParams = [start_date, end_date];
-            
+
             // Add category filter if provided
             if (category_id && category_id !== 'all') {
                 query += ' AND e.category_id = ?';
                 queryParams.push(category_id);
             }
-            
+
             // Order by date
             query += ' ORDER BY e.event_date ASC';
-            
+
             const [events] = await connection.query(query, queryParams);
-            
+
             res.status(200).json(events);
         } finally {
             connection.release();
@@ -1579,11 +1583,11 @@ app.get('/api/calendar/events', authenticateJWT, async (req, res) => {
 app.get('/api/calendar/events/:date', authenticateJWT, async (req, res) => {
     try {
         const date = req.params.date; // Format: YYYY-MM-DD
-        
+
         if (!date) {
             return res.status(400).json({ error: 'Date parameter is required' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Get events for the specific date 
@@ -1595,7 +1599,7 @@ app.get('/api/calendar/events/:date', authenticateJWT, async (req, res) => {
                 WHERE DATE(e.event_date) = DATE(?)
                 ORDER BY e.event_date ASC
             `, [date]);
-            
+
             res.status(200).json(events);
         } finally {
             connection.release();
@@ -1611,11 +1615,11 @@ app.get('/api/calendar/dates-with-events', authenticateJWT, async (req, res) => 
     try {
         // Get year and month from query parameters (e.g., year=2024&month=7 for July 2024)
         const { year, month } = req.query;
-        
+
         if (!year || !month) {
             return res.status(400).json({ error: 'Year and month parameters are required' });
         }
-        
+
         const connection = await pool.getConnection();
         try {
             // Extract dates with events for the specified month
@@ -1627,10 +1631,10 @@ app.get('/api/calendar/dates-with-events', authenticateJWT, async (req, res) => 
                 AND MONTH(event_date) = ?
                 ORDER BY date ASC
             `, [year, month]);
-            
+
             // Extract just the dates
             const dates = results.map(row => row.date);
-            
+
             res.status(200).json(dates);
         } finally {
             connection.release();

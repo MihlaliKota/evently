@@ -1,9 +1,7 @@
-// RegisterForm.jsx
 import React, { useState } from 'react';
 import { 
     TextField, Button, Typography, Box, Alert, 
-    InputAdornment, IconButton, CircularProgress,
-    Paper
+    InputAdornment, IconButton, CircularProgress
 } from '@mui/material';
 import { 
     Visibility, VisibilityOff, PersonAdd
@@ -15,60 +13,53 @@ const RegisterForm = ({ onLoginSuccess }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleUsernameChange = (e) => {
-        setUsername(e.target.value);
-        setError('');
-        setSuccessMessage('');
-    };
+    // Centralized API URL configuration
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app';
 
-    const handlePasswordChange = (e) => {
-        setPassword(e.target.value);
-        setError('');
-        setSuccessMessage('');
-    };
+    const validateForm = () => {
+        if (!username) {
+            setError('Username is required');
+            return false;
+        }
 
-    const handleConfirmPasswordChange = (e) => {
-        setConfirmPassword(e.target.value);
-        setError('');
-        setSuccessMessage('');
-    };
+        if (!email || !email.includes('@')) {
+            setError('A valid email address is required');
+            return false;
+        }
 
-    const handleEmailChange = (e) => {
-        setEmail(e.target.value);
-        setError('');
-        setSuccessMessage('');
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long');
+            return false;
+        }
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return false;
+        }
+
+        return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setSuccessMessage('');
+        
+        // Validate form before submission
+        if (!validateForm()) {
+            return;
+        }
+
         setLoading(true);
         
-        // Add admin code input
+        // Optional admin code
         const adminCode = prompt('Enter admin code (optional):');
     
-        // Basic validation
-        if (!username || !password) {
-            setError('Username and password are required.');
-            setLoading(false);
-            return;
-        }
-    
-        if (password !== confirmPassword) {
-            setError('Passwords do not match.');
-            setLoading(false);
-            return;
-        }
-    
         try {
-            const apiUrl = window.RUNTIME_CONFIG?.API_URL || 'http://localhost:5000';
-            const response = await fetch(`${apiUrl}/api/register`, {
+            const response = await fetch(`${API_BASE_URL}/api/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -77,13 +68,13 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     username, 
                     password, 
                     email, 
-                    adminCode  // Include admin code
+                    adminCode  // Optional admin registration
                 }),
             });
     
             const data = await response.json();
             
-            // Enhanced logging
+            // Detailed logging
             console.group('Registration Response');
             console.log('Status:', response.status);
             console.log('Response Data:', data);
@@ -91,54 +82,54 @@ const RegisterForm = ({ onLoginSuccess }) => {
             console.groupEnd();
     
             if (response.ok) {
-                setSuccessMessage('Registration successful! You can now log in.');
-                setError('');
+                // Clear form on successful registration
                 setUsername('');
                 setPassword('');
                 setConfirmPassword('');
                 setEmail('');
-                
-                // Additional checks
-                if (data.role === 'admin') {
-                    console.log('🎉 Successfully registered as ADMIN');
-                    setSuccessMessage('Admin registration successful! You can now log in.');
-                } else {
-                    console.warn('Registered as regular user');
-                }
-                
+
+                // Provide specific feedback based on registration type
+                const registrationType = data.role === 'admin' 
+                    ? 'Admin registration successful!' 
+                    : 'Registration successful!';
+
+                // Trigger login success callback
                 setTimeout(() => {
-                    if (onLoginSuccess) {
-                        onLoginSuccess(username, data.role);
-                    }
-                }, 2000);
+                    onLoginSuccess(username, data.role);
+                }, 1500);
                 
             } else {
-                setError(data.error || 'Registration failed.');
-                console.error('Registration failed:', data);
+                // Handle registration errors
+                setError(data.error || 'Registration failed. Please try again.');
+                console.error('Registration Error:', data);
             }
     
         } catch (err) {
-            setError('Failed to connect to server. Please try again later.');
-            console.error('Registration Error:', err);
+            console.error('Network Registration Error:', err);
+            setError('Unable to connect to the server. Please try again later.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Box>
-            <Typography variant="h5" component="h2" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Create New Account
+        <Box sx={{ maxWidth: 400, margin: 'auto' }}>
+            <Typography 
+                variant="h4" 
+                component="h1" 
+                align="center" 
+                gutterBottom 
+                sx={{ fontWeight: 'bold', mb: 3 }}
+            >
+                Create Your Account
             </Typography>
             
-            {successMessage && (
-                <Alert severity="success" sx={{ mb: 2 }}>
-                    {successMessage}
-                </Alert>
-            )}
-            
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert 
+                    severity="error" 
+                    sx={{ mb: 2 }}
+                    onClose={() => setError('')}
+                >
                     {error}
                 </Alert>
             )}
@@ -150,7 +141,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     fullWidth
                     margin="normal"
                     value={username}
-                    onChange={handleUsernameChange}
+                    onChange={(e) => setUsername(e.target.value)}
                     disabled={loading}
                     required
                     autoFocus
@@ -163,7 +154,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     fullWidth
                     margin="normal"
                     value={email}
-                    onChange={handleEmailChange}
+                    onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
                     required
                 />
@@ -175,7 +166,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     fullWidth
                     margin="normal"
                     value={password}
-                    onChange={handlePasswordChange}
+                    onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                     required
                     InputProps={{
@@ -184,6 +175,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                                 <IconButton
                                     onClick={() => setShowPassword(!showPassword)}
                                     edge="end"
+                                    aria-label="toggle password visibility"
                                 >
                                     {showPassword ? <VisibilityOff /> : <Visibility />}
                                 </IconButton>
@@ -199,7 +191,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     fullWidth
                     margin="normal"
                     value={confirmPassword}
-                    onChange={handleConfirmPasswordChange}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={loading}
                     required
                     error={password !== confirmPassword && confirmPassword !== ''}
@@ -210,6 +202,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                                 <IconButton
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     edge="end"
+                                    aria-label="toggle confirm password visibility"
                                 >
                                     {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                                 </IconButton>
@@ -226,7 +219,15 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     size="large"
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PersonAdd />}
-                    sx={{ mt: 3, mb: 2, py: 1.5, fontWeight: 'bold' }}
+                    sx={{ 
+                        mt: 3, 
+                        mb: 2, 
+                        py: 1.5, 
+                        fontWeight: 'bold',
+                        '&:hover': {
+                            backgroundColor: 'secondary.dark'
+                        }
+                    }}
                 >
                     {loading ? 'Registering...' : 'Create Account'}
                 </Button>

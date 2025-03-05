@@ -1,74 +1,39 @@
 const authFetch = async (url, options = {}) => {
-    // Use environment variable for base URL
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.REACT_APP_API_URL || 'https://your-backend-domain.com';
     
-    // If URL doesn't start with http/https, prepend the base URL
     const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
     
-    const token = localStorage.getItem('authToken'); // Get JWT token from localStorage
+    const token = localStorage.getItem('authToken');
 
     const defaultOptions = {
-        method: options.method || 'GET', // Ensure method is explicitly set
+        method: options.method || 'GET',
         headers: {
-            'Content-Type': 'application/json', // Default to JSON content type
-            ...options.headers, // Merge any additional headers
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...options.headers
         },
-        ...options, // Merge provided options (method, body, etc.)
+        ...options
     };
 
-    if (token) {
-        // If token exists, add Authorization header with Bearer token
-        defaultOptions.headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
-        console.log('Fetch Details:', {
-            url: fullUrl,
-            method: defaultOptions.method,
-            headers: defaultOptions.headers,
-            body: defaultOptions.body
-        });
-
         const response = await fetch(fullUrl, defaultOptions);
 
-        // Log response details for debugging
-        console.log('Response Status:', response.status);
-        console.log('Response Headers:', Object.fromEntries(response.headers.entries()));
-
-        // Try to parse response body for more detailed error information
-        let responseBody;
-        try {
-            responseBody = await response.clone().json();
-            console.log('Response Body:', responseBody);
-        } catch {
-            // If parsing fails, it might not be JSON
-            const textBody = await response.clone().text();
-            console.log('Response Text:', textBody);
+        if (response.status === 401) {
+            // Token expired or invalid
+            localStorage.removeItem('authToken');
+            window.location.href = '/login';
+            throw new Error('Unauthorized');
         }
 
         if (!response.ok) {
-            if (response.status === 401) {
-                // Token might be invalid or expired - handle logout
-                localStorage.removeItem('authToken');
-                console.error('Unauthorized access. JWT token likely invalid or expired.');
-                
-                // Optional: Trigger a logout/redirect
-                window.location.href = '/login';
-            }
-
-            // Throw an error with more context
-            throw new Error(`HTTP error! status: ${response.status}, body: ${JSON.stringify(responseBody)}`);
+            const errorBody = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorBody}`);
         }
 
-        return response; // Return the response object
-
+        return response;
     } catch (error) {
-        console.error('Error during authenticated fetch:', {
-            message: error.message,
-            url: fullUrl,
-            token: !!token
-        });
-        throw error; // Re-throw error for the calling function to handle
+        console.error('Fetch error:', error);
+        throw error;
     }
 };
 

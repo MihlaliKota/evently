@@ -1,9 +1,7 @@
-// LoginForm.jsx
 import React, { useState } from 'react';
 import {
     TextField, Button, Typography, Box, Alert,
-    InputAdornment, IconButton, CircularProgress,
-    Paper
+    InputAdornment, IconButton, CircularProgress
 } from '@mui/material';
 import {
     Visibility, VisibilityOff, Login as LoginIcon
@@ -13,99 +11,77 @@ const LoginForm = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleUsernameChange = (e) => {
-        setUsername(e.target.value);
-        setError('');
-        setSuccessMessage('');
-    };
-
-    const handlePasswordChange = (e) => {
-        setPassword(e.target.value);
-        setError('');
-        setSuccessMessage('');
-    };
+    // Centralized API URL configuration
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setSuccessMessage('');
         setLoading(true);
     
-        if (!username || !password) {
-            setError('Username and password are required.');
-            setLoading(false);
-            return;
-        }
-    
         try {
-            const apiUrl = window.RUNTIME_CONFIG?.API_URL || 'http://localhost:5000';
-            const response = await fetch(`${apiUrl}/api/login`, {
+            // Comprehensive error logging and handling
+            const response = await fetch(`${API_BASE_URL}/api/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Add Origin header to help with CORS
                     'Origin': window.location.origin
                 },
-                credentials: 'include', // This is important for CORS and cookies
+                credentials: 'include',
                 body: JSON.stringify({ username, password }),
             });
     
             const data = await response.json();
     
-            // Log full response for debugging
-            console.log('Full login response:', {
-                status: response.status,
-                headers: Object.fromEntries(response.headers.entries()),
-                body: data
-            });
+            // Detailed logging for debugging
+            console.group('Login Response');
+            console.log('Status:', response.status);
+            console.log('Response Data:', data);
+            console.groupEnd();
     
             if (response.ok) {
-                // Login successful
-                setSuccessMessage(data.message || 'Login successful!');
-                setError('');
-                
-                // Store token and user info
+                // Secure token and user info storage
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('username', data.username);
-                localStorage.setItem('userRole', data.role);
+                localStorage.setItem('userRole', data.role || 'user');
     
-                if (onLoginSuccess) {
-                    onLoginSuccess(data.username);
-                }
+                // Callback for successful login
+                onLoginSuccess(data.username, data.role || 'user');
             } else {
-                // Login failed
-                setError(data.error || 'Login failed.');
-                setSuccessMessage('');
-                console.error('Login failed:', data);
+                // User-friendly error messages
+                setError(data.error || 'Login failed. Please check your credentials.');
+                console.error('Login Error:', data);
             }
-    
         } catch (err) {
-            setError('Failed to connect to server. Please try again later.');
-            setSuccessMessage('');
-            console.error('Fetch error during login:', err);
+            // Network or unexpected error handling
+            console.error('Login Network Error:', err);
+            setError('Unable to connect to the server. Please try again later.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Box>
-            <Typography variant="h5" component="h2" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Login to Your Account
+        <Box sx={{ maxWidth: 400, margin: 'auto' }}>
+            <Typography 
+                variant="h4" 
+                component="h1" 
+                align="center" 
+                gutterBottom 
+                sx={{ fontWeight: 'bold', mb: 3 }}
+            >
+                Welcome Back
             </Typography>
 
-            {successMessage && (
-                <Alert severity="success" sx={{ mb: 2 }}>
-                    {successMessage}
-                </Alert>
-            )}
-
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert 
+                    severity="error" 
+                    sx={{ mb: 2 }}
+                    onClose={() => setError('')}
+                >
                     {error}
                 </Alert>
             )}
@@ -117,7 +93,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                     fullWidth
                     margin="normal"
                     value={username}
-                    onChange={handleUsernameChange}
+                    onChange={(e) => setUsername(e.target.value)}
                     disabled={loading}
                     required
                     autoFocus
@@ -130,7 +106,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                     fullWidth
                     margin="normal"
                     value={password}
-                    onChange={handlePasswordChange}
+                    onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                     required
                     InputProps={{
@@ -139,6 +115,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                                 <IconButton
                                     onClick={() => setShowPassword(!showPassword)}
                                     edge="end"
+                                    aria-label="toggle password visibility"
                                 >
                                     {showPassword ? <VisibilityOff /> : <Visibility />}
                                 </IconButton>
@@ -155,7 +132,15 @@ const LoginForm = ({ onLoginSuccess }) => {
                     size="large"
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
-                    sx={{ mt: 3, mb: 2, py: 1.5, fontWeight: 'bold' }}
+                    sx={{ 
+                        mt: 3, 
+                        mb: 2, 
+                        py: 1.5, 
+                        fontWeight: 'bold',
+                        '&:hover': {
+                            backgroundColor: 'primary.dark'
+                        }
+                    }}
                 >
                     {loading ? 'Logging in...' : 'Login'}
                 </Button>
