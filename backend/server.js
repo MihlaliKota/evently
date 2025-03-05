@@ -10,9 +10,9 @@ const app = express();
 
 // Add middleware to parse JSON request bodies
 app.use(cors({
-    origin: '*',  // Allow all origins during debugging
+    origin: ['https://evently-five-pi.vercel.app/', 'http://localhost:3000'],
     credentials: true
-}));
+  }));
 app.use(express.json());
 
 const port = process.env.PORT || 5000;
