@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
     EventAvailable, People, CalendarToday, Check,
-    Event, History, Star, Comment
+    Event, History, Comment
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import ReviewDialog from './ReviewDialog';
