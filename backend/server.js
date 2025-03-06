@@ -1427,7 +1427,7 @@ app.get('/api/calendar/events', authenticateJWT, async (req, res) => {
         try {
             let query = `
                 SELECT e.*, c.category_name 
-                FROM Events e
+                FROM events e
                 LEFT JOIN eventcategories c ON e.category_id = c.category_id
                 WHERE e.event_date BETWEEN ? AND ?
             `;
@@ -1470,7 +1470,7 @@ app.get('/api/calendar/events/:date', authenticateJWT, async (req, res) => {
             // Using DATE() to extract just the date part from event_date
             const [events] = await connection.query(`
                 SELECT e.*, c.category_name 
-                FROM Events e
+                FROM events e
                 LEFT JOIN eventcategories c ON e.category_id = c.category_id
                 WHERE DATE(e.event_date) = DATE(?)
                 ORDER BY e.event_date ASC

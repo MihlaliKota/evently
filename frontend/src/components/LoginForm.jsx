@@ -17,29 +17,24 @@ const LoginForm = ({ onLoginSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        
         try {
             const data = await fetchApi('/api/login', {
                 method: 'POST',
                 body: JSON.stringify({ username, password })
             });
-
-            console.log('Response status:', response.status);
-            console.log('Response headers:', Object.fromEntries([...response.headers]));
-
-            if (response.ok) {
-                // Secure token and user info storage
-                localStorage.setItem('authToken', data.token);
-                localStorage.setItem('username', data.username);
-                setIsLoggedIn(true);
-                setUsername(data.username);
-
-            } else {
-                // User-friendly error messages
-                setError(data.error || 'Login failed. Please check your credentials.');
-                console.error('Login Error:', data);
-            }
+    
+            // Store token and handle login success
+            localStorage.setItem('authToken', data.token);
+            localStorage.setItem('username', data.username);
+            onLoginSuccess(data.username, data.role);
+            
         } catch (error) {
-            setError(error.message);
+            setError(error.message || 'Login failed. Please check your credentials.');
+            console.error('Login Error:', error);
+        } finally {
+            setLoading(false);
         }
     };
 

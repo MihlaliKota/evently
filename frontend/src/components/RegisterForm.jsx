@@ -45,41 +45,38 @@ const RegisterForm = ({ onLoginSuccess }) => {
         return true;
     };
 
-     const handleSubmit = async (e) => {
-            e.preventDefault();
-            try {
-                const data = await fetchApi('/api/register', {
-                    method: 'POST',
-                    body: JSON.stringify({ username, password, email })
-                });
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        
+        if (!validateForm()) {
+            setLoading(false);
+            return;
+        }
+        
+        try {
+            const data = await fetchApi('/api/register', {
+                method: 'POST',
+                body: JSON.stringify({ username, password, email })
+            });
     
-            console.log('Response status:', response.status);
-            console.log('Response headers:', Object.fromEntries(response.headers));
+            // Successful registration
+            setUsername('');
+            setPassword('');
+            setConfirmPassword('');
+            setEmail('');
     
-           // Detailed logging
-           console.log('Response data:', data);
-           console.groupEnd();
-   
-           if (response.ok) {
-               // Clear form on successful registration
-               setUsername('');
-               setPassword('');
-               setConfirmPassword('');
-               setEmail('');
-
-               // Trigger login success callback
-               setTimeout(() => {
-                   onLoginSuccess(username, data.role);
-               }, 1500);
-               
-           } else {
-               // Handle registration errors
-               setError(data.error || 'Registration failed. Please try again.');
-               console.error('Registration Error:', data);
-           }
-   
-       } catch (error) {
-        setError(error.message);
+            // Trigger login success callback
+            setTimeout(() => {
+                onLoginSuccess(username, data.role);
+            }, 1500);
+            
+        } catch (error) {
+            setError(error.message || 'Registration failed. Please try again.');
+            console.error('Registration Error:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
