@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt'); // For password hashing
 const jwt = require('jsonwebtoken'); // For JWT token generation
 
 const app = express();
+app.use(express.json());
 
 // Add middleware to parse JSON request bodies
 const corsOptions = {

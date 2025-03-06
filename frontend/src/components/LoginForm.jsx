@@ -18,9 +18,9 @@ const LoginForm = ({ onLoginSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const data = await fetchApi('/api/register', {
+            const data = await fetchApi('/api/login', {
                 method: 'POST',
-                body: JSON.stringify({ username, password, email })
+                body: JSON.stringify({ username, password })
             });
 
             console.log('Response status:', response.status);
