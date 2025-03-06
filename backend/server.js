@@ -1512,7 +1512,7 @@ app.get('/api/calendar/dates-with-events', authenticateJWT, async (req, res) => 
 });
 
 app.get('/', (req, res) => {
-    res.send('Hello from Evently Backend! (Database connection status in console)');
+    res.status(200).send('Railway Deployment Healthy');
 });
 
 app.listen(port, () => {
