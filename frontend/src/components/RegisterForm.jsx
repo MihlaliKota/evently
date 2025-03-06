@@ -44,34 +44,20 @@ const RegisterForm = ({ onLoginSuccess }) => {
         return true;
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        console.log('Attempting registration to:', `${apiUrl}/api/register`);
+     const handleSubmit = async (e) => {
+            e.preventDefault();
+            try {
+                const data = await fetchApi('/api/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password, email })
+                });
     
-        try {
-            const response = await fetch(`${apiUrl}/api/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify({ 
-                    username, 
-                    password, 
-                    email 
-                }),
-            });
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers));
     
-            console.log('Full Response:', {
-                status: response.status,
-                headers: Object.fromEntries(response.headers),
-                ok: response.ok
-            });
-    
-            const data = await response.json();
-            console.log('Response Data:', data);
+           // Detailed logging
+           console.log('Response data:', data);
+           console.groupEnd();
    
            if (response.ok) {
                // Clear form on successful registration
@@ -91,10 +77,10 @@ const RegisterForm = ({ onLoginSuccess }) => {
                console.error('Registration Error:', data);
            }
    
-       } catch (err) {
-        console.error('Full Network Registration Error:', err);
-    }
-};
+       } catch (error) {
+        setError(error.message);
+        }
+    };
 
     return (
         <Box sx={{ maxWidth: 400, margin: 'auto' }}>

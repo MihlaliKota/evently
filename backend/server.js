@@ -18,10 +18,10 @@ const corsOptions = {
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
-        'Content-Type', 
-        'Authorization', 
-        'Origin', 
-        'X-Requested-With', 
+        'Content-Type',
+        'Authorization',
+        'Origin',
+        'X-Requested-With',
         'Accept'
     ],
     credentials: true,
@@ -99,17 +99,24 @@ app.post('/api/register', async (req, res) => {
     console.log('Request Body:', req.body);
 
     try {
-        const { username, email, password } = req.body;
+        const { username, password, email } = req.body;
 
         // Validate input
         if (!username || !email || !password) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: 'All fields are required',
                 details: {
                     username: !!username,
                     email: !!email,
                     password: !!password
                 }
+            });
+        }
+
+        // Validate email
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({
+                error: 'A valid email address is required'
             });
         }
 
@@ -132,10 +139,10 @@ app.post('/api/register', async (req, res) => {
             const saltRounds = 10;
             const passwordHash = await bcrypt.hash(password, saltRounds);
 
-            // Insert new user
+            // Insert new user with email
             const [result] = await connection.query(
                 'INSERT INTO Users (username, password_hash, email, role) VALUES (?, ?, ?, ?)',
-                [username, passwordHash, email || `${username}@example.com`, role]
+                [username, passwordHash, email, role]
             );
 
             // Send success response with role
