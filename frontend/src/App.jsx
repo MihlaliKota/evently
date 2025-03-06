@@ -4,9 +4,7 @@ import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
 import UserProfile from './components/UserProfile';
 import SimpleEventCalendar from './components/SimpleEventCalendar';
-import AdminDashboard from './components/AdminDashboard';
-import EventsManagement from './components/EventsManagement';
-import ReviewManagement from './components/ReviewManagement';
+
 
 // Material UI Components
 import {
@@ -23,13 +21,12 @@ import {
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState(null);
-    const [userRole, setUserRole] = useState(null);
     const [darkMode, setDarkMode] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [activePage, setActivePage] = useState('dashboard');
 
     useEffect(() => {
-        console.log('API URL:', process.env.REACT_APP_API_URL);
+        console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5000');
         const token = localStorage.getItem('authToken');
         if (token) {
             try {
@@ -40,18 +37,8 @@ function App() {
                 console.group('🔐 Token Inspection');
                 console.log('Payload Contents:', decodedPayload);
 
-                // Set role with extra validation
-                const detectedRole = decodedPayload.role || 'user';
-                console.log('Detected Role:', detectedRole);
-
                 setIsLoggedIn(true);
                 setUserRole(detectedRole);
-
-                if (detectedRole === 'admin') {
-                    console.log('✅ Admin Access Granted');
-                } else {
-                    console.warn('❌ Standard User Access');
-                }
 
                 console.groupEnd();
             } catch (error) {
@@ -166,14 +153,6 @@ function App() {
             return <SimpleEventCalendar />;
         } else if (activePage === 'profile') {
             return <UserProfile />;
-        }
-        // Admin routes
-        else if (activePage === 'admin-dashboard' && userRole === 'admin') {
-            return <AdminDashboard />;
-        } else if (activePage === 'events-management' && userRole === 'admin') {
-            return <EventsManagement />;
-        } else if (activePage === 'reviews-management' && userRole === 'admin') {
-            return <ReviewManagement />;
         } else {
             // Fallback to dashboard if page not found or not authorized
             return (
@@ -184,32 +163,14 @@ function App() {
         }
     };
 
-    const AdminBadge = () => {
-        if (userRole !== 'admin') return null;
-
-        return (
-            <Chip
-                label="Admin"
-                color="secondary"
-                size="small"
-                sx={{ ml: 1 }}
-            />
-        );
-    };
-
     const sidebarItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, page: 'dashboard' },
         { text: 'Events', icon: <EventNote />, page: 'events' },
         { text: 'Calendar', icon: <CalendarMonth />, page: 'calendar' },
         { text: 'Profile', icon: <AccountCircle />, page: 'profile' },
-        // Admin-only items
-        ...(userRole === 'admin' ? [
-            { text: 'Admin Dashboard', icon: <DashboardIcon />, page: 'admin-dashboard' },
-            { text: 'Events Management', icon: <Event />, page: 'events-management' },
-            { text: 'Reviews Management', icon: <Comment />, page: 'reviews-management' }
-        ] : [])
     ];
 
+    
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
@@ -247,7 +208,6 @@ function App() {
                                     }
                                 >
                                     {username || 'User'}
-                                    <AdminBadge />
                                 </Button>
                             </Box>
                         </Toolbar>

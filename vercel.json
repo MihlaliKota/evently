@@ -8,13 +8,13 @@
             "src": "/(.*)", 
             "dest": "/index.html",
             "headers": {
-                "Access-Control-Allow-Origin": "https://evently-production-cd21.up.railway.app",
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type, Authorization"
             }
         }
     ],
     "env": {
-        "REACT_APP_API_URL": "https://evently-production-cd21.up.railway.app"
+        "VITE_API_URL": "https://evently-production-cd21.up.railway.app"
     }
 }

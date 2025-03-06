@@ -2,24 +2,33 @@ require('dotenv').config(); // Load environment variables from .env file
 
 const express = require('express');
 const mysql = require('mysql2/promise'); // Import mysql2/promise for promise-based API
-const cors = require('cors');
+const cors = require('cors'); // For Cross-Origin Resource Sharing (CORS) - allows AJAX requests from the frontend
 const bcrypt = require('bcrypt'); // For password hashing
 const jwt = require('jsonwebtoken'); // For JWT token generation
 
 const app = express();
 
 // Add middleware to parse JSON request bodies
-app.use(cors({
+const corsOptions = {
     origin: [
-        'https://evently-five-pi.vercel.app/'  // Use your exact Vercel domain
+        'http://localhost:5173',             // Local development
+        'https://evently-five-pi.vercel.app', // Vercel deployment
+        'https://evently-production-cd21.up.railway.app', // Production backend
+        true  // This allows dynamic origin checking
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'Origin', 
+        'X-Requested-With', 
+        'Accept'
     ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json());
+    optionsSuccessStatus: 200
+};
 
-const port = process.env.PORT || 5000;
+app.use(cors(corsOptions));
 
 // Database connection pool configuration
 const pool = mysql.createPool({
@@ -78,44 +87,28 @@ const authenticateJWT = (req, res, next) => {
     }
 };
 
-// Role-based authorization middleware 
-const authorizeRole = (roles = []) => {
-    // Convert string to array if roles is a single string
-    if (typeof roles === 'string') {
-        roles = [roles];
-    }
-
-    return (req, res, next) => {
-        // Check if user exists and has a role
-        if (!req.user || !req.user.role) {
-            return res.status(403).json({ error: 'Insufficient permissions' });
-        }
-
-        // Check if user's role is in the allowed roles
-        if (roles.length && !roles.includes(req.user.role)) {
-            return res.status(403).json({ error: 'Insufficient permissions for this operation' });
-        }
-
-        // User has required role, proceed to next middleware
-        next();
-    };
-};
-
 // ------------------- Authentication API Endpoints -------------------
 
 // POST /api/register - User Registration
 app.post('/api/register', async (req, res) => {
+    console.group('🔐 Registration Attempt');
+    console.log('Request Origin:', req.get('origin'));
+    console.log('Request Headers:', req.headers);
+    console.log('Request Body:', req.body);
+
     try {
-        const { username, password, email, adminCode } = req.body;
+        const { username, email, password } = req.body;
 
-        console.log('Registration Attempt:');
-        console.log('Username:', username);
-        console.log('Admin Code Provided:', !!adminCode);
-        console.log('Expected Admin Code:', process.env.ADMIN_CODE);
-
-        // Basic input validation
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required.' });
+        // Validate input
+        if (!username || !email || !password) {
+            return res.status(400).json({ 
+                error: 'All fields are required',
+                details: {
+                    username: !!username,
+                    email: !!email,
+                    password: !!password
+                }
+            });
         }
 
         const connection = await pool.getConnection();
@@ -131,13 +124,7 @@ app.post('/api/register', async (req, res) => {
             }
 
             // Determine role
-            let role = 'user'; // Default role
-            if (adminCode && adminCode === process.env.ADMIN_CODE) {
-                console.log('🌟 ADMIN REGISTRATION VERIFIED');
-                role = 'admin';
-            } else if (adminCode) {
-                console.warn('❌ INVALID ADMIN CODE PROVIDED');
-            }
+            let role = 'user'; // Default roles
 
             // Hash the password
             const saltRounds = 10;
@@ -161,11 +148,14 @@ app.post('/api/register', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('FULL REGISTRATION ERROR:', error);
+        console.error('Registration Error:', error);
         res.status(500).json({
             error: 'Registration failed',
             details: error.message,
-            fullError: error // Be cautious in production!
+            debugInfo: {
+                origin: req.get('origin'),
+                headers: req.headers
+            }
         });
     }
 });
@@ -218,8 +208,7 @@ app.post('/api/login', async (req, res) => {
             console.log('Generating JWT token for user...');
             const payload = {
                 userId: user.user_id,
-                username: user.username,
-                role: user.role || 'user' // Include the user's role
+                username: user.username
             };
 
             // Log JWT secret availability (not the actual secret)
@@ -270,85 +259,6 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
     });
 });
 
-// ------------------- Admin-Only Endpoints -------------------
-
-// GET /api/admin/stats - Get admin dashboard statistics
-app.get('/api/admin/stats', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
-    try {
-        const connection = await pool.getConnection();
-        try {
-            // Get admin dashboard stats
-            const [stats] = await connection.query(`
-                SELECT 
-                    (SELECT COUNT(*) FROM Events) AS totalEvents,
-                    (SELECT COUNT(*) FROM Users WHERE role = 'user') AS totalUsers,
-                    (SELECT COUNT(*) FROM reviews) AS totalReviews,
-                    (SELECT AVG(rating) FROM reviews) AS avgRating
-            `);
-
-            res.status(200).json(stats[0]);
-        } finally {
-            connection.release();
-        }
-    } catch (error) {
-        console.error('Error fetching admin stats:', error);
-        res.status(500).json({ error: 'Failed to fetch admin statistics', details: error.message });
-    }
-});
-
-// GET /api/admin/users - List all users (admin only)
-app.get('/api/admin/users', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
-    try {
-        const connection = await pool.getConnection();
-        try {
-            // Get all users (except password hash)
-            const [users] = await connection.query(`
-                SELECT user_id, username, email, bio, created_at, role
-                FROM Users
-                ORDER BY created_at DESC
-            `);
-
-            res.status(200).json(users);
-        } finally {
-            connection.release();
-        }
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
-    }
-});
-
-// PUT /api/admin/users/:userId - Update user role (admin only)
-app.put('/api/admin/users/:userId/role', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
-    try {
-        const userId = req.params.userId;
-        const { role } = req.body;
-
-        if (!role || !['user', 'admin'].includes(role)) {
-            return res.status(400).json({ error: 'Valid role is required (user or admin)' });
-        }
-
-        const connection = await pool.getConnection();
-        try {
-            // Update user role
-            const [result] = await connection.query(
-                'UPDATE Users SET role = ? WHERE user_id = ?',
-                [role, userId]
-            );
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ error: 'User not found' });
-            }
-
-            res.status(200).json({ message: `User role updated to ${role}` });
-        } finally {
-            connection.release();
-        }
-    } catch (error) {
-        console.error('Error updating user role:', error);
-        res.status(500).json({ error: 'Failed to update user role', details: error.message });
-    }
-});
 
 // ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
 
@@ -1048,7 +958,7 @@ app.put('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
             }
 
             // Only allow users to edit their own reviews (unless admin)
-            if (reviewCheck[0].user_id !== userId && req.user.role !== 'admin') {
+            if (reviewCheck[0].user_id !== userId) {
                 return res.status(403).json({ error: 'You can only edit your own reviews.' });
             }
 
@@ -1311,50 +1221,6 @@ app.get('/api/reviews/analytics', authenticateJWT, async (req, res) => {
     } catch (error) {
         console.error('Error fetching review analytics:', error);
         res.status(500).json({ error: 'Failed to fetch review analytics.', details: error.message });
-    }
-});
-
-// PUT /api/reviews/:reviewId/moderate - Moderate a review (for admins)
-app.put('/api/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
-    try {
-        const reviewId = req.params.reviewId;
-        const { status, moderation_notes } = req.body;
-
-        if (!status || !['approved', 'rejected', 'flagged'].includes(status)) {
-            return res.status(400).json({ error: 'Valid status is required (approved, rejected, or flagged).' });
-        }
-
-        const connection = await pool.getConnection();
-        try {
-            // Check if review exists
-            const [reviewCheck] = await connection.query(
-                'SELECT * FROM reviews WHERE review_id = ?',
-                [reviewId]
-            );
-
-            if (reviewCheck.length === 0) {
-                return res.status(404).json({ error: 'Review not found.' });
-            }
-
-            // Update the review's moderation status
-            await connection.query(
-                'UPDATE reviews SET moderation_status = ?, moderation_notes = ?, moderated_at = NOW(), moderated_by = ? WHERE review_id = ?',
-                [status, moderation_notes, req.user.userId, reviewId]
-            );
-
-            // Get the updated review
-            const [updatedReview] = await connection.query(
-                'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
-                [reviewId]
-            );
-
-            res.status(200).json(updatedReview[0]);
-        } finally {
-            connection.release();
-        }
-    } catch (error) {
-        console.error('Error moderating review:', error);
-        res.status(500).json({ error: 'Failed to moderate review.', details: error.message });
     }
 });
 
@@ -1651,4 +1517,5 @@ app.get('/', (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server is running on port http://localhost:${port}`);
+    testDatabaseConnection(); // Test database connection
 });

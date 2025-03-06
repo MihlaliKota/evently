@@ -56,7 +56,7 @@ function Dashboard({ username }) {
     
                 console.log('Dashboard: Fetching all events');
     
-                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                 // Fetch all events from a single endpoint
                 const eventsResponse = await fetch(`${apiUrl}/api/events`, { headers });
                 if (!eventsResponse.ok) {

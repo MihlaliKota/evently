@@ -6,6 +6,7 @@ import {
 import {
     Visibility, VisibilityOff, Login as LoginIcon
 } from '@mui/icons-material';
+import { fetchApi } from '../utils/api';
 
 const LoginForm = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
@@ -14,71 +15,54 @@ const LoginForm = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    // Centralized API URL configuration
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app';
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setLoading(true);
-    
         try {
-            // Comprehensive error logging and handling
-            const response = await fetch(`${API_BASE_URL}/api/login`, {
+            const data = await fetchApi('/api/register', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Origin': window.location.origin
-                },
-                credentials: 'include',
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, email })
             });
-    
-            const data = await response.json();
-    
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries([...response.headers]));
+
             // Detailed logging for debugging
             console.group('Login Response');
             console.log('Status:', response.status);
             console.log('Response Data:', data);
             console.groupEnd();
-    
+
             if (response.ok) {
                 // Secure token and user info storage
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('username', data.username);
-                localStorage.setItem('userRole', data.role || 'user');
-    
-                // Callback for successful login
                 onLoginSuccess(data.username, data.role || 'user');
+
             } else {
                 // User-friendly error messages
                 setError(data.error || 'Login failed. Please check your credentials.');
                 console.error('Login Error:', data);
             }
-        } catch (err) {
-            // Network or unexpected error handling
-            console.error('Login Network Error:', err);
-            setError('Unable to connect to the server. Please try again later.');
-        } finally {
-            setLoading(false);
+        } catch (error) {
+            setError(error.message);
         }
     };
 
     return (
         <Box sx={{ maxWidth: 400, margin: 'auto' }}>
-            <Typography 
-                variant="h4" 
-                component="h1" 
-                align="center" 
-                gutterBottom 
+            <Typography
+                variant="h4"
+                component="h1"
+                align="center"
+                gutterBottom
                 sx={{ fontWeight: 'bold', mb: 3 }}
             >
                 Welcome Back
             </Typography>
 
             {error && (
-                <Alert 
-                    severity="error" 
+                <Alert
+                    severity="error"
                     sx={{ mb: 2 }}
                     onClose={() => setError('')}
                 >
@@ -132,10 +116,10 @@ const LoginForm = ({ onLoginSuccess }) => {
                     size="large"
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
-                    sx={{ 
-                        mt: 3, 
-                        mb: 2, 
-                        py: 1.5, 
+                    sx={{
+                        mt: 3,
+                        mb: 2,
+                        py: 1.5,
                         fontWeight: 'bold',
                         '&:hover': {
                             backgroundColor: 'primary.dark'

@@ -41,10 +41,6 @@ const ReviewDialog = ({
     const [filterRating, setFilterRating] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     
-    // Analytics
-    const [analytics, setAnalytics] = useState(null);
-    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-    
     // Get JWT token from localStorage
     const getToken = () => {
         return localStorage.getItem('authToken');
@@ -125,54 +121,6 @@ const ReviewDialog = ({
         }
     };
     
-    // Fetch analytics for the event
-    const fetchAnalytics = async () => {
-        if (!eventId || currentTab !== 1) return;
-        
-        setLoadingAnalytics(true);
-        
-        try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            const response = await fetch(`http://localhost:5000/api/reviews/analytics?event_id=${eventId}`, { headers });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch analytics: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            setAnalytics(data);
-        } catch (error) {
-            console.error('Error fetching analytics:', error);
-            // Don't set error state to avoid cluttering the UI
-            
-            // Create dummy analytics
-            setAnalytics({
-                analytics: {
-                    total_reviews: reviews.length,
-                    average_rating: reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length || 0,
-                    five_star: reviews.filter(r => r.rating === 5).length,
-                    four_star: reviews.filter(r => r.rating === 4).length,
-                    three_star: reviews.filter(r => r.rating === 3).length,
-                    two_star: reviews.filter(r => r.rating === 2).length,
-                    one_star: reviews.filter(r => r.rating === 1).length,
-                    positive_reviews: reviews.filter(r => r.rating >= 4).length,
-                    negative_reviews: reviews.filter(r => r.rating <= 2).length
-                },
-                recentReviews: reviews.slice(0, 5)
-            });
-        } finally {
-            setLoadingAnalytics(false);
-        }
-    };
 
     // Load reviews when the dialog opens or filters change
     useEffect(() => {

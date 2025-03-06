@@ -46,71 +46,55 @@ const RegisterForm = ({ onLoginSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
         
-        // Validate form before submission
-        if (!validateForm()) {
-            return;
-        }
-
-        setLoading(true);
-        
-        // Optional admin code
-        const adminCode = prompt('Enter admin code (optional):');
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        console.log('Attempting registration to:', `${apiUrl}/api/register`);
     
         try {
-            const response = await fetch(`${API_BASE_URL}/api/register`, {
+            const response = await fetch(`${apiUrl}/api/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Origin': window.location.origin
                 },
                 body: JSON.stringify({ 
                     username, 
                     password, 
-                    email, 
-                    adminCode  // Optional admin registration
+                    email 
                 }),
             });
     
+            console.log('Full Response:', {
+                status: response.status,
+                headers: Object.fromEntries(response.headers),
+                ok: response.ok
+            });
+    
             const data = await response.json();
-            
-            // Detailed logging
-            console.group('Registration Response');
-            console.log('Status:', response.status);
             console.log('Response Data:', data);
-            console.log('Assigned Role:', data.role);
-            console.groupEnd();
-    
-            if (response.ok) {
-                // Clear form on successful registration
-                setUsername('');
-                setPassword('');
-                setConfirmPassword('');
-                setEmail('');
+   
+           if (response.ok) {
+               // Clear form on successful registration
+               setUsername('');
+               setPassword('');
+               setConfirmPassword('');
+               setEmail('');
 
-                // Provide specific feedback based on registration type
-                const registrationType = data.role === 'admin' 
-                    ? 'Admin registration successful!' 
-                    : 'Registration successful!';
-
-                // Trigger login success callback
-                setTimeout(() => {
-                    onLoginSuccess(username, data.role);
-                }, 1500);
-                
-            } else {
-                // Handle registration errors
-                setError(data.error || 'Registration failed. Please try again.');
-                console.error('Registration Error:', data);
-            }
-    
-        } catch (err) {
-            console.error('Network Registration Error:', err);
-            setError('Unable to connect to the server. Please try again later.');
-        } finally {
-            setLoading(false);
-        }
-    };
+               // Trigger login success callback
+               setTimeout(() => {
+                   onLoginSuccess(username, data.role);
+               }, 1500);
+               
+           } else {
+               // Handle registration errors
+               setError(data.error || 'Registration failed. Please try again.');
+               console.error('Registration Error:', data);
+           }
+   
+       } catch (err) {
+        console.error('Full Network Registration Error:', err);
+    }
+};
 
     return (
         <Box sx={{ maxWidth: 400, margin: 'auto' }}>

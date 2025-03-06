@@ -29,7 +29,7 @@ function EventsList() {
             // Get authentication token
             const token = localStorage.getItem('authToken');
 
-            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             // Since we're having issues with the dedicated endpoints, let's use the main events endpoint
             // which doesn't require authentication
             const response = await fetch(`${apiUrl}/api/events`);
