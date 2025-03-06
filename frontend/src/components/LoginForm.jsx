@@ -26,17 +26,12 @@ const LoginForm = ({ onLoginSuccess }) => {
             console.log('Response status:', response.status);
             console.log('Response headers:', Object.fromEntries([...response.headers]));
 
-            // Detailed logging for debugging
-            console.group('Login Response');
-            console.log('Status:', response.status);
-            console.log('Response Data:', data);
-            console.groupEnd();
-
             if (response.ok) {
                 // Secure token and user info storage
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('username', data.username);
-                onLoginSuccess(data.username, data.role || 'user');
+                setIsLoggedIn(true);
+                setUsername(data.username);
 
             } else {
                 // User-friendly error messages

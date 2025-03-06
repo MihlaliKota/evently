@@ -6,6 +6,7 @@ import {
 import { 
     Visibility, VisibilityOff, PersonAdd
 } from '@mui/icons-material';
+import { fetchApi } from '../utils/api';
 
 const RegisterForm = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
