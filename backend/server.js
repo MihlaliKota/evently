@@ -125,7 +125,7 @@ app.post('/api/register', async (req, res) => {
         try {
             // Check if username already exists
             const [existingUsers] = await connection.query(
-                'SELECT * FROM Users WHERE username = ?',
+                'SELECT * FROM users WHERE username = ?',
                 [username]
             );
 
@@ -142,7 +142,7 @@ app.post('/api/register', async (req, res) => {
 
             // Insert new user with email
             const [result] = await connection.query(
-                'INSERT INTO Users (username, password_hash, email, role) VALUES (?, ?, ?, ?)',
+                'INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)',
                 [username, passwordHash, email, role]
             );
 
@@ -189,7 +189,7 @@ app.post('/api/login', async (req, res) => {
         const connection = await pool.getConnection();
         try {
             const [users] = await connection.query(
-                'SELECT * FROM Users WHERE username = ?',
+                'SELECT * FROM users WHERE username = ?',
                 [username]
             );
 
@@ -291,7 +291,7 @@ app.post('/api/events', async (req, res) => {
             // 4. Construct and execute SQL INSERT query (using parameterized query)
             // Modified INSERT query to include user_id in the columns and values
             const [result] = await connection.query(
-                'INSERT INTO Events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
+                'INSERT INTO events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
                 // Modified parameter array to include user_id at the beginning
                 [user_id, category_id, name, description, location, event_date]
             );
@@ -301,7 +301,7 @@ app.post('/api/events', async (req, res) => {
 
             // 6. Fetch the newly created event from the database to return in response
             const [newEventRows] = await connection.query(
-                'SELECT * FROM Events WHERE event_id = ?',
+                'SELECT * FROM events WHERE event_id = ?',
                 [eventId]
             );
             const newEvent = newEventRows[0]; // Assuming only one event is returned
@@ -362,14 +362,14 @@ app.get('/api/events', async (req, res) => {
 
         try {
             // --- 4.3.1: Get total count of events (for metadata) ---
-            const countQuery = 'SELECT COUNT(*) AS total_count FROM Events';
+            const countQuery = 'SELECT COUNT(*) AS total_count FROM events';
             console.log(`GET /api/events - SQL query for total count: ${countQuery}`);
             const [countResult] = await connection.query(countQuery);
             const totalCount = countResult[0].total_count;
             console.log(`GET /api/events - Total events count: ${totalCount}`);
 
             // --- 4.3.2 & 6.1: Modified SQL query with LIMIT, OFFSET, and ORDER BY (if applicable) ---
-            let eventsQuery = 'SELECT * FROM Events'; // Base query
+            let eventsQuery = 'SELECT * FROM events'; // Base query
             if (orderByClause) {
                 eventsQuery += ` ${orderByClause}`; // Append ORDER BY if sorting is enabled
             }
@@ -416,7 +416,7 @@ app.get('/api/events/:eventId', async (req, res) => {
         try {
             // 3. Construct and execute SQL SELECT query to get event by ID (parameterized query)
             const [rows] = await connection.query(
-                'SELECT * FROM Events WHERE event_id = ?',
+                'SELECT * FROM events WHERE event_id = ?',
                 [eventId]
             );
 
@@ -461,7 +461,7 @@ app.put('/api/events/:eventId', async (req, res) => {
 
         try {
             // 5. Construct the UPDATE SQL query dynamically
-            let updateQuery = 'UPDATE Events SET ';
+            let updateQuery = 'UPDATE events SET ';
             const updateValues = [];
             const updates = []; // Array to build SET clauses
 
@@ -485,7 +485,7 @@ app.put('/api/events/:eventId', async (req, res) => {
 
             // 8. Fetch the updated event from the database to return in response
             const [updatedEventRows] = await connection.query(
-                'SELECT * FROM Events WHERE event_id = ?',
+                'SELECT * FROM events WHERE event_id = ?',
                 [eventId]
             );
             const updatedEvent = updatedEventRows[0];
@@ -516,7 +516,7 @@ app.delete('/api/events/:eventId', async (req, res) => {
         try {
             // 3. Construct and execute SQL DELETE query (parameterized query)
             const [result] = await connection.query(
-                'DELETE FROM Events WHERE event_id = ?',
+                'DELETE FROM events WHERE event_id = ?',
                 [eventId]
             );
 
@@ -556,7 +556,7 @@ app.post('/api/categories', async (req, res) => {
         try {
             // 4. Construct and execute SQL INSERT query (using parameterized query)
             const [result] = await connection.query(
-                'INSERT INTO EventCategories (category_name) VALUES (?)',
+                'INSERT INTO eventcategories (category_name) VALUES (?)',
                 [name]
             );
 
@@ -565,7 +565,7 @@ app.post('/api/categories', async (req, res) => {
 
             // 6. Fetch the newly created category from the database to return in response
             const [newCategoryRows] = await connection.query(
-                'SELECT * FROM EventCategories WHERE category_id = ?',
+                'SELECT * FROM eventcategories WHERE category_id = ?',
                 [categoryId]
             );
             const newCategory = newCategoryRows[0]; // Assuming only one category is returned
@@ -602,14 +602,14 @@ app.get('/api/categories', async (req, res) => {
 
         try {
             // --- 4.3.1 (Adapted): Get total count of categories ---
-            const countQuery = 'SELECT COUNT(*) AS total_count FROM EventCategories'; // Count for categories
+            const countQuery = 'SELECT COUNT(*) AS total_count FROM eventcategories'; // Count for categories
             console.log(`GET /api/categories - SQL query for total count: ${countQuery}`);
             const [countResult] = await connection.query(countQuery);
             const totalCount = countResult[0].total_count;
             console.log(`GET /api/categories - Total categories count: ${totalCount}`);
 
             // --- 4.3.2 (Adapted): Modified SQL query with LIMIT and OFFSET (for categories) ---
-            const categoriesQuery = 'SELECT * FROM EventCategories LIMIT ? OFFSET ?'; // Query for categories
+            const categoriesQuery = 'SELECT * FROM eventcategories LIMIT ? OFFSET ?'; // Query for categories
             const sqlParams = [limit, offset];
             console.log(`GET /api/categories - SQL query for categories: ${categoriesQuery} Parameters:`, sqlParams);
             const [rows] = await connection.query(categoriesQuery, sqlParams);
@@ -652,7 +652,7 @@ app.get('/api/categories/:categoryId', async (req, res) => {
         try {
             // 3. Construct and execute SQL SELECT query to get category by ID (parameterized query)
             const [rows] = await connection.query(
-                'SELECT * FROM EventCategories WHERE category_id = ?',
+                'SELECT * FROM eventcategories WHERE category_id = ?',
                 [categoryId]
             );
 
@@ -698,7 +698,7 @@ app.put('/api/categories/:categoryId', async (req, res) => {
 
         try {
             // 5. Construct the UPDATE SQL query dynamically
-            let updateQuery = 'UPDATE EventCategories SET ';
+            let updateQuery = 'UPDATE eventcategories SET ';
             const updateValues = [];
             const updates = []; // Array to build SET clauses
 
@@ -721,7 +721,7 @@ app.put('/api/categories/:categoryId', async (req, res) => {
 
             // 8. Fetch the updated category from the database to return in response
             const [updatedCategoryRows] = await connection.query(
-                'SELECT * FROM EventCategories WHERE category_id = ?',
+                'SELECT * FROM eventcategories WHERE category_id = ?',
                 [categoryId]
             );
             const updatedCategory = updatedCategoryRows[0];
@@ -757,7 +757,7 @@ app.delete('/api/categories/:categoryId', async (req, res) => {
         try {
             // 3. Construct and execute SQL DELETE query (parameterized query)
             const [result] = await connection.query(
-                'DELETE FROM EventCategories WHERE category_id = ?',
+                'DELETE FROM eventcategories WHERE category_id = ?',
                 [categoryId]
             );
             console.log(`DELETE /api/categories/${categoryId} - DELETE query executed. affectedRows: ${result.affectedRows}`); // Added log
@@ -794,10 +794,10 @@ app.get('/api/dashboard/stats', authenticateJWT, async (req, res) => {
             // Get stats for the dashboard
             const [stats] = await connection.query(`
                 SELECT 
-                    (SELECT COUNT(*) FROM Events) AS totalEvents,
-                    (SELECT COUNT(*) FROM Events WHERE event_date >= CURDATE()) AS upcomingEvents,
-                    (SELECT COUNT(*) FROM Events WHERE event_date < CURDATE()) AS completedEvents,
-                    (SELECT SUM(attendees) FROM Events) AS totalAttendees
+                    (SELECT COUNT(*) FROM events) AS totalEvents,
+                    (SELECT COUNT(*) FROM events WHERE event_date >= CURDATE()) AS upcomingEvents,
+                    (SELECT COUNT(*) FROM events WHERE event_date < CURDATE()) AS completedEvents,
+                    (SELECT SUM(attendees) FROM events) AS totalAttendees
             `);
 
             res.status(200).json(stats[0]);
@@ -817,7 +817,7 @@ app.get('/api/events/upcoming', authenticateJWT, async (req, res) => {
         try {
             // Get upcoming events (limited to next 5)
             const [events] = await connection.query(`
-                SELECT * FROM Events 
+                SELECT * FROM events 
                 WHERE event_date >= CURDATE()
                 ORDER BY event_date ASC
                 LIMIT 5
@@ -843,7 +843,7 @@ app.get('/api/events/past', authenticateJWT, async (req, res) => {
                 SELECT e.*, 
                     (SELECT COUNT(*) FROM reviews r WHERE r.event_id = e.event_id) AS review_count,
                     (SELECT AVG(rating) FROM reviews r WHERE r.event_id = e.event_id) AS avg_rating
-                FROM Events e
+                FROM events e
                 WHERE e.event_date < CURDATE()
                 ORDER BY e.event_date DESC
                 LIMIT 10
@@ -870,7 +870,7 @@ app.get('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
             const [reviews] = await connection.query(`
                 SELECT r.*, u.username 
                 FROM reviews r
-                JOIN Users u ON r.user_id = u.user_id
+                JOIN users u ON r.user_id = u.user_id
                 WHERE r.event_id = ?
                 ORDER BY r.created_at DESC
             `, [eventId]);
@@ -901,7 +901,7 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
         try {
             // Check if event exists
             const [eventCheck] = await connection.query(
-                'SELECT * FROM Events WHERE event_id = ?',
+                'SELECT * FROM events WHERE event_id = ?',
                 [eventId]
             );
 
@@ -927,7 +927,7 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
 
             // Get the newly created review
             const [newReview] = await connection.query(
-                'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
+                'SELECT r.*, u.username FROM reviews r JOIN users u ON r.user_id = u.user_id WHERE r.review_id = ?',
                 [result.insertId]
             );
 
@@ -1000,7 +1000,7 @@ app.put('/api/reviews/:reviewId', authenticateJWT, async (req, res) => {
 
             // Get the updated review
             const [updatedReview] = await connection.query(
-                'SELECT r.*, u.username FROM reviews r JOIN Users u ON r.user_id = u.user_id WHERE r.review_id = ?',
+                'SELECT r.*, u.username FROM reviews r JOIN users u ON r.user_id = u.user_id WHERE r.review_id = ?',
                 [reviewId]
             );
 
@@ -1064,8 +1064,8 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
         let query = `
             SELECT r.*, u.username, e.name as event_name
             FROM reviews r
-            JOIN Users u ON r.user_id = u.user_id
-            JOIN Events e ON r.event_id = e.event_id
+            JOIN users u ON r.user_id = u.user_id
+            JOIN events e ON r.event_id = e.event_id
             WHERE 1=1
         `;
 
@@ -1122,8 +1122,8 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
             let countQuery = `
                 SELECT COUNT(*) AS total
                 FROM reviews r
-                JOIN Users u ON r.user_id = u.user_id
-                JOIN Events e ON r.event_id = e.event_id
+                JOIN users u ON r.user_id = u.user_id
+                JOIN events e ON r.event_id = e.event_id
                 WHERE 1=1
             `;
 
@@ -1210,7 +1210,7 @@ app.get('/api/reviews/analytics', authenticateJWT, async (req, res) => {
             let recentQuery = `
                 SELECT r.*, u.username
                 FROM reviews r
-                JOIN Users u ON r.user_id = u.user_id
+                JOIN users u ON r.user_id = u.user_id
             `;
 
             if (event_id) {
@@ -1245,7 +1245,7 @@ app.get('/api/users/profile', authenticateJWT, async (req, res) => {
         try {
             // Get user profile data - Make sure column names match your database
             const [users] = await connection.query(
-                'SELECT user_id, username, email, bio, profile_picture, created_at, role FROM Users WHERE user_id = ?',
+                'SELECT user_id, username, email, bio, profile_picture, created_at, role FROM users WHERE user_id = ?',
                 [userId]
             );
 
@@ -1277,7 +1277,7 @@ app.put('/api/users/profile', authenticateJWT, async (req, res) => {
         const connection = await pool.getConnection();
         try {
             // Build update query dynamically based on provided fields
-            let updateQuery = 'UPDATE Users SET ';
+            let updateQuery = 'UPDATE users SET ';
             const updateValues = [];
             const updates = [];
 
@@ -1303,7 +1303,7 @@ app.put('/api/users/profile', authenticateJWT, async (req, res) => {
 
             // Get updated user profile
             const [users] = await connection.query(
-                'SELECT user_id, username, email, created_at, bio, location, avatar_url, role FROM Users WHERE user_id = ?',
+                'SELECT user_id, username, email, created_at, bio, location, avatar_url, role FROM users WHERE user_id = ?',
                 [userId]
             );
 
@@ -1335,7 +1335,7 @@ app.put('/api/users/password', authenticateJWT, async (req, res) => {
         try {
             // Get current user data to verify password
             const [users] = await connection.query(
-                'SELECT password_hash FROM Users WHERE user_id = ?',
+                'SELECT password_hash FROM users WHERE user_id = ?',
                 [userId]
             );
 
@@ -1355,7 +1355,7 @@ app.put('/api/users/password', authenticateJWT, async (req, res) => {
 
             // Update password
             const [result] = await connection.query(
-                'UPDATE Users SET password_hash = ? WHERE user_id = ?',
+                'UPDATE users SET password_hash = ? WHERE user_id = ?',
                 [newPasswordHash, userId]
             );
 
@@ -1379,7 +1379,7 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
             // Get user's recent events created
             const [createdEvents] = await connection.query(
                 `SELECT 'event_created' AS activity_type, event_id, name, event_date, created_at 
-                FROM Events 
+                FROM events 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC LIMIT 5`,
                 [userId]
@@ -1389,7 +1389,7 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
             const [submittedReviews] = await connection.query(
                 `SELECT 'review_submitted' AS activity_type, r.review_id, r.event_id, e.name, r.rating, r.created_at 
                 FROM reviews r
-                JOIN Events e ON r.event_id = e.event_id
+                JOIN events e ON r.event_id = e.event_id
                 WHERE r.user_id = ? 
                 ORDER BY r.created_at DESC LIMIT 5`,
                 [userId]
@@ -1428,7 +1428,7 @@ app.get('/api/calendar/events', authenticateJWT, async (req, res) => {
             let query = `
                 SELECT e.*, c.category_name 
                 FROM Events e
-                LEFT JOIN EventCategories c ON e.category_id = c.category_id
+                LEFT JOIN eventcategories c ON e.category_id = c.category_id
                 WHERE e.event_date BETWEEN ? AND ?
             `;
 
@@ -1471,7 +1471,7 @@ app.get('/api/calendar/events/:date', authenticateJWT, async (req, res) => {
             const [events] = await connection.query(`
                 SELECT e.*, c.category_name 
                 FROM Events e
-                LEFT JOIN EventCategories c ON e.category_id = c.category_id
+                LEFT JOIN eventcategories c ON e.category_id = c.category_id
                 WHERE DATE(e.event_date) = DATE(?)
                 ORDER BY e.event_date ASC
             `, [date]);
@@ -1502,7 +1502,7 @@ app.get('/api/calendar/dates-with-events', authenticateJWT, async (req, res) => 
             // Use DATE() to get just the date part
             const [results] = await connection.query(`
                 SELECT DISTINCT DATE(event_date) as date
-                FROM Events
+                FROM events
                 WHERE YEAR(event_date) = ? 
                 AND MONTH(event_date) = ?
                 ORDER BY date ASC
