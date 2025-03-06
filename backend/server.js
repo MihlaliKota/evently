@@ -30,6 +30,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+
 // Database connection pool configuration
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
