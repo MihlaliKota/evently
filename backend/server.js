@@ -275,32 +275,31 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
 app.post('/api/events', authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.userId;
-        const { name, description, location, event_date, category_id } = req.body;
+        const { 
+            name, 
+            description, 
+            event_date, 
+            location, 
+            event_type = null, 
+            category_id 
+        } = req.body;
 
-        // Comprehensive input validation
-        if (!name || name.trim() === '') {
-            return res.status(400).json({ error: 'Event name is required and cannot be empty.' });
-        }
-
-        if (!category_id) {
-            return res.status(400).json({ error: 'Category ID is required.' });
-        }
-
-        // Validate event date
-        const parsedDate = new Date(event_date);
-        if (isNaN(parsedDate.getTime())) {
-            return res.status(400).json({ error: 'Invalid event date format.' });
-        }
-
-        // Optional: Prevent creating past events
-        if (parsedDate < new Date()) {
-            return res.status(400).json({ error: 'Event date cannot be in the past.' });
+        // Validate required fields
+        if (!name || !category_id || !event_date) {
+            return res.status(400).json({ 
+                error: 'Name, category_id, and event_date are required.',
+                missingFields: {
+                    name: !name,
+                    category_id: !category_id,
+                    event_date: !event_date
+                }
+            });
         }
 
         const connection = await pool.getConnection();
         
         try {
-            // Optional: Validate category exists
+            // Validate category exists
             const [categoryCheck] = await connection.query(
                 'SELECT * FROM eventcategories WHERE category_id = ?',
                 [category_id]
@@ -310,20 +309,23 @@ app.post('/api/events', authenticateJWT, async (req, res) => {
                 return res.status(404).json({ error: 'Selected category does not exist.' });
             }
 
-            // Insert the event
+            // Insert the event with all fields
             const [result] = await connection.query(
-                'INSERT INTO events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
+                `INSERT INTO events 
+                (user_id, category_id, name, description, event_date, location, event_type, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
                 [
                     userId, 
                     category_id, 
                     name.trim(), 
                     description ? description.trim() : null, 
-                    location ? location.trim() : null, 
-                    event_date
+                    event_date, 
+                    location ? location.trim() : null,
+                    event_type
                 ]
             );
             
-            // Get the newly created event
+            // Retrieve the newly created event
             const [newEvent] = await connection.query(
                 'SELECT * FROM events WHERE event_id = ?',
                 [result.insertId]
