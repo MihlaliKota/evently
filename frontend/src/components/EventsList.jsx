@@ -1,3 +1,4 @@
+// EventsList.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Container, Typography, Box, Grid, Card, CardContent,
@@ -11,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import { Add } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
+import ReviewDialog from './ReviewDialog';
 import { Tooltip, Fab } from '@mui/material';
 
 function EventsList() {
@@ -20,6 +22,8 @@ function EventsList() {
     const [favorites, setFavorites] = useState({});
     const [activeTab, setActiveTab] = useState(0);
     const [createEventOpen, setCreateEventOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
 
     useEffect(() => {
         fetchEvents();
@@ -31,6 +35,7 @@ function EventsList() {
         try {
             console.log("Fetching events...");
             const token = localStorage.getItem('authToken');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${apiUrl}/api/events`);
@@ -48,7 +53,7 @@ function EventsList() {
             const upcomingEvents = [];
             const pastEvents = [];
 
-            data.forEach(event => {
+            for (const event of data) {
                 const eventDate = new Date(event.event_date);
                 const normalizedEventDate = new Date(
                     eventDate.getFullYear(),
@@ -60,13 +65,28 @@ function EventsList() {
                 if (normalizedEventDate >= today) {
                     upcomingEvents.push(event);
                 } else {
+                    const reviewsResponse = await fetch(`${apiUrl}/api/events/${event.event_id}/reviews`, { headers });
+                    let reviewData = { review_count: 0, avg_rating: 0 };
+                    
+                    if (reviewsResponse.ok) {
+                        const reviews = await reviewsResponse.json();
+                        const reviewCount = reviews.length;
+                        let avgRating = 0;
+                        
+                        if (reviewCount > 0) {
+                            const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+                            avgRating = (totalRating / reviewCount).toFixed(1);
+                        }
+                        
+                        reviewData = { review_count: reviewCount, avg_rating: avgRating };
+                    }
+                    
                     pastEvents.push({
                         ...event,
-                        review_count: Math.floor(Math.random() * 5),
-                        avg_rating: (3 + Math.random() * 2).toFixed(1)
+                        ...reviewData
                     });
                 }
-            });
+            }
 
             upcomingEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
             pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
@@ -113,6 +133,17 @@ function EventsList() {
 
     const handleCloseCreateEvent = () => {
         setCreateEventOpen(false);
+    };
+
+    const handleOpenReviewDialog = (event) => {
+        setSelectedEvent(event);
+        setReviewDialogOpen(true);
+    };
+
+    const handleCloseReviewDialog = () => {
+        setSelectedEvent(null);
+        setReviewDialogOpen(false);
+        fetchEvents();
     };
 
     const handleEventCreated = (newEvent) => {
@@ -409,6 +440,7 @@ function EventsList() {
                                         color={event.review_count > 0 ? "secondary" : "primary"}
                                         startIcon={event.review_count > 0 ? <Star /> : null}
                                         sx={{ borderRadius: 4, px: 2 }}
+                                        onClick={() => handleOpenReviewDialog(event)}
                                     >
                                         {event.review_count > 0 ? 'See Reviews' : 'Add Review'}
                                     </Button>
@@ -515,6 +547,19 @@ function EventsList() {
                 onClose={handleCloseCreateEvent}
                 onEventCreated={handleEventCreated}
             />
+            
+            {selectedEvent && (
+                <ReviewDialog
+                    open={reviewDialogOpen}
+                    onClose={handleCloseReviewDialog}
+                    eventId={selectedEvent.event_id}
+                    eventName={selectedEvent.name}
+                    eventDate={selectedEvent.event_date}
+                    eventLocation={selectedEvent.location}
+                    initialRating={selectedEvent.avg_rating}
+                    reviewCount={selectedEvent.review_count}
+                />
+            )}
         </Container>
     );
 }

@@ -1,4 +1,4 @@
-// ReviewDialog.jsx - A standalone component to manage reviews
+// ReviewDialog.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
@@ -34,27 +34,24 @@ const ReviewDialog = ({
     });
     const [showAddReview, setShowAddReview] = useState(false);
     const [currentTab, setCurrentTab] = useState(0);
+    const [analytics, setAnalytics] = useState(null);
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
     
-    // Sorting and filtering
     const [sortBy, setSortBy] = useState('created_at');
     const [sortOrder, setSortOrder] = useState('desc');
     const [filterRating, setFilterRating] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     
-    // Get JWT token from localStorage
     const getToken = () => {
         return localStorage.getItem('authToken');
     };
 
-    // Get current user ID from JWT
     const getCurrentUserId = () => {
         const token = getToken();
         if (!token) return null;
         
         try {
-            // JWT token consists of three parts separated by dots
             const payload = token.split('.')[1];
-            // Decode the base64 payload
             const decodedPayload = JSON.parse(atob(payload));
             return decodedPayload.userId;
         } catch (error) {
@@ -65,7 +62,6 @@ const ReviewDialog = ({
     
     const currentUserId = getCurrentUserId();
 
-    // Format date for display
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         return new Intl.DateTimeFormat('en-US', {
@@ -77,7 +73,6 @@ const ReviewDialog = ({
         }).format(date);
     };
 
-    // Fetch reviews for the event
     const fetchReviews = async () => {
         if (!eventId) return;
         
@@ -95,7 +90,6 @@ const ReviewDialog = ({
                 'Content-Type': 'application/json'
             };
             
-            // Build URL with query parameters for sorting and filtering
             let url = `http://localhost:5000/api/events/${eventId}/reviews?sort_by=${sortBy}&sort_order=${sortOrder}`;
             
             if (filterRating !== 'all') {
@@ -113,30 +107,56 @@ const ReviewDialog = ({
         } catch (error) {
             console.error('Error fetching reviews:', error);
             setError(error.message);
-            
-            // Fallback to empty array
             setReviews([]);
         } finally {
             setLoading(false);
         }
     };
     
+    const fetchAnalytics = async () => {
+        if (!eventId) return;
+        
+        setLoadingAnalytics(true);
+        
+        try {
+            const token = getToken();
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
 
-    // Load reviews when the dialog opens or filters change
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            
+            const response = await fetch(`http://localhost:5000/api/reviews/analytics?event_id=${eventId}`, { headers });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch analytics: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            setAnalytics(data);
+        } catch (error) {
+            console.error('Error fetching analytics:', error);
+            setAnalytics(null);
+        } finally {
+            setLoadingAnalytics(false);
+        }
+    };
+
     useEffect(() => {
         if (open && eventId) {
             fetchReviews();
         }
     }, [open, eventId, sortBy, sortOrder, filterRating]);
     
-    // Load analytics when tab changes
     useEffect(() => {
         if (open && eventId && currentTab === 1) {
             fetchAnalytics();
         }
     }, [open, eventId, currentTab, reviews]);
 
-    // Handle adding a new review
     const handleAddReview = async () => {
         if (newReview.rating === 0) {
             setError('Please select a rating');
@@ -174,15 +194,11 @@ const ReviewDialog = ({
             
             const data = await response.json();
             
-            // Add the new review to the list
             setReviews([data, ...reviews]);
-            
-            // Reset form
             setNewReview({ rating: 0, review_text: '' });
             setShowAddReview(false);
             setSuccessMessage('Review added successfully!');
             
-            // Success message disappears after 3 seconds
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error adding review:', error);
@@ -192,7 +208,6 @@ const ReviewDialog = ({
         }
     };
 
-    // Handle updating a review
     const handleUpdateReview = async () => {
         if (!editingReview) return;
         
@@ -227,7 +242,6 @@ const ReviewDialog = ({
             
             const updatedReview = await response.json();
             
-            // Update the review in the list
             setReviews(reviews.map(review => 
                 review.review_id === updatedReview.review_id ? updatedReview : review
             ));
@@ -235,7 +249,6 @@ const ReviewDialog = ({
             setEditingReview(null);
             setSuccessMessage('Review updated successfully!');
             
-            // Success message disappears after 3 seconds
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error updating review:', error);
@@ -245,7 +258,6 @@ const ReviewDialog = ({
         }
     };
 
-    // Handle deleting a review
     const handleDeleteReview = async (reviewId) => {
         if (!reviewId) return;
         
@@ -276,11 +288,9 @@ const ReviewDialog = ({
                 throw new Error(`Failed to delete review: ${response.status}`);
             }
             
-            // Remove the review from the list
             setReviews(reviews.filter(review => review.review_id !== reviewId));
             setSuccessMessage('Review deleted successfully!');
             
-            // Success message disappears after 3 seconds
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error deleting review:', error);
@@ -290,7 +300,6 @@ const ReviewDialog = ({
         }
     };
 
-    // Handle changes to new review
     const handleNewReviewChange = (field, value) => {
         setNewReview({
             ...newReview,
@@ -298,7 +307,6 @@ const ReviewDialog = ({
         });
     };
 
-    // Handle changes to editing review
     const handleEditingReviewChange = (field, value) => {
         setEditingReview({
             ...editingReview,
@@ -306,28 +314,24 @@ const ReviewDialog = ({
         });
     };
 
-    // Handle tab change
     const handleTabChange = (event, newValue) => {
         setCurrentTab(newValue);
     };
 
-    // Render tabs content
     const renderTabContent = () => {
         switch (currentTab) {
-            case 0: // Reviews tab
+            case 0:
                 return renderReviewsTab();
-            case 1: // Analytics tab
+            case 1:
                 return renderAnalyticsTab();
             default:
                 return renderReviewsTab();
         }
     };
 
-    // Render reviews tab
     const renderReviewsTab = () => {
         return (
             <Box>
-                {/* Sorting and filtering controls */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                     <Button
                         startIcon={<Add />}
@@ -350,7 +354,6 @@ const ReviewDialog = ({
                     </Box>
                 </Box>
                 
-                {/* Filters */}
                 {showFilters && (
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -400,7 +403,6 @@ const ReviewDialog = ({
                     </Paper>
                 )}
                 
-                {/* Add review form */}
                 {showAddReview && (
                     <Paper sx={{ p: 2, mb: 3 }}>
                         <Typography variant="h6" gutterBottom>
@@ -453,7 +455,6 @@ const ReviewDialog = ({
                     </Paper>
                 )}
                 
-                {/* Success/Error messages */}
                 {successMessage && (
                     <Alert severity="success" sx={{ mb: 2 }}>
                         {successMessage}
@@ -466,7 +467,6 @@ const ReviewDialog = ({
                     </Alert>
                 )}
                 
-                {/* Reviews list */}
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                         <CircularProgress />
@@ -482,7 +482,6 @@ const ReviewDialog = ({
                         {reviews.map((review) => (
                             <Box key={review.review_id} sx={{ mb: 3 }}>
                                 {editingReview && editingReview.review_id === review.review_id ? (
-                                    // Edit mode
                                     <Paper sx={{ p: 2 }}>
                                         <Box sx={{ mb: 2 }}>
                                             <Typography variant="body2" gutterBottom>
@@ -523,7 +522,6 @@ const ReviewDialog = ({
                                         </Box>
                                     </Paper>
                                 ) : (
-                                    // View mode
                                     <Paper sx={{ p: 2 }}>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -539,7 +537,6 @@ const ReviewDialog = ({
                                                     </Typography>
                                                 </Box>
                                             </Box>
-                                            {/* Show edit/delete for user's own reviews */}
                                             {currentUserId && review.user_id === currentUserId && (
                                                 <Box>
                                                     <IconButton 
@@ -576,7 +573,6 @@ const ReviewDialog = ({
         );
     };
 
-    // Render analytics tab
     const renderAnalyticsTab = () => {
         if (loadingAnalytics) {
             return (
@@ -598,8 +594,7 @@ const ReviewDialog = ({
         
         const { analytics: stats, recentReviews } = analytics;
         
-        // Calculate percentages for distribution
-        const totalReviews = stats.total_reviews || 1; // Avoid division by zero
+        const totalReviews = stats.total_reviews || 1;
         const ratings = [
             { stars: 5, count: stats.five_star, percent: (stats.five_star / totalReviews) * 100 },
             { stars: 4, count: stats.four_star, percent: (stats.four_star / totalReviews) * 100 },
@@ -610,7 +605,6 @@ const ReviewDialog = ({
         
         return (
             <Box>
-                {/* Summary stats */}
                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Typography variant="h6" gutterBottom>
                         Review Summary
@@ -643,7 +637,6 @@ const ReviewDialog = ({
                     </Box>
                 </Paper>
                 
-                {/* Rating distribution */}
                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Typography variant="h6" gutterBottom>
                         Rating Distribution
@@ -682,7 +675,6 @@ const ReviewDialog = ({
                     ))}
                 </Paper>
                 
-                {/* Recent reviews */}
                 <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>
                         Recent Reviews
