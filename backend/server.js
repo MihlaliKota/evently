@@ -319,12 +319,11 @@ app.post('/api/events', authenticateJWT, async (req, res) => {
                     category_id,
                     name.trim(),
                     description ? description.trim() : null,
-                    formattedEventDate,  // FIXED HERE
+                    formattedEventDate,  
                     location ? location.trim() : null,
                     event_type
                 ]
             );
-
 
             // Retrieve the newly created event
             const [newEvent] = await connection.query(
