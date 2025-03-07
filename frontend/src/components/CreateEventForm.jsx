@@ -112,10 +112,10 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 throw new Error('Unable to retrieve user ID from session');
             }
             
-            // Add user_id to the form data
+            // The user_id is now extracted from the JWT token on the server side
+            // No need to explicitly send it in the request
             const eventData = {
-                ...formData,
-                user_id
+                ...formData
             };
             
             // Format the date properly for the API
@@ -126,7 +126,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             // Use the API URL from environment
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             
-            // Make the API request
+            // Make the API request with authentication token
             const response = await fetch(`${apiUrl}/api/events`, {
                 method: 'POST',
                 headers: {
