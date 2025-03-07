@@ -9,13 +9,16 @@ import {
     LocationOn, AccessTime, CalendarToday,
     Share, FavoriteBorder, Favorite, History, Star, Event
 } from '@mui/icons-material';
+import { Add } from '@mui/icons-material';
+import CreateEventForm from './CreateEventForm';
 
 function EventsList() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [favorites, setFavorites] = useState({});
-    const [activeTab, setActiveTab] = useState(0); // 0 for upcoming, 1 for past
+    const [activeTab, setActiveTab] = useState(0);
+    const [createEventOpen, setCreateEventOpen] = useState(false);
 
     useEffect(() => {
         fetchEvents();
@@ -111,6 +114,42 @@ function EventsList() {
 
     const formatRating = (rating) => {
         return rating ? parseFloat(rating).toFixed(1) : 'No ratings';
+    };
+
+    const handleOpenCreateEvent = () => {
+        setCreateEventOpen(true);
+    };
+
+    const handleCloseCreateEvent = () => {
+        setCreateEventOpen(false);
+    };
+
+    const handleEventCreated = (newEvent) => {
+        // Add the new event to the state and refetch events
+        setEvents(prev => {
+            // Deep copy the previous state
+            const updated = JSON.parse(JSON.stringify(prev));
+
+            // Add to upcoming events if date is in the future
+            const eventDate = new Date(newEvent.event_date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (eventDate >= today) {
+                if (updated.upcoming) {
+                    updated.upcoming = [newEvent, ...updated.upcoming];
+                }
+            } else {
+                if (updated.past) {
+                    updated.past = [newEvent, ...updated.past];
+                }
+            }
+
+            return updated;
+        });
+
+        // Refetch events to get the updated list
+        fetchEvents();
     };
 
     // Empty state with sample data
@@ -394,19 +433,29 @@ function EventsList() {
                 >
                     Events
                 </Typography>
-                <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<CalendarToday />}
-                    onClick={() => {
-                        // Dispatch a custom event to navigate to the calendar
-                        window.dispatchEvent(new CustomEvent('navigate', {
-                            detail: 'calendar'
-                        }));
-                    }}
-                >
-                    View Calendar
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<Add />}
+                        onClick={handleOpenCreateEvent}
+                    >
+                        Create Event
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<CalendarToday />}
+                        onClick={() => {
+                            // Dispatch a custom event to navigate to the calendar
+                            window.dispatchEvent(new CustomEvent('navigate', {
+                                detail: 'calendar'
+                            }));
+                        }}
+                    >
+                        View Calendar
+                    </Button>
+                </Box>
             </Box>
 
             {error && (
@@ -447,6 +496,30 @@ function EventsList() {
             {!loading && (
                 activeTab === 0 ? renderUpcomingEvents() : renderPastEvents()
             )}
+
+            {/* Floating action button for mobile */}
+            <Tooltip title="Create Event">
+                <Fab
+                    color="primary"
+                    aria-label="add event"
+                    sx={{
+                        position: 'fixed',
+                        bottom: 20,
+                        right: 20,
+                        display: { xs: 'flex', md: 'none' }
+                    }}
+                    onClick={handleOpenCreateEvent}
+                >
+                    <Add />
+                </Fab>
+            </Tooltip>
+
+            {/* Create Event Dialog */}
+            <CreateEventForm
+                open={createEventOpen}
+                onClose={handleCloseCreateEvent}
+                onEventCreated={handleEventCreated}
+            />
         </Container>
     );
 }
