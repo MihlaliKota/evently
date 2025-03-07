@@ -29,7 +29,6 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     
-    // Fetch categories when the component mounts
     useEffect(() => {
         const fetchCategories = async () => {
             setLoadingCategories(true);
@@ -97,13 +96,11 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         setSuccess(null);
         
         try {
-            // Get the user ID from the JWT token
             const token = localStorage.getItem('authToken');
             if (!token) {
                 throw new Error('You must be logged in to create an event');
             }
             
-            // Decode the token to get the user ID
             const payload = token.split('.')[1];
             const decodedPayload = JSON.parse(atob(payload));
             const user_id = decodedPayload.userId;
@@ -112,21 +109,16 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 throw new Error('Unable to retrieve user ID from session');
             }
             
-            // The user_id is now extracted from the JWT token on the server side
-            // No need to explicitly send it in the request
             const eventData = {
                 ...formData
             };
             
-            // Format the date properly for the API
             if (eventData.event_date instanceof Date) {
-                eventData.event_date = eventData.event_date.toISOString();
+                eventData.event_date = eventData.event_date.toISOString().slice(0, 19).replace('T', ' ');
             }
             
-            // Use the API URL from environment
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             
-            // Make the API request with authentication token
             const response = await fetch(`${apiUrl}/api/events`, {
                 method: 'POST',
                 headers: {
@@ -144,7 +136,6 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             const data = await response.json();
             setSuccess('Event created successfully!');
             
-            // Reset form
             setFormData({
                 name: '',
                 description: '',
@@ -153,12 +144,10 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 category_id: ''
             });
             
-            // Notify parent component
             if (onEventCreated) {
                 onEventCreated(data);
             }
             
-            // Close the dialog after a short delay
             setTimeout(() => {
                 onClose();
             }, 1500);
@@ -170,9 +159,23 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             setLoading(false);
         }
     };
+
+    const handleNewReviewChange = (field, value) => {
+        if (field === 'event_date') {
+            const formattedDate = new Date(value).toISOString().slice(0, 19).replace('T', ' ');
+            setFormData({
+                ...formData,
+                [field]: formattedDate
+            });
+        } else {
+            setFormData({
+                ...formData,
+                [field]: value
+            });
+        }
+    };
     
     const handleClose = () => {
-        // Reset form when closing
         setFormData({
             name: '',
             description: '',
