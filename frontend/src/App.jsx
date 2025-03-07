@@ -28,25 +28,30 @@ function App() {
     useEffect(() => {
         console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5000');
         const token = localStorage.getItem('authToken');
+        const storedUsername = localStorage.getItem('username');
+        
         if (token) {
             try {
                 // Detailed token decoding
                 const payload = token.split('.')[1];
                 const decodedPayload = JSON.parse(atob(payload));
-
+    
                 console.group('🔐 Token Inspection');
                 console.log('Payload Contents:', decodedPayload);
-
+    
                 setIsLoggedIn(true);
-                setUserRole(detectedRole);
-
+                setUsername(storedUsername);
+                // The role might be missing from your token payload, so handle that case
+                if (decodedPayload.role) {
+                    setUserRole(decodedPayload.role);
+                }
+    
                 console.groupEnd();
             } catch (error) {
                 console.error('Token Decoding Error:', error);
                 // Clear invalid token
                 localStorage.removeItem('authToken');
                 setIsLoggedIn(false);
-                setUserRole('user');
             }
         }
     }, []);
