@@ -15,6 +15,7 @@ import {
 import StarRating from './StarRating';
 import ReviewDialog from './ReviewDialog';
 import { format, differenceInDays } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 function Dashboard({ username }) {
     const theme = useTheme();
