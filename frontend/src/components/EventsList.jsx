@@ -30,12 +30,9 @@ function EventsList() {
         setError(null);
         try {
             console.log("Fetching events...");
-            // Get authentication token
             const token = localStorage.getItem('authToken');
 
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            // Since we're having issues with the dedicated endpoints, let's use the main events endpoint
-            // which doesn't require authentication
             const response = await fetch(`${apiUrl}/api/events`);
 
             if (!response.ok) {
@@ -45,15 +42,13 @@ function EventsList() {
             const data = await response.json();
             console.log('All events:', data);
 
-            // Now separate the events into upcoming and past based on date
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Set to midnight for consistent comparison
+            today.setHours(0, 0, 0, 0);
 
             const upcomingEvents = [];
             const pastEvents = [];
 
             data.forEach(event => {
-                // Parse event date and set to midnight for comparison
                 const eventDate = new Date(event.event_date);
                 const normalizedEventDate = new Date(
                     eventDate.getFullYear(),
@@ -65,27 +60,22 @@ function EventsList() {
                 if (normalizedEventDate >= today) {
                     upcomingEvents.push(event);
                 } else {
-                    // Add mock review data for past events
-                    // In a real app, you'd fetch this from an API
                     pastEvents.push({
                         ...event,
-                        review_count: Math.floor(Math.random() * 5), // Random number of reviews
-                        avg_rating: (3 + Math.random() * 2).toFixed(1) // Random rating between 3-5
+                        review_count: Math.floor(Math.random() * 5),
+                        avg_rating: (3 + Math.random() * 2).toFixed(1)
                     });
                 }
             });
 
-            // Sort events by date
             upcomingEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-            pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date)); // Past events in reverse
+            pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
 
             setEvents({ upcoming: upcomingEvents, past: pastEvents });
 
         } catch (e) {
             setError(e);
             console.error("Error fetching events:", e);
-
-            // Set empty arrays to avoid undefined errors
             setEvents({ upcoming: [], past: [] });
         } finally {
             setLoading(false);
@@ -126,34 +116,42 @@ function EventsList() {
     };
 
     const handleEventCreated = (newEvent) => {
-        // Add the new event to the state and refetch events
-        setEvents(prev => {
-            // Deep copy the previous state
-            const updated = JSON.parse(JSON.stringify(prev));
-
-            // Add to upcoming events if date is in the future
-            const eventDate = new Date(newEvent.event_date);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            if (eventDate >= today) {
-                if (updated.upcoming) {
-                    updated.upcoming = [newEvent, ...updated.upcoming];
-                }
-            } else {
-                if (updated.past) {
-                    updated.past = [newEvent, ...updated.past];
-                }
-            }
-
-            return updated;
-        });
-
-        // Refetch events to get the updated list
-        fetchEvents();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const eventDate = new Date(newEvent.event_date);
+        const normalizedEventDate = new Date(
+            eventDate.getFullYear(),
+            eventDate.getMonth(),
+            eventDate.getDate(),
+            0, 0, 0, 0
+        );
+        
+        if (normalizedEventDate >= today) {
+            setEvents(prev => ({
+                ...prev,
+                upcoming: [newEvent, ...prev.upcoming].sort((a, b) => 
+                    new Date(a.event_date) - new Date(b.event_date)
+                )
+            }));
+        } else {
+            const enhancedEvent = {
+                ...newEvent,
+                review_count: 0,
+                avg_rating: 0
+            };
+            
+            setEvents(prev => ({
+                ...prev,
+                past: [enhancedEvent, ...prev.past].sort((a, b) => 
+                    new Date(b.event_date) - new Date(a.event_date)
+                )
+            }));
+        }
+        
+        setCreateEventOpen(false);
     };
 
-    // Empty state with sample data
     const sampleEvents = loading ? [
         {
             event_id: 'sample1',
@@ -380,7 +378,6 @@ function EventsList() {
                                             </Typography>
                                         </Box>
 
-                                        {/* Show ratings for past events */}
                                         {event.review_count > 0 && (
                                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                                                 <Rating
@@ -448,7 +445,6 @@ function EventsList() {
                         color="primary"
                         startIcon={<CalendarToday />}
                         onClick={() => {
-                            // Dispatch a custom event to navigate to the calendar
                             window.dispatchEvent(new CustomEvent('navigate', {
                                 detail: 'calendar'
                             }));
@@ -498,7 +494,6 @@ function EventsList() {
                 activeTab === 0 ? renderUpcomingEvents() : renderPastEvents()
             )}
 
-            {/* Floating action button for mobile */}
             <Tooltip title="Create Event">
                 <Fab
                     color="primary"
@@ -515,7 +510,6 @@ function EventsList() {
                 </Fab>
             </Tooltip>
 
-            {/* Create Event Dialog */}
             <CreateEventForm
                 open={createEventOpen}
                 onClose={handleCloseCreateEvent}
