@@ -15,6 +15,7 @@ const corsOptions = {
         'http://localhost:5173',             // Local development
         'https://evently-five-pi.vercel.app', // Vercel deployment
         'https://evently-production-cd21.up.railway.app', // Production backend
+        true
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
