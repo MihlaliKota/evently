@@ -272,51 +272,60 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
 
 // ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
 
-// POST /api/events - Create a new event
-app.post('/api/events', async (req, res) => {
+// POST /api/events - Create a new event (with authentication)
+app.post('/api/events', authenticateJWT, async (req, res) => {
     try {
-        // 1. Extract event data from request body
-        // Modified line to include user_id from req.body
-        const { user_id, name, description, location, event_date, category_id } = req.body;
+        // Get user_id from the authenticated JWT token
+        const userId = req.user.userId;
+        
+        // Extract event data from request body
+        const { name, description, location, event_date, category_id } = req.body;
 
-        // 2. Basic input validation (ensure name and category_id are provided)
+        // Basic input validation
         if (!name || !category_id) {
             return res.status(400).json({ error: 'Name and Category ID are required.' });
         }
 
-        // 3. Get database connection from the pool
+        // Get database connection from the pool
         const connection = await pool.getConnection();
 
         try {
-            // 4. Construct and execute SQL INSERT query (using parameterized query)
-            // Modified INSERT query to include user_id in the columns and values
+            // Construct and execute SQL INSERT query
             const [result] = await connection.query(
                 'INSERT INTO events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
-                // Modified parameter array to include user_id at the beginning
-                [user_id, category_id, name, description, location, event_date]
+                [userId, category_id, name, description, location, event_date]
             );
 
-            // 5. Get the newly inserted event ID
+            // Get the newly inserted event ID
             const eventId = result.insertId;
 
-            // 6. Fetch the newly created event from the database to return in response
+            // Fetch the newly created event from the database to return in response
             const [newEventRows] = await connection.query(
                 'SELECT * FROM events WHERE event_id = ?',
                 [eventId]
             );
-            const newEvent = newEventRows[0]; // Assuming only one event is returned
+            const newEvent = newEventRows[0];
 
-            // 7. Send successful response (201 Created) with the new event data
+            // Fetch the category name to include in response
+            const [categoryRows] = await connection.query(
+                'SELECT category_name FROM eventcategories WHERE category_id = ?',
+                [category_id]
+            );
+            
+            if (categoryRows.length > 0) {
+                newEvent.category_name = categoryRows[0].category_name;
+            }
+
+            // Send successful response with the new event data
             res.status(201).json(newEvent);
 
         } finally {
-            connection.release(); // Release the connection back to the pool in finally block
+            connection.release();
         }
 
     } catch (error) {
-        // 8. Handle errors (e.g., database errors, validation errors)
         console.error('Error creating event:', error);
-        res.status(500).json({ error: 'Failed to create event.', details: error.message }); // Send 500 error with a generic message and error details for debugging
+        res.status(500).json({ error: 'Failed to create event.', details: error.message });
     }
 });
 
