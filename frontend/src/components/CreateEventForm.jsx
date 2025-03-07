@@ -51,7 +51,9 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             }
         };
         
-        fetchCategories();
+        if (open) {
+            fetchCategories();
+        }
     }, [open]);
     
     const handleInputChange = (e) => {
@@ -121,11 +123,25 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 eventData.event_date = eventData.event_date.toISOString();
             }
             
-            const data = await fetchApi('/api/events', {
+            // Use the API URL from environment
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            
+            // Make the API request
+            const response = await fetch(`${apiUrl}/api/events`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(eventData)
             });
             
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to create event: ${response.status}`);
+            }
+            
+            const data = await response.json();
             setSuccess('Event created successfully!');
             
             // Reset form
@@ -228,7 +244,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                     label="Event Date & Time"
                                     value={formData.event_date}
                                     onChange={handleDateChange}
-                                    renderInput={(params) => <TextField {...params} fullWidth required />}
+                                    slotProps={{ textField: { fullWidth: true, required: true } }}
                                     disablePast
                                 />
                             </LocalizationProvider>
