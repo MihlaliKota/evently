@@ -4,7 +4,7 @@ import {
     Divider, CircularProgress, Paper,
     List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
     Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
-    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress
+    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress, IconButton
 } from '@mui/material';
 import {
     EventAvailable, People, CalendarToday, Check,
@@ -21,6 +21,7 @@ function Dashboard({ username }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+    const navigate = useNavigate();
 
     const [stats, setStats] = useState({
         totalEvents: 0,
