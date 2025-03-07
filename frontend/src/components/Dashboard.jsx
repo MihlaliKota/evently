@@ -681,46 +681,6 @@ function Dashboard({ username }) {
                                                     width: 40,
                                                     height: 40,
                                                     borderRadius: '50%',
-                                                    bgcolor: 'info.light',
-                                                    color: 'info.main',
-                                                    mr: 2
-                                                }}>
-                                                    <People sx={{ fontSize: 20 }} />
-                                                </Box>
-                                                <Typography color="text.secondary" variant="body2">
-                                                    Total Attendees
-                                                </Typography>
-                                            </Box>
-                                            <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                                {stats.totalAttendees || 0}
-                                            </Typography>
-                                        </>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6} lg={3}>
-                            <Card sx={{ height: '100%', borderRadius: 2 }}>
-                                <CardContent>
-                                    {loading ? (
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                            <CircularProgress size={30} />
-                                        </Box>
-                                    ) : (
-                                        <>
-                                            <Box sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                mb: 2
-                                            }}>
-                                                <Box sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    width: 40,
-                                                    height: 40,
-                                                    borderRadius: '50%',
                                                     bgcolor: 'success.light',
                                                     color: 'success.main',
                                                     mr: 2
