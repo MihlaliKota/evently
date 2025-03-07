@@ -272,36 +272,55 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
 
 // ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
 
-// In server.js, update the POST /api/events endpoint with better error handling:
 app.post('/api/events', authenticateJWT, async (req, res) => {
-    console.log('Creating event with data:', req.body);
-    console.log('User from token:', req.user);
-    
     try {
-        // Get user_id from the JWT token
         const userId = req.user.userId;
-        
-        if (!userId) {
-            return res.status(400).json({ error: 'Invalid user authentication' });
-        }
-        
-        // Extract event data from request body
         const { name, description, location, event_date, category_id } = req.body;
-        console.log('Extracted fields:', { name, description, location, event_date, category_id });
 
-        // Basic input validation
-        if (!name || !category_id) {
-            return res.status(400).json({ error: 'Name and Category ID are required.' });
+        // Comprehensive input validation
+        if (!name || name.trim() === '') {
+            return res.status(400).json({ error: 'Event name is required and cannot be empty.' });
         }
 
-        // Get database connection
+        if (!category_id) {
+            return res.status(400).json({ error: 'Category ID is required.' });
+        }
+
+        // Validate event date
+        const parsedDate = new Date(event_date);
+        if (isNaN(parsedDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid event date format.' });
+        }
+
+        // Optional: Prevent creating past events
+        if (parsedDate < new Date()) {
+            return res.status(400).json({ error: 'Event date cannot be in the past.' });
+        }
+
         const connection = await pool.getConnection();
         
         try {
+            // Optional: Validate category exists
+            const [categoryCheck] = await connection.query(
+                'SELECT * FROM eventcategories WHERE category_id = ?',
+                [category_id]
+            );
+
+            if (categoryCheck.length === 0) {
+                return res.status(404).json({ error: 'Selected category does not exist.' });
+            }
+
             // Insert the event
             const [result] = await connection.query(
                 'INSERT INTO events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
-                [userId, category_id, name, description || null, location || null, event_date]
+                [
+                    userId, 
+                    category_id, 
+                    name.trim(), 
+                    description ? description.trim() : null, 
+                    location ? location.trim() : null, 
+                    event_date
+                ]
             );
             
             // Get the newly created event
@@ -315,11 +334,10 @@ app.post('/api/events', authenticateJWT, async (req, res) => {
             connection.release();
         }
     } catch (error) {
-        console.error('Detailed error creating event:', error);
+        console.error('Event Creation Error:', error);
         res.status(500).json({ 
-            error: 'Failed to create event.', 
-            details: error.message,
-            stack: error.stack
+            error: 'Failed to create event', 
+            details: error.message
         });
     }
 });
