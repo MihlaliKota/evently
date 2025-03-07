@@ -24,6 +24,7 @@ function App() {
     const [darkMode, setDarkMode] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [activePage, setActivePage] = useState('dashboard');
+    const [userRole, setUserRole] = useState('user');
 
     useEffect(() => {
         console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5000');

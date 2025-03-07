@@ -272,60 +272,55 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
 
 // ------------------- Existing Event and Category API Endpoints (No Changes Here) -------------------
 
-// POST /api/events - Create a new event (with authentication)
+// In server.js, update the POST /api/events endpoint with better error handling:
 app.post('/api/events', authenticateJWT, async (req, res) => {
+    console.log('Creating event with data:', req.body);
+    console.log('User from token:', req.user);
+    
     try {
-        // Get user_id from the authenticated JWT token
+        // Get user_id from the JWT token
         const userId = req.user.userId;
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'Invalid user authentication' });
+        }
         
         // Extract event data from request body
         const { name, description, location, event_date, category_id } = req.body;
+        console.log('Extracted fields:', { name, description, location, event_date, category_id });
 
         // Basic input validation
         if (!name || !category_id) {
             return res.status(400).json({ error: 'Name and Category ID are required.' });
         }
 
-        // Get database connection from the pool
+        // Get database connection
         const connection = await pool.getConnection();
-
+        
         try {
-            // Construct and execute SQL INSERT query
+            // Insert the event
             const [result] = await connection.query(
                 'INSERT INTO events (user_id, category_id, name, description, location, event_date) VALUES (?, ?, ?, ?, ?, ?)',
-                [userId, category_id, name, description, location, event_date]
-            );
-
-            // Get the newly inserted event ID
-            const eventId = result.insertId;
-
-            // Fetch the newly created event from the database to return in response
-            const [newEventRows] = await connection.query(
-                'SELECT * FROM events WHERE event_id = ?',
-                [eventId]
-            );
-            const newEvent = newEventRows[0];
-
-            // Fetch the category name to include in response
-            const [categoryRows] = await connection.query(
-                'SELECT category_name FROM eventcategories WHERE category_id = ?',
-                [category_id]
+                [userId, category_id, name, description || null, location || null, event_date]
             );
             
-            if (categoryRows.length > 0) {
-                newEvent.category_name = categoryRows[0].category_name;
-            }
-
-            // Send successful response with the new event data
-            res.status(201).json(newEvent);
-
+            // Get the newly created event
+            const [newEvent] = await connection.query(
+                'SELECT * FROM events WHERE event_id = ?',
+                [result.insertId]
+            );
+            
+            res.status(201).json(newEvent[0]);
         } finally {
             connection.release();
         }
-
     } catch (error) {
-        console.error('Error creating event:', error);
-        res.status(500).json({ error: 'Failed to create event.', details: error.message });
+        console.error('Detailed error creating event:', error);
+        res.status(500).json({ 
+            error: 'Failed to create event.', 
+            details: error.message,
+            stack: error.stack
+        });
     }
 });
 
