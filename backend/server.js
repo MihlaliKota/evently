@@ -15,7 +15,6 @@ const corsOptions = {
         'http://localhost:5173',             // Local development
         'https://evently-five-pi.vercel.app', // Vercel deployment
         'https://evently-production-cd21.up.railway.app', // Production backend
-        true  // This allows dynamic origin checking
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -275,18 +274,18 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
 app.post('/api/events', authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.userId;
-        const { 
-            name, 
-            description, 
-            event_date, 
-            location, 
-            event_type = null, 
-            category_id 
+        const {
+            name,
+            description,
+            event_date,
+            location,
+            event_type = null,
+            category_id
         } = req.body;
 
         // Validate required fields
         if (!name || !category_id || !event_date) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: 'Name, category_id, and event_date are required.',
                 missingFields: {
                     name: !name,
@@ -297,7 +296,7 @@ app.post('/api/events', authenticateJWT, async (req, res) => {
         }
 
         const connection = await pool.getConnection();
-        
+
         try {
             // Validate category exists
             const [categoryCheck] = await connection.query(
@@ -309,36 +308,38 @@ app.post('/api/events', authenticateJWT, async (req, res) => {
                 return res.status(404).json({ error: 'Selected category does not exist.' });
             }
 
-            // Insert the event with all fields
+            const formattedEventDate = new Date(event_date).toISOString().slice(0, 19).replace('T', ' ');
+
             const [result] = await connection.query(
                 `INSERT INTO events 
-                (user_id, category_id, name, description, event_date, location, event_type, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    (user_id, category_id, name, description, event_date, location, event_type, created_at, updated_at) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
                 [
-                    userId, 
-                    category_id, 
-                    name.trim(), 
-                    description ? description.trim() : null, 
-                    event_date, 
+                    userId,
+                    category_id,
+                    name.trim(),
+                    description ? description.trim() : null,
+                    formattedEventDate,  // FIXED HERE
                     location ? location.trim() : null,
                     event_type
                 ]
             );
-            
+
+
             // Retrieve the newly created event
             const [newEvent] = await connection.query(
                 'SELECT * FROM events WHERE event_id = ?',
                 [result.insertId]
             );
-            
+
             res.status(201).json(newEvent[0]);
         } finally {
             connection.release();
         }
     } catch (error) {
         console.error('Event Creation Error:', error);
-        res.status(500).json({ 
-            error: 'Failed to create event', 
+        res.status(500).json({
+            error: 'Failed to create event',
             details: error.message
         });
     }
