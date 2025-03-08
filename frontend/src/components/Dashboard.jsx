@@ -4,13 +4,12 @@ import {
     Divider, CircularProgress, Paper,
     List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
     Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
-    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress, LocationOn, NavigateNext,
-    ArrowForward, RateReview, MoreVert
+    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress
 } from '@mui/material';
 import {
-    Add, EventAvailable, People, CalendarToday, Check,
-    Event, History, Comment, TrendingUp, EmojiEvents,
-    LocalActivity, Person, School, Favorite, Star
+    EventAvailable, People, CalendarToday, Check,
+    Event, History, Comment, Add, LocationOn, NavigateNext,
+    ArrowForward, RateReview, MoreVert
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import ReviewDialog from './ReviewDialog';
