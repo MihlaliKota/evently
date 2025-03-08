@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // Added this import
 import {
     Box, Typography, Grid, Card, CardContent,
     Divider, CircularProgress, Paper,
@@ -8,7 +9,8 @@ import {
 } from '@mui/material';
 import {
     EventAvailable, People, CalendarToday, Check,
-    Event, History, Comment, Add, LocationOn, NavigateNext,
+    Event, History, Comment, TrendingUp, EmojiEvents,
+    LocalActivity, Person, School, Favorite, Star, Add, LocationOn, NavigateNext,
     ArrowForward, RateReview, MoreVert
 } from '@mui/icons-material';
 import StarRating from './StarRating';
@@ -16,6 +18,7 @@ import ReviewDialog from './ReviewDialog';
 import { format, differenceInDays } from 'date-fns';
 
 function Dashboard({ username }) {
+    const navigate = useNavigate(); // Added this hook
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -178,7 +181,18 @@ function Dashboard({ username }) {
     }, []);
 
     useEffect(() => {
-        fetchDashboardData();
+        let isMounted = true; // Added to prevent state updates after unmounting
+        
+        const fetchData = async () => {
+            await fetchDashboardData();
+        };
+        
+        fetchData();
+        
+        // Cleanup function to prevent memory leaks
+        return () => {
+            isMounted = false;
+        };
     }, [fetchDashboardData]);
 
     const fetchEventReviews = async (eventId) => {
@@ -708,10 +722,20 @@ function Dashboard({ username }) {
                                     Your Upcoming Events
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1 }}>
-                                    <Button variant="outlined" size="small" startIcon={<CalendarToday />}>
+                                    <Button 
+                                        variant="outlined" 
+                                        size="small" 
+                                        startIcon={<CalendarToday />}
+                                        onClick={() => navigate('/calendar')}
+                                    >
                                         View Calendar
                                     </Button>
-                                    <Button variant="contained" size="small" startIcon={<Add />}>
+                                    <Button 
+                                        variant="contained" 
+                                        size="small" 
+                                        startIcon={<Add />}
+                                        onClick={() => navigate('/events')}
+                                    >
                                         Create Event
                                     </Button>
                                 </Box>
@@ -818,6 +842,7 @@ function Dashboard({ username }) {
                                         variant="contained"
                                         startIcon={<Add />}
                                         sx={{ mt: 2 }}
+                                        onClick={() => navigate('/events')}
                                     >
                                         Create Event
                                     </Button>
@@ -830,7 +855,11 @@ function Dashboard({ username }) {
                                 <Typography variant="h6" component="h2">
                                     Recent Event Activity
                                 </Typography>
-                                <Button variant="text" endIcon={<NavigateNext />}>
+                                <Button 
+                                    variant="text" 
+                                    endIcon={<NavigateNext />}
+                                    onClick={() => navigate('/events')}
+                                >
                                     View All
                                 </Button>
                             </Box>
@@ -891,6 +920,10 @@ function Dashboard({ username }) {
                                                             fullWidth
                                                             startIcon={<RateReview />}
                                                             sx={{ mt: 1 }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenReviews(event);
+                                                            }}
                                                         >
                                                             Add Review
                                                         </Button>
@@ -904,6 +937,7 @@ function Dashboard({ username }) {
                                         variant="outlined"
                                         fullWidth
                                         endIcon={<ArrowForward />}
+                                        onClick={() => navigate('/events')}
                                     >
                                         View All Past Events ({pastEvents.length})
                                     </Button>
