@@ -1,27 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent,
     Divider, CircularProgress, Paper,
     List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
-    Chip, Tabs, Tab, Avatar,
-    Button, Alert, useTheme, useMediaQuery, Tooltip, LinearProgress, IconButton
+    Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
+    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress, Add, LocationOn, NavigateNext,
+    ArrowForward, RateReview, MoreVert
 } from '@mui/material';
 import {
     EventAvailable, People, CalendarToday, Check,
     Event, History, Comment, TrendingUp, EmojiEvents,
-    LocalActivity, Person, School, Favorite, Star, Add, LocationOn, NavigateNext,
-    ArrowForward, RateReview, MoreVert
+    LocalActivity, Person, School, Favorite, Star
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import ReviewDialog from './ReviewDialog';
 import { format, differenceInDays } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
 
 function Dashboard({ username }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-    const navigate = useNavigate();
 
     const [stats, setStats] = useState({
         totalEvents: 0,
@@ -74,17 +72,11 @@ function Dashboard({ username }) {
             };
 
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            let eventsData = [];
-            try {
-                const eventsResponse = await fetch(`${apiUrl}/api/events`, { headers });
-                if (!eventsResponse.ok) {
-                    throw new Error('Failed to fetch events');
-                }
-                eventsData = await eventsResponse.json();
-            } catch (error) {
-                console.error('Error fetching events:', error);
+            const eventsResponse = await fetch(`${apiUrl}/api/events`, { headers });
+            if (!eventsResponse.ok) {
                 throw new Error('Failed to fetch events');
             }
+            const eventsData = await eventsResponse.json();
 
             let statsData = {};
             try {
@@ -99,19 +91,14 @@ function Dashboard({ username }) {
                 today.setHours(0, 0, 0, 0);
 
                 const upcoming = eventsData.filter(event => {
-                    if (!event.event_date) return false;
-                    try {
-                        const eventDate = new Date(event.event_date);
-                        const normalizedDate = new Date(
-                            eventDate.getFullYear(),
-                            eventDate.getMonth(),
-                            eventDate.getDate(),
-                            0, 0, 0, 0
-                        );
-                        return normalizedDate >= today;
-                    } catch (err) {
-                        return false;
-                    }
+                    const eventDate = new Date(event.event_date);
+                    const normalizedDate = new Date(
+                        eventDate.getFullYear(),
+                        eventDate.getMonth(),
+                        eventDate.getDate(),
+                        0, 0, 0, 0
+                    );
+                    return normalizedDate >= today;
                 }).length;
 
                 const completed = eventsData.length - upcoming;
@@ -134,7 +121,6 @@ function Dashboard({ username }) {
             const past = [];
 
             eventsData.forEach(event => {
-                if (!event.event_date) return;
                 try {
                     const eventDate = new Date(event.event_date);
                     const normalizedDate = new Date(
@@ -249,7 +235,6 @@ function Dashboard({ username }) {
     };
 
     const handleOpenReviews = (event) => {
-        if (!event) return;
         setSelectedEvent(event);
         fetchEventReviews(event.event_id);
         setOpenReviewsDialog(true);
@@ -267,26 +252,14 @@ function Dashboard({ username }) {
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return 'Date not available';
-        try {
-            const date = new Date(dateString);
-            return format(date, 'EEE, MMM d, yyyy h:mm a');
-        } catch (error) {
-            console.error('Date formatting error:', error);
-            return 'Invalid date';
-        }
+        const date = new Date(dateString);
+        return format(date, 'EEE, MMM d, yyyy h:mm a');
     };
 
     const getDaysRemaining = (dateString) => {
-        if (!dateString) return 0;
-        try {
-            const eventDate = new Date(dateString);
-            const today = new Date();
-            return differenceInDays(eventDate, today);
-        } catch (error) {
-            console.error('Days remaining calculation error:', error);
-            return 0;
-        }
+        const eventDate = new Date(dateString);
+        const today = new Date();
+        return differenceInDays(eventDate, today);
     };
 
     const formatRating = (rating) => {
@@ -302,11 +275,9 @@ function Dashboard({ username }) {
     };
 
     const generateCategoryPreferences = (pastEvents) => {
-        if (!pastEvents || !Array.isArray(pastEvents)) return [];
-        
         const categories = {};
         pastEvents.forEach(event => {
-            const categoryId = event?.category_id;
+            const categoryId = event.category_id;
             if (categoryId) {
                 categories[categoryId] = (categories[categoryId] || 0) + 1;
             }
@@ -319,21 +290,16 @@ function Dashboard({ username }) {
     };
 
     const generateRecentActivity = (recentEvents) => {
-        if (!recentEvents || !Array.isArray(recentEvents)) return [];
-        
         return recentEvents.map(event => ({
             type: 'event_attendance',
-            event_id: event?.event_id || 0,
-            event_name: event?.name || 'Unnamed Event',
-            date: event?.event_date || new Date().toISOString(),
-            hasReview: (event?.review_count || 0) > 0
+            event_id: event.event_id,
+            event_name: event.name,
+            date: event.event_date,
+            hasReview: event.review_count > 0
         }));
     };
 
     const generateAchievements = (pastEventsCount, stats) => {
-        if (typeof pastEventsCount !== 'number') pastEventsCount = 0;
-        if (!stats) stats = { totalEvents: 0 };
-        
         return [
             {
                 id: 'first_event',
@@ -356,14 +322,13 @@ function Dashboard({ username }) {
                 title: 'Feedback Provider',
                 description: 'Write your first review',
                 icon: <Comment color="success" />,
-                completed: (userEngagement?.reviewsSubmitted || 0) > 0,
-                progress: (userEngagement?.reviewsSubmitted || 0) > 0 ? 1 : 0
+                completed: userEngagement.reviewsSubmitted > 0,
+                progress: userEngagement.reviewsSubmitted > 0 ? 1 : 0
             }
         ];
     };
 
     const generateCommunityActivity = (pastEvents) => {
-        // Return safe default data regardless of input
         return [
             {
                 type: 'popular_event',
@@ -387,19 +352,6 @@ function Dashboard({ username }) {
     };
 
     const renderAchievements = () => {
-        if (!userEngagement || !userEngagement.achievements || !Array.isArray(userEngagement.achievements)) {
-            return (
-                <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Your Achievements
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        No achievements data available
-                    </Typography>
-                </Paper>
-            );
-        }
-
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -437,19 +389,6 @@ function Dashboard({ username }) {
     };
 
     const renderEngagementMetrics = () => {
-        if (!userEngagement) {
-            return (
-                <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Your Engagement
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        No engagement data available
-                    </Typography>
-                </Paper>
-            );
-        }
-
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -459,7 +398,7 @@ function Dashboard({ username }) {
                     <Grid item xs={12} sm={4}>
                         <Box sx={{ textAlign: 'center', p: 2 }}>
                             <Typography variant="h4" color="primary.main">
-                                {userEngagement.eventsAttended || 0}
+                                {userEngagement.eventsAttended}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Events Attended
@@ -469,7 +408,7 @@ function Dashboard({ username }) {
                     <Grid item xs={12} sm={4}>
                         <Box sx={{ textAlign: 'center', p: 2 }}>
                             <Typography variant="h4" color="secondary.main">
-                                {userEngagement.reviewsSubmitted || 0}
+                                {userEngagement.reviewsSubmitted}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Reviews Submitted
@@ -492,7 +431,7 @@ function Dashboard({ username }) {
                     Category Preferences
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {Array.isArray(userEngagement.categoryPreferences) && userEngagement.categoryPreferences.map((category) => (
+                    {userEngagement.categoryPreferences.map((category) => (
                         <Chip
                             key={category.id}
                             label={`${category.name} (${category.count})`}
@@ -500,11 +439,6 @@ function Dashboard({ username }) {
                             variant="outlined"
                         />
                     ))}
-                    {(!Array.isArray(userEngagement.categoryPreferences) || userEngagement.categoryPreferences.length === 0) && (
-                        <Typography variant="body2" color="text.secondary">
-                            No category preferences data available
-                        </Typography>
-                    )}
                 </Box>
             </Paper>
         );
@@ -516,13 +450,13 @@ function Dashboard({ username }) {
                 <Typography variant="h6" gutterBottom>
                     Recent Activity
                 </Typography>
-                {Array.isArray(userEngagement?.recentActivity) && userEngagement.recentActivity.length > 0 ? (
+                {userEngagement.recentActivity.length > 0 ? (
                     <List>
                         {userEngagement.recentActivity.map((activity, index) => (
                             <React.Fragment key={`activity-${index}`}>
                                 <ListItem alignItems="flex-start">
                                     <ListItemIcon>
-                                        {activity?.type === 'event_attendance' ? (
+                                        {activity.type === 'event_attendance' ? (
                                             <EventAvailable color="primary" />
                                         ) : (
                                             <Comment color="secondary" />
@@ -530,13 +464,13 @@ function Dashboard({ username }) {
                                     </ListItemIcon>
                                     <ListItemText
                                         primary={
-                                            activity?.type === 'event_attendance'
-                                                ? `Attended: ${activity?.event_name || 'Event'}`
-                                                : `Reviewed: ${activity?.event_name || 'Event'}`
+                                            activity.type === 'event_attendance'
+                                                ? `Attended: ${activity.event_name}`
+                                                : `Reviewed: ${activity.event_name}`
                                         }
-                                        secondary={formatDate(activity?.date)}
+                                        secondary={formatDate(activity.date)}
                                     />
-                                    {activity?.type === 'event_attendance' && !activity?.hasReview && (
+                                    {activity.type === 'event_attendance' && !activity.hasReview && (
                                         <ListItemSecondaryAction>
                                             <Button
                                                 variant="outlined"
@@ -548,7 +482,7 @@ function Dashboard({ username }) {
                                         </ListItemSecondaryAction>
                                     )}
                                 </ListItem>
-                                {index < (userEngagement?.recentActivity?.length || 0) - 1 && (
+                                {index < userEngagement.recentActivity.length - 1 && (
                                     <Divider component="li" />
                                 )}
                             </React.Fragment>
@@ -564,19 +498,6 @@ function Dashboard({ username }) {
     };
 
     const renderCommunityInsights = () => {
-        if (!Array.isArray(communityActivity) || communityActivity.length === 0) {
-            return (
-                <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Community Highlights
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                        No community data available
-                    </Typography>
-                </Paper>
-            );
-        }
-
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -598,17 +519,17 @@ function Dashboard({ username }) {
                                 <ListItemText
                                     primary={
                                         item.type === 'popular_event'
-                                            ? `Popular Event: ${item.name || 'Event'}`
+                                            ? `Popular Event: ${item.name}`
                                             : item.type === 'trending_category'
-                                                ? `Trending: ${item.name || 'Category'}`
-                                                : `Active User: ${item.username || 'User'}`
+                                                ? `Trending: ${item.name}`
+                                                : `Active User: ${item.username}`
                                     }
                                     secondary={
                                         item.type === 'popular_event'
-                                            ? `${item.attendees || 0} attendees, ${item.rating || 0} ★`
+                                            ? `${item.attendees} attendees, ${item.rating} ★`
                                             : item.type === 'trending_category'
-                                                ? `${item.growth || '0%'} growth, ${item.events || 0} events`
-                                                : `${item.events_attended || 0} events, ${item.reviews || 0} reviews`
+                                                ? `${item.growth} growth, ${item.events} events`
+                                                : `${item.events_attended} events, ${item.reviews} reviews`
                                     }
                                 />
                             </ListItem>
@@ -622,7 +543,6 @@ function Dashboard({ username }) {
         );
     };
 
-    // Simplified render with defensive programming
     return (
         <Box sx={{ width: '100%' }}>
             <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -802,13 +722,12 @@ function Dashboard({ username }) {
                                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                     <CircularProgress />
                                 </Box>
-                            ) : Array.isArray(upcomingEvents) && upcomingEvents.length > 0 ? (
+                            ) : upcomingEvents.length > 0 ? (
                                 <Grid container spacing={2}>
                                     {upcomingEvents.slice(0, 4).map((event) => {
-                                        if (!event) return null;
                                         const daysRemaining = getDaysRemaining(event.event_date);
                                         return (
-                                            <Grid item xs={12} sm={6} md={3} key={event.event_id || Math.random()}>
+                                            <Grid item xs={12} sm={6} md={3} key={event.event_id}>
                                                 <Card
                                                     sx={{
                                                         height: '100%',
@@ -833,7 +752,7 @@ function Dashboard({ username }) {
 
                                                     <CardContent sx={{ flexGrow: 1, pb: 1 }}>
                                                         <Typography variant="subtitle1" component="div" sx={{ mb: 1, fontWeight: 'medium' }}>
-                                                            {event.name || 'Unnamed Event'}
+                                                            {event.name}
                                                         </Typography>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                                             <CalendarToday fontSize="small" color="primary" sx={{ mr: 1 }} />
@@ -921,11 +840,11 @@ function Dashboard({ username }) {
                                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                     <CircularProgress />
                                 </Box>
-                            ) : Array.isArray(pastEvents) && pastEvents.length > 0 ? (
+                            ) : pastEvents.length > 0 ? (
                                 <Box>
                                     <Grid container spacing={2} sx={{ mb: 3 }}>
                                         {pastEvents.slice(0, 3).map((event) => (
-                                            <Grid item xs={12} sm={4} key={event?.event_id || Math.random()}>
+                                            <Grid item xs={12} sm={4} key={event.event_id}>
                                                 <Card
                                                     sx={{
                                                         p: 2,
@@ -942,26 +861,26 @@ function Dashboard({ username }) {
                                                         </Box>
                                                         <Box>
                                                             <Typography variant="subtitle2" noWrap>
-                                                                {event?.name || 'Unnamed Event'}
+                                                                {event.name}
                                                             </Typography>
                                                             <Typography variant="caption" color="text.secondary">
-                                                                {formatDate(event?.event_date)}
+                                                                {formatDate(event.event_date)}
                                                             </Typography>
                                                         </Box>
                                                     </Box>
 
-                                                    {(event?.review_count || 0) > 0 ? (
+                                                    {event.review_count > 0 ? (
                                                         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                                                             <StarRating
-                                                                value={parseFloat(event?.avg_rating) || 0}
+                                                                value={parseFloat(event.avg_rating) || 0}
                                                                 readOnly
                                                                 size="small"
                                                             />
                                                             <Typography variant="body2" sx={{ ml: 1 }}>
-                                                                {formatRating(event?.avg_rating)}
+                                                                {formatRating(event.avg_rating)}
                                                             </Typography>
                                                             <Chip
-                                                                label={`${event?.review_count || 0} reviews`}
+                                                                label={`${event.review_count} reviews`}
                                                                 size="small"
                                                                 sx={{ ml: 'auto' }}
                                                             />
@@ -1016,19 +935,19 @@ function Dashboard({ username }) {
                 </>
             )}
 
-            {/* Only render ReviewDialog when selectedEvent exists */}
-            {selectedEvent && (
-                <ReviewDialog
-                    open={openReviewsDialog}
-                    onClose={handleCloseReviews}
-                    eventId={selectedEvent?.event_id}
-                    eventName={selectedEvent?.name}
-                    eventDate={selectedEvent?.event_date}
-                    eventLocation={selectedEvent?.location}
-                    initialRating={selectedEvent?.avg_rating}
-                    reviewCount={selectedEvent?.review_count}
-                />
-            )}
+            <ReviewDialog
+                open={openReviewsDialog}
+                onClose={() => {
+                    setOpenReviewsDialog(false);
+                    setSelectedEvent(null);
+                }}
+                eventId={selectedEvent?.event_id}
+                eventName={selectedEvent?.name}
+                eventDate={selectedEvent?.event_date}
+                eventLocation={selectedEvent?.location}
+                initialRating={selectedEvent?.avg_rating}
+                reviewCount={selectedEvent?.review_count}
+            />
         </Box>
     );
 }
