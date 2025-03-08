@@ -4,7 +4,8 @@ import {
     Divider, CircularProgress, Paper,
     List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
     Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
-    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress
+    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress, Add, LocationOn, NavigateNext,
+    ArrowForward, RateReview, MoreVert
 } from '@mui/material';
 import {
     EventAvailable, People, CalendarToday, Check,
