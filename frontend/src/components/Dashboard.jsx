@@ -19,7 +19,7 @@ function Dashboard({ username }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-
+    
     const [stats, setStats] = useState({
         totalEvents: 0,
         upcomingEvents: 0,
@@ -35,7 +35,7 @@ function Dashboard({ username }) {
     const [eventReviews, setEventReviews] = useState([]);
     const [loadingReviews, setLoadingReviews] = useState(false);
     const [error, setError] = useState(null);
-
+    
     const [dashboardTab, setDashboardTab] = useState(0);
     const [userEngagement, setUserEngagement] = useState({
         eventsAttended: 0,
@@ -88,7 +88,7 @@ function Dashboard({ username }) {
             } catch (statsError) {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-
+                
                 const upcoming = eventsData.filter(event => {
                     const eventDate = new Date(event.event_date);
                     const normalizedDate = new Date(
@@ -99,10 +99,10 @@ function Dashboard({ username }) {
                     );
                     return normalizedDate >= today;
                 }).length;
-
+                
                 const completed = eventsData.length - upcoming;
                 const totalAttendees = eventsData.reduce((sum, event) => sum + (event.attendees || 0), 0);
-
+                
                 statsData = {
                     totalEvents: eventsData.length,
                     upcomingEvents: upcoming,
@@ -110,7 +110,7 @@ function Dashboard({ username }) {
                     totalAttendees: totalAttendees
                 };
             }
-
+            
             setStats(statsData);
 
             const today = new Date();
@@ -128,15 +128,15 @@ function Dashboard({ username }) {
                         eventDate.getDate(),
                         0, 0, 0, 0
                     );
-
+                    
                     if (normalizedDate >= today) {
                         upcoming.push(event);
                     } else {
-                        const mockReviewCount = event.review_count !== undefined ?
+                        const mockReviewCount = event.review_count !== undefined ? 
                             event.review_count : Math.floor(Math.random() * 3);
                         const mockAvgRating = event.avg_rating !== undefined ?
                             event.avg_rating : (3 + Math.random() * 2).toFixed(1);
-
+                            
                         past.push({
                             ...event,
                             review_count: mockReviewCount,
@@ -153,7 +153,7 @@ function Dashboard({ username }) {
 
             setUpcomingEvents(upcoming);
             setPastEvents(past);
-
+            
             const mockUserEngagement = {
                 eventsAttended: past.length,
                 reviewsSubmitted: past.reduce((sum, event) => sum + (event.review_count || 0), 0),
@@ -162,7 +162,7 @@ function Dashboard({ username }) {
                 recentActivity: generateRecentActivity(past.slice(0, 3)),
                 achievements: generateAchievements(past.length, statsData)
             };
-
+            
             setUserEngagement(mockUserEngagement);
             setCommunityActivity(generateCommunityActivity(past));
 
@@ -268,11 +268,11 @@ function Dashboard({ username }) {
     const handleTabChange = (event, newValue) => {
         setEventTab(newValue);
     };
-
+    
     const handleDashboardTabChange = (event, newValue) => {
         setDashboardTab(newValue);
     };
-
+    
     const generateCategoryPreferences = (pastEvents) => {
         const categories = {};
         pastEvents.forEach(event => {
@@ -281,13 +281,13 @@ function Dashboard({ username }) {
                 categories[categoryId] = (categories[categoryId] || 0) + 1;
             }
         });
-
+        
         return Object.entries(categories)
             .map(([id, count]) => ({ id, count, name: `Category ${id}` }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 3);
     };
-
+    
     const generateRecentActivity = (recentEvents) => {
         return recentEvents.map(event => ({
             type: 'event_attendance',
@@ -297,7 +297,7 @@ function Dashboard({ username }) {
             hasReview: event.review_count > 0
         }));
     };
-
+    
     const generateAchievements = (pastEventsCount, stats) => {
         return [
             {
@@ -326,7 +326,7 @@ function Dashboard({ username }) {
             }
         ];
     };
-
+    
     const generateCommunityActivity = (pastEvents) => {
         return [
             {
@@ -349,7 +349,7 @@ function Dashboard({ username }) {
             }
         ];
     };
-
+    
     const renderAchievements = () => {
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
@@ -372,9 +372,9 @@ function Dashboard({ username }) {
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
                                         {achievement.description}
                                     </Typography>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={achievement.progress * 100}
+                                    <LinearProgress 
+                                        variant="determinate" 
+                                        value={achievement.progress * 100} 
                                         sx={{ height: 8, borderRadius: 5, mt: 1 }}
                                         color={achievement.completed ? "success" : "primary"}
                                     />
@@ -386,7 +386,7 @@ function Dashboard({ username }) {
             </Paper>
         );
     };
-
+    
     const renderEngagementMetrics = () => {
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
@@ -423,15 +423,15 @@ function Dashboard({ username }) {
                         </Box>
                     </Grid>
                 </Grid>
-
+                
                 <Divider sx={{ my: 2 }} />
-
+                
                 <Typography variant="subtitle1" gutterBottom>
                     Category Preferences
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {userEngagement.categoryPreferences.map((category) => (
-                        <Chip
+                        <Chip 
                             key={category.id}
                             label={`${category.name} (${category.count})`}
                             color="primary"
@@ -442,7 +442,7 @@ function Dashboard({ username }) {
             </Paper>
         );
     };
-
+    
     const renderRecentActivity = () => {
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
@@ -463,17 +463,17 @@ function Dashboard({ username }) {
                                     </ListItemIcon>
                                     <ListItemText
                                         primary={
-                                            activity.type === 'event_attendance'
-                                                ? `Attended: ${activity.event_name}`
+                                            activity.type === 'event_attendance' 
+                                                ? `Attended: ${activity.event_name}` 
                                                 : `Reviewed: ${activity.event_name}`
                                         }
                                         secondary={formatDate(activity.date)}
                                     />
                                     {activity.type === 'event_attendance' && !activity.hasReview && (
                                         <ListItemSecondaryAction>
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
+                                            <Button 
+                                                variant="outlined" 
+                                                size="small" 
                                                 startIcon={<Comment />}
                                             >
                                                 Add Review
@@ -495,7 +495,7 @@ function Dashboard({ username }) {
             </Paper>
         );
     };
-
+    
     const renderCommunityInsights = () => {
         return (
             <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
@@ -553,8 +553,8 @@ function Dashboard({ username }) {
                         Here's an overview of your events and activities
                     </Typography>
                 </Box>
-                <Button
-                    variant="outlined"
+                <Button 
+                    variant="outlined" 
                     onClick={handleRefresh}
                     disabled={refreshing}
                     startIcon={refreshing ? <CircularProgress size={20} /> : null}
@@ -681,6 +681,46 @@ function Dashboard({ username }) {
                                                     width: 40,
                                                     height: 40,
                                                     borderRadius: '50%',
+                                                    bgcolor: 'info.light',
+                                                    color: 'info.main',
+                                                    mr: 2
+                                                }}>
+                                                    <People sx={{ fontSize: 20 }} />
+                                                </Box>
+                                                <Typography color="text.secondary" variant="body2">
+                                                    Total Attendees
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                                                {stats.totalAttendees || 0}
+                                            </Typography>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6} lg={3}>
+                            <Card sx={{ height: '100%', borderRadius: 2 }}>
+                                <CardContent>
+                                    {loading ? (
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                            <CircularProgress size={30} />
+                                        </Box>
+                                    ) : (
+                                        <>
+                                            <Box sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                mb: 2
+                                            }}>
+                                                <Box sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: 40,
+                                                    height: 40,
+                                                    borderRadius: '50%',
                                                     bgcolor: 'success.light',
                                                     color: 'success.main',
                                                     mr: 2
@@ -701,221 +741,178 @@ function Dashboard({ username }) {
                         </Grid>
                     </Grid>
 
+                    <Box sx={{ mb: 2 }}>
+                        <Tabs
+                            value={eventTab}
+                            onChange={handleTabChange}
+                            aria-label="event tabs"
+                            sx={{ borderBottom: 1, borderColor: 'divider' }}
+                        >
+                            <Tab
+                                label="Upcoming Events"
+                                icon={<CalendarToday fontSize="small" />}
+                                iconPosition="start"
+                            />
+                            <Tab
+                                label="Past Events"
+                                icon={<History fontSize="small" />}
+                                iconPosition="start"
+                            />
+                        </Tabs>
+                    </Box>
+
                     <Box sx={{ mb: 4 }}>
-                        <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                                <Typography variant="h6" component="h2">
-                                    Your Upcoming Events
-                                </Typography>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                    <Button variant="outlined" size="small" startIcon={<CalendarToday />}>
-                                        View Calendar
-                                    </Button>
-                                    <Button variant="contained" size="small" startIcon={<Add />}>
-                                        Create Event
-                                    </Button>
-                                </Box>
-                            </Box>
-
-                            {loading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                    <CircularProgress />
-                                </Box>
-                            ) : upcomingEvents.length > 0 ? (
-                                <Grid container spacing={2}>
-                                    {upcomingEvents.slice(0, 4).map((event) => {
-                                        const daysRemaining = getDaysRemaining(event.event_date);
-                                        return (
-                                            <Grid item xs={12} sm={6} md={3} key={event.event_id}>
-                                                <Card
-                                                    sx={{
-                                                        height: '100%',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        cursor: 'pointer',
-                                                        transition: 'transform 0.2s, box-shadow 0.2s',
-                                                        '&:hover': {
-                                                            transform: 'translateY(-4px)',
-                                                            boxShadow: 4
-                                                        },
-                                                        position: 'relative'
-                                                    }}
-                                                    onClick={() => handleOpenReviews(event)}
-                                                >
-                                                    <Box sx={{
-                                                        height: 8,
-                                                        bgcolor: daysRemaining <= 1 ? 'error.main' :
-                                                            daysRemaining <= 3 ? 'warning.main' : 'primary.main',
-                                                        width: '100%'
-                                                    }} />
-
-                                                    <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                                                        <Typography variant="subtitle1" component="div" sx={{ mb: 1, fontWeight: 'medium' }}>
-                                                            {event.name}
-                                                        </Typography>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                                            <CalendarToday fontSize="small" color="primary" sx={{ mr: 1 }} />
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {formatDate(event.event_date)}
-                                                            </Typography>
-                                                        </Box>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                                            <LocationOn fontSize="small" color="action" sx={{ mr: 1 }} />
-                                                            <Typography variant="body2" color="text.secondary" noWrap>
-                                                                {event.location || 'No location specified'}
-                                                            </Typography>
-                                                        </Box>
-                                                    </CardContent>
-
-                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 2, pb: 2, mt: 'auto' }}>
-                                                        <Chip
-                                                            label={daysRemaining <= 0 ? "Today!" : `${daysRemaining} days left`}
-                                                            color={daysRemaining <= 1 ? "error" : daysRemaining <= 3 ? "warning" : "primary"}
-                                                            size="small"
+                        {eventTab === 0 && (
+                            <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                                {loading ? (
+                                    <Box sx={{ p: 3 }}>
+                                        <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
+                                    </Box>
+                                ) : upcomingEvents.length > 0 ? (
+                                    <List disablePadding>
+                                        {upcomingEvents.map((event, index) => {
+                                            const daysRemaining = getDaysRemaining(event.event_date);
+                                            return (
+                                                <React.Fragment key={event.event_id}>
+                                                    <ListItem 
+                                                        sx={{ 
+                                                            px: 3, 
+                                                            py: 2,
+                                                            transition: 'background-color 0.2s',
+                                                            '&:hover': {
+                                                                bgcolor: 'action.hover'
+                                                            },
+                                                            cursor: 'pointer'
+                                                        }}
+                                                        onClick={() => handleOpenReviews(event)}
+                                                    >
+                                                        <ListItemIcon>
+                                                            <Badge color="primary" badgeContent={daysRemaining <= 3 ? "!" : 0}>
+                                                                <Event color="primary" />
+                                                            </Badge>
+                                                        </ListItemIcon>
+                                                        <ListItemText
+                                                            primary={
+                                                                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'medium' }}>
+                                                                    {event.name}
+                                                                </Typography>
+                                                            }
+                                                            secondary={
+                                                                <>
+                                                                    <Typography variant="body2" component="span" display="block">
+                                                                        {formatDate(event.event_date)} • {event.location || 'No location'}
+                                                                    </Typography>
+                                                                    <Typography variant="body2" component="span" display="block">
+                                                                        {event.attendees || 0} attendees
+                                                                    </Typography>
+                                                                </>
+                                                            }
                                                         />
-                                                        <Tooltip title="View details">
-                                                            <IconButton size="small">
-                                                                <MoreVert fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    </Box>
-                                                </Card>
-                                            </Grid>
-                                        );
-                                    })}
+                                                        <ListItemSecondaryAction>
+                                                            <Tooltip title={daysRemaining <= 0 ? "Today!" : `${daysRemaining} days left`}>
+                                                                <Chip
+                                                                    label={daysRemaining <= 0 ? "Today!" : `${daysRemaining} days left`}
+                                                                    color={daysRemaining <= 1 ? "error" : daysRemaining <= 3 ? "warning" : "primary"}
+                                                                    size="small"
+                                                                />
+                                                            </Tooltip>
+                                                        </ListItemSecondaryAction>
+                                                    </ListItem>
+                                                    {index < upcomingEvents.length - 1 && <Divider component="li" />}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </List>
+                                ) : (
+                                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                                        <Typography variant="body1" color="text.secondary">
+                                            No upcoming events scheduled
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Paper>
+                        )}
 
-                                    {upcomingEvents.length > 4 && (
-                                        <Grid item xs={12} sm={6} md={3}>
-                                            <Card
-                                                sx={{
-                                                    height: '100%',
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    justifyContent: 'center',
-                                                    alignItems: 'center',
-                                                    bgcolor: 'action.hover',
-                                                    py: 3,
-                                                    cursor: 'pointer'
-                                                }}
-                                                onClick={() => navigate('/events')}
-                                            >
-                                                <Typography variant="h5" color="primary.main" gutterBottom>
-                                                    +{upcomingEvents.length - 4}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    View all upcoming events
-                                                </Typography>
-                                            </Card>
-                                        </Grid>
-                                    )}
-                                </Grid>
-                            ) : (
-                                <Box sx={{ textAlign: 'center', py: 4 }}>
-                                    <Typography variant="body1" color="text.secondary" gutterBottom>
-                                        No upcoming events scheduled
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<Add />}
-                                        sx={{ mt: 2 }}
-                                    >
-                                        Create Event
-                                    </Button>
-                                </Box>
-                            )}
-                        </Paper>
-
-                        <Paper sx={{ p: 3, borderRadius: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                                <Typography variant="h6" component="h2">
-                                    Recent Event Activity
-                                </Typography>
-                                <Button variant="text" endIcon={<NavigateNext />}>
-                                    View All
-                                </Button>
-                            </Box>
-
-                            {loading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                    <CircularProgress />
-                                </Box>
-                            ) : pastEvents.length > 0 ? (
-                                <Box>
-                                    <Grid container spacing={2} sx={{ mb: 3 }}>
-                                        {pastEvents.slice(0, 3).map((event) => (
-                                            <Grid item xs={12} sm={4} key={event.event_id}>
-                                                <Card
-                                                    sx={{
-                                                        p: 2,
-                                                        cursor: 'pointer',
-                                                        '&:hover': { bgcolor: 'action.hover' }
+                        {eventTab === 1 && (
+                            <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                                {loading ? (
+                                    <Box sx={{ p: 3 }}>
+                                        <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
+                                    </Box>
+                                ) : pastEvents.length > 0 ? (
+                                    <List disablePadding>
+                                        {pastEvents.map((event, index) => (
+                                            <React.Fragment key={event.event_id}>
+                                                <ListItem
+                                                    sx={{ 
+                                                        px: 3, 
+                                                        py: 2,
+                                                        transition: 'background-color 0.2s',
+                                                        '&:hover': {
+                                                            bgcolor: 'action.hover'
+                                                        },
+                                                        cursor: 'pointer'
                                                     }}
                                                     onClick={() => handleOpenReviews(event)}
                                                 >
-                                                    <Box sx={{ display: 'flex', mb: 1 }}>
-                                                        <Box sx={{ mr: 1.5 }}>
-                                                            <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                                                <Event />
-                                                            </Avatar>
-                                                        </Box>
-                                                        <Box>
-                                                            <Typography variant="subtitle2" noWrap>
+                                                    <ListItemIcon>
+                                                        <Event color="action" />
+                                                    </ListItemIcon>
+                                                    <ListItemText
+                                                        primary={
+                                                            <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'medium' }}>
                                                                 {event.name}
                                                             </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {formatDate(event.event_date)}
-                                                            </Typography>
-                                                        </Box>
-                                                    </Box>
-
-                                                    {event.review_count > 0 ? (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                                            <StarRating
-                                                                value={parseFloat(event.avg_rating) || 0}
-                                                                readOnly
-                                                                size="small"
-                                                            />
-                                                            <Typography variant="body2" sx={{ ml: 1 }}>
-                                                                {formatRating(event.avg_rating)}
-                                                            </Typography>
-                                                            <Chip
-                                                                label={`${event.review_count} reviews`}
-                                                                size="small"
-                                                                sx={{ ml: 'auto' }}
-                                                            />
-                                                        </Box>
-                                                    ) : (
-                                                        <Button
-                                                            variant="outlined"
+                                                        }
+                                                        secondary={
+                                                            <>
+                                                                <Typography variant="body2" component="span" display="block">
+                                                                    {formatDate(event.event_date)} • {event.location || 'No location'}
+                                                                </Typography>
+                                                                <Typography variant="body2" component="span" display="block">
+                                                                    {event.attendees || 0} attendees
+                                                                </Typography>
+                                                                {event.review_count > 0 && (
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                                                        <StarRating 
+                                                                            value={parseFloat(event.avg_rating) || 0} 
+                                                                            readOnly 
+                                                                            size="small" 
+                                                                        />
+                                                                        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                                                            {formatRating(event.avg_rating)} ({event.review_count} reviews)
+                                                                        </Typography>
+                                                                    </Box>
+                                                                )}
+                                                            </>
+                                                        }
+                                                    />
+                                                    <ListItemSecondaryAction>
+                                                        <Chip
+                                                            icon={<Comment fontSize="small" />}
+                                                            label={event.review_count > 0 ? `${event.review_count} Reviews` : "Add Review"}
+                                                            color={event.review_count > 0 ? "primary" : "secondary"}
                                                             size="small"
-                                                            fullWidth
-                                                            startIcon={<RateReview />}
-                                                            sx={{ mt: 1 }}
-                                                        >
-                                                            Add Review
-                                                        </Button>
-                                                    )}
-                                                </Card>
-                                            </Grid>
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenReviews(event);
+                                                            }}
+                                                        />
+                                                    </ListItemSecondaryAction>
+                                                </ListItem>
+                                                {index < pastEvents.length - 1 && <Divider component="li" />}
+                                            </React.Fragment>
                                         ))}
-                                    </Grid>
-
-                                    <Button
-                                        variant="outlined"
-                                        fullWidth
-                                        endIcon={<ArrowForward />}
-                                    >
-                                        View All Past Events ({pastEvents.length})
-                                    </Button>
-                                </Box>
-                            ) : (
-                                <Box sx={{ textAlign: 'center', py: 4 }}>
-                                    <Typography variant="body1" color="text.secondary">
-                                        No past events found
-                                    </Typography>
-                                </Box>
-                            )}
-                        </Paper>
+                                    </List>
+                                ) : (
+                                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                                        <Typography variant="body1" color="text.secondary">
+                                            No past events found
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Paper>
+                        )}
                     </Box>
                 </>
             )}
