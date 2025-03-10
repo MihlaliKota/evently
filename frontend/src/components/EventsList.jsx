@@ -16,7 +16,6 @@ import ReviewDialog from './ReviewDialog';
 import { Tooltip, Fab } from '@mui/material';
 
 function EventsList() {
-    const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [favorites, setFavorites] = useState({});
@@ -24,6 +23,7 @@ function EventsList() {
     const [createEventOpen, setCreateEventOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+    const [events, setEvents] = useState({ upcoming: [], past: [] });
 
     useEffect(() => {
         fetchEvents();
@@ -67,20 +67,20 @@ function EventsList() {
                 } else {
                     const reviewsResponse = await fetch(`${apiUrl}/api/events/${event.event_id}/reviews`, { headers });
                     let reviewData = { review_count: 0, avg_rating: 0 };
-                    
+
                     if (reviewsResponse.ok) {
                         const reviews = await reviewsResponse.json();
                         const reviewCount = reviews.length;
                         let avgRating = 0;
-                        
+
                         if (reviewCount > 0) {
                             const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
                             avgRating = (totalRating / reviewCount).toFixed(1);
                         }
-                        
+
                         reviewData = { review_count: reviewCount, avg_rating: avgRating };
                     }
-                    
+
                     pastEvents.push({
                         ...event,
                         ...reviewData
@@ -179,6 +179,10 @@ function EventsList() {
                 )
             }));
         }
+        
+        setTimeout(() => {
+            fetchEvents();
+        }, 500);
         
         setCreateEventOpen(false);
     };
@@ -547,7 +551,7 @@ function EventsList() {
                 onClose={handleCloseCreateEvent}
                 onEventCreated={handleEventCreated}
             />
-            
+
             {selectedEvent && (
                 <ReviewDialog
                     open={reviewDialogOpen}

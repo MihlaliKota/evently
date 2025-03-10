@@ -109,15 +109,19 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 throw new Error('Unable to retrieve user ID from session');
             }
             
+            // Create a copy of the form data
             const eventData = {
                 ...formData
             };
             
+            // Ensure consistent date format
             if (eventData.event_date instanceof Date) {
-                eventData.event_date = eventData.event_date.toISOString().slice(0, 19).replace('T', ' ');
+                eventData.event_date = eventData.event_date.toISOString();
             }
             
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            
+            console.log('Submitting event with data:', eventData);
             
             const response = await fetch(`${apiUrl}/api/events`, {
                 method: 'POST',
@@ -136,6 +140,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             const data = await response.json();
             setSuccess('Event created successfully!');
             
+            // Reset form
             setFormData({
                 name: '',
                 description: '',
