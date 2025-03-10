@@ -8,7 +8,7 @@ import {
     FormControl, InputLabel, Select, MenuItem, Tooltip
 } from '@mui/material';
 import {
-    AdminPanelSettings, PeopleAlt, Category, Comment, Add, Search,
+    PeopleAlt, Category, Comment, Add, Search,
     CheckCircle, Cancel, Delete, Edit, Refresh, FilterList, ViewList,
     MoreVert, Event, Star, Person, CalendarMonth, Info, Check, Close
 } from '@mui/icons-material';
@@ -23,11 +23,6 @@ function AdminDashboard() {
     const [users, setUsers] = useState([]);
     const [events, setEvents] = useState([]);
     const [reviews, setReviews] = useState([]);
-    const [stats, setStats] = useState({
-        totalUsers: 0,
-        totalEvents: 0,
-        totalReviews: 0
-    });
     
     // Pagination states
     const [page, setPage] = useState(0);
@@ -49,40 +44,13 @@ function AdminDashboard() {
     
     useEffect(() => {
         if (activeTab === 0) {
-            fetchAdminStats();
-        } else if (activeTab === 1) {
             fetchUsers();
-        } else if (activeTab === 2) {
+        } else if (activeTab === 1) {
             fetchEvents();
-        } else if (activeTab === 3) {
+        } else if (activeTab === 2) {
             fetchReviews();
         }
     }, [activeTab]);
-    
-    const fetchAdminStats = async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/stats`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch admin stats: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            setStats(data);
-            setError(null);
-        } catch (error) {
-            console.error('Error fetching admin stats:', error);
-            setError('Failed to load admin statistics');
-        } finally {
-            setLoading(false);
-        }
-    };
     
     const fetchUsers = async () => {
         setLoading(true);
@@ -99,7 +67,7 @@ function AdminDashboard() {
             }
             
             const data = await response.json();
-            setUsers(data);
+            setUsers(data.users || data); // Handle both formats
             setError(null);
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -195,12 +163,10 @@ function AdminDashboard() {
     
     const handleRefresh = () => {
         if (activeTab === 0) {
-            fetchAdminStats();
-        } else if (activeTab === 1) {
             fetchUsers();
-        } else if (activeTab === 2) {
+        } else if (activeTab === 1) {
             fetchEvents();
-        } else if (activeTab === 3) {
+        } else if (activeTab === 2) {
             fetchReviews();
         }
     };
@@ -280,152 +246,6 @@ function AdminDashboard() {
     const getPaginatedData = (dataType) => {
         const filteredData = getFilteredData(dataType);
         return filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    };
-    
-    // Component for dashboard tab
-    const renderDashboardTab = () => {
-        return (
-            <Box>
-                <Typography variant="h5" sx={{ mb: 3 }}>Admin Dashboard Overview</Typography>
-                
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <CircularProgress />
-                    </Box>
-                ) : (
-                    <>
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} md={4}>
-                                <Card>
-                                    <CardContent>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                            <Person sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-                                            <Box>
-                                                <Typography color="text.secondary" gutterBottom>
-                                                    Total Users
-                                                </Typography>
-                                                <Typography variant="h3">
-                                                    {stats.totalUsers || 0}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                        <Button 
-                                            variant="outlined" 
-                                            fullWidth
-                                            onClick={() => setActiveTab(1)}
-                                        >
-                                            View Users
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-                            
-                            <Grid item xs={12} md={4}>
-                                <Card>
-                                    <CardContent>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                            <Event sx={{ fontSize: 40, color: 'secondary.main', mr: 2 }} />
-                                            <Box>
-                                                <Typography color="text.secondary" gutterBottom>
-                                                    Total Events
-                                                </Typography>
-                                                <Typography variant="h3">
-                                                    {stats.totalEvents || 0}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                        <Button 
-                                            variant="outlined" 
-                                            fullWidth
-                                            onClick={() => setActiveTab(2)}
-                                        >
-                                            View Events
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-                            
-                            <Grid item xs={12} md={4}>
-                                <Card>
-                                    <CardContent>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                            <Comment sx={{ fontSize: 40, color: 'success.main', mr: 2 }} />
-                                            <Box>
-                                                <Typography color="text.secondary" gutterBottom>
-                                                    Total Reviews
-                                                </Typography>
-                                                <Typography variant="h3">
-                                                    {stats.totalReviews || 0}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                        <Button 
-                                            variant="outlined" 
-                                            fullWidth
-                                            onClick={() => setActiveTab(3)}
-                                        >
-                                            View Reviews
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-                        </Grid>
-                        
-                        <Box sx={{ mt: 4 }}>
-                            <Typography variant="h6" gutterBottom>Quick Actions</Typography>
-                            <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6} md={3}>
-                                    <Button 
-                                        variant="contained" 
-                                        color="primary" 
-                                        fullWidth
-                                        startIcon={<Add />}
-                                        onClick={() => {
-                                            window.dispatchEvent(new CustomEvent('navigate', {
-                                                detail: 'events'
-                                            }));
-                                        }}
-                                    >
-                                        Create Event
-                                    </Button>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={3}>
-                                    <Button 
-                                        variant="contained" 
-                                        color="secondary" 
-                                        fullWidth
-                                        startIcon={<Category />}
-                                    >
-                                        Manage Categories
-                                    </Button>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={3}>
-                                    <Button 
-                                        variant="contained" 
-                                        color="info" 
-                                        fullWidth
-                                        startIcon={<Comment />}
-                                    >
-                                        Moderate Reviews
-                                    </Button>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={3}>
-                                    <Button 
-                                        variant="contained" 
-                                        color="warning" 
-                                        fullWidth
-                                        startIcon={<Refresh />}
-                                        onClick={handleRefresh}
-                                    >
-                                        Refresh Stats
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </Box>
-                    </>
-                )}
-            </Box>
-        );
     };
     
     // Component for users tab
@@ -1000,13 +820,6 @@ function AdminDashboard() {
                                 </Typography>
                             </Grid>
                         </Grid>
-                        
-                        <Box sx={{ mt: 3 }}>
-                            <Typography variant="h6" gutterBottom>User Activity</Typography>
-                            <Alert severity="info">
-                                Activity statistics would be displayed here (events created, reviews submitted, etc.)
-                            </Alert>
-                        </Box>
                     </DialogContent>
                 </>
             );
@@ -1044,52 +857,6 @@ function AdminDashboard() {
                                 <Typography variant="body1">
                                     {selectedItem.description || 'No description provided'}
                                 </Typography>
-                            </Grid>
-                        </Grid>
-                        
-                        <Divider sx={{ my: 2 }} />
-                        
-                        <Typography variant="h6" gutterBottom>Event Statistics</Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={6} sm={3}>
-                                <Paper sx={{ p: 2, textAlign: 'center' }} elevation={1}>
-                                    <Typography variant="h4" color="primary.main">
-                                        {selectedItem.attendees || 0}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Attendees
-                                    </Typography>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={6} sm={3}>
-                                <Paper sx={{ p: 2, textAlign: 'center' }} elevation={1}>
-                                    <Typography variant="h4" color="secondary.main">
-                                        {selectedItem.review_count || 0}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Reviews
-                                    </Typography>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={6} sm={3}>
-                                <Paper sx={{ p: 2, textAlign: 'center' }} elevation={1}>
-                                    <Typography variant="h4" color="warning.main">
-                                        {selectedItem.avg_rating ? selectedItem.avg_rating.toFixed(1) : '0.0'}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Avg. Rating
-                                    </Typography>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={6} sm={3}>
-                                <Paper sx={{ p: 2, textAlign: 'center' }} elevation={1}>
-                                    <Typography variant="h4" color="success.main">
-                                        {selectedItem.views || 0}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Views
-                                    </Typography>
-                                </Paper>
                             </Grid>
                         </Grid>
                     </DialogContent>
@@ -1189,7 +956,6 @@ function AdminDashboard() {
                     variant="scrollable"
                     scrollButtons="auto"
                 >
-                    <Tab icon={<AdminPanelSettings />} label="Dashboard" />
                     <Tab icon={<PeopleAlt />} label="Users" />
                     <Tab icon={<Event />} label="Events" />
                     <Tab icon={<Comment />} label="Reviews" />
@@ -1197,10 +963,9 @@ function AdminDashboard() {
             </Box>
             
             <Box sx={{ py: 2 }}>
-                {activeTab === 0 && renderDashboardTab()}
-                {activeTab === 1 && renderUsersTab()}
-                {activeTab === 2 && renderEventsTab()}
-                {activeTab === 3 && renderReviewsTab()}
+                {activeTab === 0 && renderUsersTab()}
+                {activeTab === 1 && renderEventsTab()}
+                {activeTab === 2 && renderReviewsTab()}
             </Box>
             
             {/* Detail Dialog */}
