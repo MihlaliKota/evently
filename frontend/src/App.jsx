@@ -178,9 +178,7 @@ function App() {
         { text: 'Profile', icon: <AccountCircle />, page: 'profile' },
 
         ...(userRole === 'admin' ? [
-            { text: 'Admin Dashboard', icon: <AdminPanelSettings />, page: 'admin-dashboard' },
-            { text: 'User Management', icon: <PeopleAlt />, page: 'admin-users' },
-            { text: 'Content Moderation', icon: <Security />, page: 'admin-moderation' }
+            { text: 'Admin Dashboard', icon: <AdminPanelSettings />, page: 'admin-dashboard' }
         ] : [])
     ];
 
