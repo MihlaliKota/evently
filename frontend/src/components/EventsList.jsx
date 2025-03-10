@@ -3,17 +3,16 @@ import {
     Container, Typography, Box, Grid, Card, CardContent,
     CardMedia, CardActions, Button, Chip, IconButton,
     Skeleton, Alert, Divider, CircularProgress, Avatar,
-    Tabs, Tab, Paper, Rating
+    Tabs, Tab, Paper, Rating, Badge, Tooltip, Menu, MenuItem
 } from '@mui/material';
 import {
     LocationOn, AccessTime, CalendarToday,
     Share, FavoriteBorder, Favorite, History, Star, Event,
-    Comment, AdminPanelSettings, Person
+    Comment, Add, FilterList, ModeEdit, Person, MoreVert
 } from '@mui/icons-material';
-import { Add } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
 import ReviewDialog from './ReviewDialog';
-import { Tooltip, Fab } from '@mui/material';
+import { Fab } from '@mui/material';
 
 function EventsList() {
     const [events, setEvents] = useState([]);
@@ -25,12 +24,27 @@ function EventsList() {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
     const [userRole, setUserRole] = useState('user');
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+    const [selectedActionEvent, setSelectedActionEvent] = useState(null);
 
     useEffect(() => {
         // Get user role from localStorage
         const storedRole = localStorage.getItem('userRole');
         if (storedRole) {
             setUserRole(storedRole);
+        }
+        
+        // Get user ID from JWT token
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            try {
+                const payload = token.split('.')[1];
+                const decodedPayload = JSON.parse(atob(payload));
+                setCurrentUserId(decodedPayload.userId);
+            } catch (error) {
+                console.error("Error getting user ID from token:", error);
+            }
         }
         
         fetchEvents();
@@ -71,30 +85,8 @@ function EventsList() {
                     0, 0, 0, 0
                 );
 
-                // Fetch user info for each event
-                let creatorInfo = null;
-                if (token && event.user_id) {
-                    try {
-                        const creatorResponse = await fetch(`${apiUrl}/api/users/${event.user_id}`, { 
-                            headers 
-                        }).catch(() => null);
-                        
-                        if (creatorResponse && creatorResponse.ok) {
-                            creatorInfo = await creatorResponse.json();
-                        }
-                    } catch (error) {
-                        console.log('Could not fetch creator info:', error);
-                    }
-                }
-
-                // Add creator info to the event
-                const enhancedEvent = {
-                    ...event,
-                    creatorInfo
-                };
-
                 if (normalizedEventDate >= today) {
-                    upcomingEvents.push(enhancedEvent);
+                    upcomingEvents.push(event);
                 } else {
                     const reviewsResponse = await fetch(`${apiUrl}/api/events/${event.event_id}/reviews`, { headers });
                     let reviewData = { review_count: 0, avg_rating: 0 };
@@ -113,7 +105,7 @@ function EventsList() {
                     }
                     
                     pastEvents.push({
-                        ...enhancedEvent,
+                        ...event,
                         ...reviewData
                     });
                 }
@@ -177,6 +169,52 @@ function EventsList() {
         fetchEvents();
     };
 
+    const handleOpenActionMenu = (event, eventData) => {
+        event.stopPropagation();
+        setSelectedActionEvent(eventData);
+        setActionMenuAnchor(event.currentTarget);
+    };
+
+    const handleCloseActionMenu = () => {
+        setActionMenuAnchor(null);
+        setSelectedActionEvent(null);
+    };
+
+    const handleEditEvent = () => {
+        handleCloseActionMenu();
+        // Implement edit event functionality
+        console.log("Edit event:", selectedActionEvent);
+    };
+
+    const handleDeleteEvent = async () => {
+        handleCloseActionMenu();
+        if (!selectedActionEvent) return;
+
+        if (window.confirm(`Are you sure you want to delete "${selectedActionEvent.name}"?`)) {
+            try {
+                const token = localStorage.getItem('authToken');
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                
+                const response = await fetch(`${apiUrl}/api/events/${selectedActionEvent.event_id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh events list
+                    fetchEvents();
+                } else {
+                    throw new Error('Failed to delete event');
+                }
+            } catch (error) {
+                console.error("Error deleting event:", error);
+                alert("Error deleting event. Please try again.");
+            }
+        }
+    };
+
     const handleEventCreated = (newEvent) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -214,6 +252,11 @@ function EventsList() {
         setCreateEventOpen(false);
     };
 
+    // Check if the user is the creator of the event
+    const isCreatedByUser = (event) => {
+        return currentUserId && event.user_id === currentUserId;
+    };
+
     const sampleEvents = loading ? [
         {
             event_id: 'sample1',
@@ -244,6 +287,17 @@ function EventsList() {
                     <Typography variant="body1" color="text.secondary">
                         Check back later for upcoming events
                     </Typography>
+                    {userRole === 'admin' && (
+                        <Button 
+                            variant="contained" 
+                            color="primary" 
+                            startIcon={<Add />}
+                            sx={{ mt: 2 }}
+                            onClick={handleOpenCreateEvent}
+                        >
+                            Create Event
+                        </Button>
+                    )}
                 </Box>
             );
         }
@@ -262,7 +316,11 @@ function EventsList() {
                                     transform: 'translateY(-4px)',
                                     boxShadow: 6,
                                 },
-                                position: 'relative'
+                                position: 'relative',
+                                ...(isCreatedByUser(event) && {
+                                    border: '1px solid',
+                                    borderColor: 'primary.main'
+                                })
                             }}
                         >
                             {loading ? (
@@ -286,7 +344,15 @@ function EventsList() {
                                     </>
                                 ) : (
                                     <>
-                                        <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
+                                        <Box sx={{ 
+                                            position: 'absolute', 
+                                            top: 12, 
+                                            right: 12, 
+                                            zIndex: 1,
+                                            display: 'flex',
+                                            gap: 1
+                                        }}>
+                                            {/* Favorite button */}
                                             <IconButton
                                                 onClick={() => toggleFavorite(event.event_id)}
                                                 sx={{
@@ -300,27 +366,44 @@ function EventsList() {
                                                     <FavoriteBorder />
                                                 }
                                             </IconButton>
-                                        </Box>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                                            <Typography
-                                                variant="h6"
-                                                component="h2"
-                                                gutterBottom
-                                                sx={{ fontWeight: 'bold' }}
-                                            >
-                                                {event.name}
-                                            </Typography>
-                                            {/* Add created by admin badge if applicable */}
-                                            {event.creatorInfo && event.creatorInfo.role === 'admin' && (
-                                                <Tooltip title="Created by Admin">
-                                                    <AdminPanelSettings 
-                                                        color="primary" 
-                                                        fontSize="small"
-                                                        sx={{ ml: 1 }} 
-                                                    />
-                                                </Tooltip>
+
+                                            {/* More options button - only for admins or event creators */}
+                                            {(userRole === 'admin' || isCreatedByUser(event)) && (
+                                                <IconButton
+                                                    onClick={(e) => handleOpenActionMenu(e, event)}
+                                                    sx={{
+                                                        bgcolor: 'rgba(255,255,255,0.8)',
+                                                        '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' }
+                                                    }}
+                                                    size="small"
+                                                >
+                                                    <MoreVert />
+                                                </IconButton>
                                             )}
                                         </Box>
+                                        
+                                        {isCreatedByUser(event) && (
+                                            <Chip 
+                                                label="Your Event" 
+                                                size="small" 
+                                                color="primary"
+                                                sx={{ 
+                                                    position: 'absolute', 
+                                                    top: 148, 
+                                                    left: 8,
+                                                    fontSize: '0.7rem'
+                                                }}
+                                            />
+                                        )}
+                                        
+                                        <Typography
+                                            variant="h6"
+                                            component="h2"
+                                            gutterBottom
+                                            sx={{ fontWeight: 'bold', mt: isCreatedByUser(event) ? 3 : 0 }}
+                                        >
+                                            {event.name}
+                                        </Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                             <CalendarToday fontSize="small" color="primary" sx={{ mr: 1 }} />
                                             <Typography variant="body2" color="text.secondary">
@@ -333,17 +416,6 @@ function EventsList() {
                                                 {event.location || 'No location specified'}
                                             </Typography>
                                         </Box>
-                                        
-                                        {/* Show creator info if available */}
-                                        {event.creatorInfo && (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                                <Person fontSize="small" color="primary" sx={{ mr: 1 }} />
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Created by: {event.creatorInfo.username}
-                                                </Typography>
-                                            </Box>
-                                        )}
-                                        
                                         <Divider sx={{ my: 1.5 }} />
                                         <Typography variant="body2" color="text.secondary">
                                             {event.description || 'No description provided'}
@@ -360,6 +432,7 @@ function EventsList() {
                                         size="small"
                                         color="primary"
                                         sx={{ borderRadius: 4, px: 2 }}
+                                        onClick={() => handleOpenReviewDialog(event)}
                                     >
                                         View Details
                                     </Button>
@@ -403,7 +476,11 @@ function EventsList() {
                                     transform: 'translateY(-4px)',
                                     boxShadow: 6,
                                 },
-                                position: 'relative'
+                                position: 'relative',
+                                ...(isCreatedByUser(event) && {
+                                    border: '1px solid',
+                                    borderColor: 'primary.main'
+                                })
                             }}
                         >
                             {loading ? (
@@ -427,7 +504,15 @@ function EventsList() {
                                     </>
                                 ) : (
                                     <>
-                                        <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
+                                        <Box sx={{ 
+                                            position: 'absolute', 
+                                            top: 12, 
+                                            right: 12, 
+                                            zIndex: 1,
+                                            display: 'flex',
+                                            gap: 1
+                                        }}>
+                                            {/* Favorite button */}
                                             <IconButton
                                                 onClick={() => toggleFavorite(event.event_id)}
                                                 sx={{
@@ -441,27 +526,44 @@ function EventsList() {
                                                     <FavoriteBorder />
                                                 }
                                             </IconButton>
-                                        </Box>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                                            <Typography
-                                                variant="h6"
-                                                component="h2"
-                                                gutterBottom
-                                                sx={{ fontWeight: 'bold' }}
-                                            >
-                                                {event.name}
-                                            </Typography>
-                                            {/* Add created by admin badge if applicable */}
-                                            {event.creatorInfo && event.creatorInfo.role === 'admin' && (
-                                                <Tooltip title="Created by Admin">
-                                                    <AdminPanelSettings 
-                                                        color="primary" 
-                                                        fontSize="small"
-                                                        sx={{ ml: 1 }} 
-                                                    />
-                                                </Tooltip>
+
+                                            {/* More options button - only for admins or event creators */}
+                                            {(userRole === 'admin' || isCreatedByUser(event)) && (
+                                                <IconButton
+                                                    onClick={(e) => handleOpenActionMenu(e, event)}
+                                                    sx={{
+                                                        bgcolor: 'rgba(255,255,255,0.8)',
+                                                        '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' }
+                                                    }}
+                                                    size="small"
+                                                >
+                                                    <MoreVert />
+                                                </IconButton>
                                             )}
                                         </Box>
+                                        
+                                        {isCreatedByUser(event) && (
+                                            <Chip 
+                                                label="Your Event" 
+                                                size="small" 
+                                                color="primary"
+                                                sx={{ 
+                                                    position: 'absolute', 
+                                                    top: 148, 
+                                                    left: 8,
+                                                    fontSize: '0.7rem'
+                                                }}
+                                            />
+                                        )}
+                                        
+                                        <Typography
+                                            variant="h6"
+                                            component="h2"
+                                            gutterBottom
+                                            sx={{ fontWeight: 'bold', mt: isCreatedByUser(event) ? 3 : 0 }}
+                                        >
+                                            {event.name}
+                                        </Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                             <CalendarToday fontSize="small" color="action" sx={{ mr: 1 }} />
                                             <Typography variant="body2" color="text.secondary">
@@ -474,16 +576,6 @@ function EventsList() {
                                                 {event.location || 'No location specified'}
                                             </Typography>
                                         </Box>
-
-                                        {/* Show creator info if available */}
-                                        {event.creatorInfo && (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                                <Person fontSize="small" color="action" sx={{ mr: 1 }} />
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Created by: {event.creatorInfo.username}
-                                                </Typography>
-                                            </Box>
-                                        )}
 
                                         {event.review_count > 0 && (
                                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -642,6 +734,20 @@ function EventsList() {
                     reviewCount={selectedEvent.review_count}
                 />
             )}
+
+            {/* Action Menu for Events */}
+            <Menu
+                anchorEl={actionMenuAnchor}
+                open={Boolean(actionMenuAnchor)}
+                onClose={handleCloseActionMenu}
+            >
+                <MenuItem onClick={handleEditEvent}>
+                    <ModeEdit fontSize="small" sx={{ mr: 1 }} /> Edit Event
+                </MenuItem>
+                <MenuItem onClick={handleDeleteEvent}>
+                    <Delete fontSize="small" sx={{ mr: 1 }} /> Delete Event
+                </MenuItem>
+            </Menu>
         </Container>
     );
 }
