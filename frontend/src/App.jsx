@@ -4,9 +4,9 @@ import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
 import UserProfile from './components/UserProfile';
 import SimpleEventCalendar from './components/SimpleEventCalendar';
+import AdminDashboard from './components/AdminDashboard';
+import { AdminPanelSettings, PeopleAlt, Security } from '@mui/icons-material'
 
-
-// Material UI Components
 import {
     Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline,
     useTheme, ThemeProvider, createTheme, Avatar, Button, Drawer, List,
@@ -27,37 +27,36 @@ function App() {
     const [userRole, setUserRole] = useState('user');
 
     useEffect(() => {
-        console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5000');
         const token = localStorage.getItem('authToken');
         const storedUsername = localStorage.getItem('username');
-        
+        const storedRole = localStorage.getItem('userRole');
+
         if (token) {
             try {
-                // Detailed token decoding
                 const payload = token.split('.')[1];
                 const decodedPayload = JSON.parse(atob(payload));
-    
-                console.group('🔐 Token Inspection');
-                console.log('Payload Contents:', decodedPayload);
-    
+
                 setIsLoggedIn(true);
                 setUsername(storedUsername);
-                // The role might be missing from your token payload, so handle that case
+
                 if (decodedPayload.role) {
                     setUserRole(decodedPayload.role);
+                    if (decodedPayload.role !== storedRole) {
+                        localStorage.setItem('userRole', decodedPayload.role);
+                    }
+                } else if (storedRole) {
+                    setUserRole(storedRole);
                 }
-    
-                console.groupEnd();
             } catch (error) {
                 console.error('Token Decoding Error:', error);
-                // Clear invalid token
                 localStorage.removeItem('authToken');
+                localStorage.removeItem('username');
+                localStorage.removeItem('userRole');
                 setIsLoggedIn(false);
             }
         }
     }, []);
 
-    // Add event listener for navigation events
     useEffect(() => {
         const handleNavigation = (event) => {
             if (event.detail && typeof event.detail === 'string') {
@@ -77,6 +76,7 @@ function App() {
         setUsername(loggedInUsername);
         setUserRole(role);
         localStorage.setItem('username', loggedInUsername);
+        localStorage.setItem('userRole', role);
     };
 
     const handleLogout = () => {
@@ -159,6 +159,8 @@ function App() {
             return <SimpleEventCalendar />;
         } else if (activePage === 'profile') {
             return <UserProfile />;
+        } else if (activePage === 'admin-dashboard' && userRole === 'admin') {
+            return <AdminDashboard />;
         } else {
             // Fallback to dashboard if page not found or not authorized
             return (
@@ -174,9 +176,15 @@ function App() {
         { text: 'Events', icon: <EventNote />, page: 'events' },
         { text: 'Calendar', icon: <CalendarMonth />, page: 'calendar' },
         { text: 'Profile', icon: <AccountCircle />, page: 'profile' },
+
+        ...(userRole === 'admin' ? [
+            { text: 'Admin Dashboard', icon: <AdminPanelSettings />, page: 'admin-dashboard' },
+            { text: 'User Management', icon: <PeopleAlt />, page: 'admin-users' },
+            { text: 'Content Moderation', icon: <Security />, page: 'admin-moderation' }
+        ] : [])
     ];
 
-    
+
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />

@@ -84,6 +84,20 @@ const authenticateJWT = (req, res, next) => {
     }
 };
 
+const authorizeRole = (roles = []) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        if (roles.length > 0 && !roles.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Forbidden - Insufficient permissions' });
+        }
+
+        next();
+    };
+};
+
 app.post('/api/register', async (req, res) => {
     console.group('🔐 Registration Attempt');
     console.log('Request Origin:', req.get('origin'));
@@ -196,8 +210,11 @@ app.post('/api/login', async (req, res) => {
             console.log('Generating JWT token for user...');
             const payload = {
                 userId: user.user_id,
-                username: user.username
+                username: user.username,
+                role: user.role || 'user'  // Add role to JWT payload
             };
+            
+            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
             console.log('JWT_SECRET environment variable available:', !!process.env.JWT_SECRET);
 
@@ -206,7 +223,6 @@ app.post('/api/login', async (req, res) => {
                 return res.status(500).json({ error: 'Server configuration error - missing JWT secret' });
             }
 
-            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
             console.log('JWT token generated successfully');
 
             console.log('Login successful for user:', username);
@@ -1354,6 +1370,134 @@ app.get('/api/calendar/dates-with-events', authenticateJWT, async (req, res) => 
     } catch (error) {
         console.error('Error fetching dates with events:', error);
         res.status(500).json({ error: 'Failed to fetch dates with events', details: error.message });
+    }
+});
+
+app.get('/api/admin/stats', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            const [userStats] = await connection.query('SELECT COUNT(*) as totalUsers FROM users');
+            const [eventStats] = await connection.query('SELECT COUNT(*) as totalEvents FROM events');
+            const [reviewStats] = await connection.query('SELECT COUNT(*) as totalReviews FROM reviews');
+            
+            res.status(200).json({
+                totalUsers: userStats[0].totalUsers,
+                totalEvents: eventStats[0].totalEvents,
+                totalReviews: reviewStats[0].totalReviews
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching admin stats:', error);
+        res.status(500).json({ error: 'Failed to fetch admin statistics', details: error.message });
+    }
+});
+
+// Get all users (admin only)
+app.get('/api/admin/users', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            const [users] = await connection.query(
+                'SELECT user_id, username, email, role, created_at FROM users ORDER BY created_at DESC'
+            );
+            res.status(200).json(users);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
+    }
+});
+
+// Update user role (admin only)
+app.put('/api/admin/users/:userId/role', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const { role } = req.body;
+        
+        if (!role || !['user', 'admin'].includes(role)) {
+            return res.status(400).json({ error: 'Invalid role' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            const [result] = await connection.query(
+                'UPDATE users SET role = ? WHERE user_id = ?',
+                [role, userId]
+            );
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            res.status(200).json({ message: 'User role updated successfully' });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        res.status(500).json({ error: 'Failed to update user role', details: error.message });
+    }
+});
+
+// Get pending reviews for moderation (admin only)
+app.get('/api/admin/reviews/pending', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Assuming you have a moderation_status field in your reviews table
+            // If not, you'll need to add this column
+            const [reviews] = await connection.query(`
+                SELECT r.*, u.username, e.name as event_name 
+                FROM reviews r
+                JOIN users u ON r.user_id = u.user_id
+                JOIN events e ON r.event_id = e.event_id
+                WHERE r.moderation_status = 'pending' OR r.moderation_status IS NULL
+                ORDER BY r.created_at DESC
+            `);
+            
+            res.status(200).json(reviews);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching pending reviews:', error);
+        res.status(500).json({ error: 'Failed to fetch pending reviews', details: error.message });
+    }
+});
+
+// Moderate a review (admin only)
+app.put('/api/admin/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const reviewId = req.params.reviewId;
+        const { status } = req.body;
+        
+        if (!status || !['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            const [result] = await connection.query(
+                'UPDATE reviews SET moderation_status = ? WHERE review_id = ?',
+                [status, reviewId]
+            );
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Review not found' });
+            }
+            
+            res.status(200).json({ message: 'Review moderation status updated successfully' });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error moderating review:', error);
+        res.status(500).json({ error: 'Failed to moderate review', details: error.message });
     }
 });
 
