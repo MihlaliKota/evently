@@ -8,7 +8,7 @@ import {
 import {
     LocationOn, AccessTime, CalendarToday,
     Share, FavoriteBorder, Favorite, History, Star, Event,
-    Comment
+    Comment, AdminPanelSettings, Person
 } from '@mui/icons-material';
 import { Add } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
@@ -45,7 +45,9 @@ function EventsList() {
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${apiUrl}/api/events`);
+            const response = await fetch(`${apiUrl}/api/events`, {
+                headers
+            });
 
             if (!response.ok) {
                 throw new Error(`HTTP error fetching events: ${response.status}`);
@@ -69,8 +71,30 @@ function EventsList() {
                     0, 0, 0, 0
                 );
 
+                // Fetch user info for each event
+                let creatorInfo = null;
+                if (token && event.user_id) {
+                    try {
+                        const creatorResponse = await fetch(`${apiUrl}/api/users/${event.user_id}`, { 
+                            headers 
+                        }).catch(() => null);
+                        
+                        if (creatorResponse && creatorResponse.ok) {
+                            creatorInfo = await creatorResponse.json();
+                        }
+                    } catch (error) {
+                        console.log('Could not fetch creator info:', error);
+                    }
+                }
+
+                // Add creator info to the event
+                const enhancedEvent = {
+                    ...event,
+                    creatorInfo
+                };
+
                 if (normalizedEventDate >= today) {
-                    upcomingEvents.push(event);
+                    upcomingEvents.push(enhancedEvent);
                 } else {
                     const reviewsResponse = await fetch(`${apiUrl}/api/events/${event.event_id}/reviews`, { headers });
                     let reviewData = { review_count: 0, avg_rating: 0 };
@@ -89,7 +113,7 @@ function EventsList() {
                     }
                     
                     pastEvents.push({
-                        ...event,
+                        ...enhancedEvent,
                         ...reviewData
                     });
                 }
@@ -277,14 +301,26 @@ function EventsList() {
                                                 }
                                             </IconButton>
                                         </Box>
-                                        <Typography
-                                            variant="h6"
-                                            component="h2"
-                                            gutterBottom
-                                            sx={{ fontWeight: 'bold' }}
-                                        >
-                                            {event.name}
-                                        </Typography>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                                            <Typography
+                                                variant="h6"
+                                                component="h2"
+                                                gutterBottom
+                                                sx={{ fontWeight: 'bold' }}
+                                            >
+                                                {event.name}
+                                            </Typography>
+                                            {/* Add created by admin badge if applicable */}
+                                            {event.creatorInfo && event.creatorInfo.role === 'admin' && (
+                                                <Tooltip title="Created by Admin">
+                                                    <AdminPanelSettings 
+                                                        color="primary" 
+                                                        fontSize="small"
+                                                        sx={{ ml: 1 }} 
+                                                    />
+                                                </Tooltip>
+                                            )}
+                                        </Box>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                             <CalendarToday fontSize="small" color="primary" sx={{ mr: 1 }} />
                                             <Typography variant="body2" color="text.secondary">
@@ -297,6 +333,17 @@ function EventsList() {
                                                 {event.location || 'No location specified'}
                                             </Typography>
                                         </Box>
+                                        
+                                        {/* Show creator info if available */}
+                                        {event.creatorInfo && (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                                <Person fontSize="small" color="primary" sx={{ mr: 1 }} />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Created by: {event.creatorInfo.username}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                        
                                         <Divider sx={{ my: 1.5 }} />
                                         <Typography variant="body2" color="text.secondary">
                                             {event.description || 'No description provided'}
@@ -395,14 +442,26 @@ function EventsList() {
                                                 }
                                             </IconButton>
                                         </Box>
-                                        <Typography
-                                            variant="h6"
-                                            component="h2"
-                                            gutterBottom
-                                            sx={{ fontWeight: 'bold' }}
-                                        >
-                                            {event.name}
-                                        </Typography>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                                            <Typography
+                                                variant="h6"
+                                                component="h2"
+                                                gutterBottom
+                                                sx={{ fontWeight: 'bold' }}
+                                            >
+                                                {event.name}
+                                            </Typography>
+                                            {/* Add created by admin badge if applicable */}
+                                            {event.creatorInfo && event.creatorInfo.role === 'admin' && (
+                                                <Tooltip title="Created by Admin">
+                                                    <AdminPanelSettings 
+                                                        color="primary" 
+                                                        fontSize="small"
+                                                        sx={{ ml: 1 }} 
+                                                    />
+                                                </Tooltip>
+                                            )}
+                                        </Box>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                             <CalendarToday fontSize="small" color="action" sx={{ mr: 1 }} />
                                             <Typography variant="body2" color="text.secondary">
@@ -415,6 +474,16 @@ function EventsList() {
                                                 {event.location || 'No location specified'}
                                             </Typography>
                                         </Box>
+
+                                        {/* Show creator info if available */}
+                                        {event.creatorInfo && (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                                <Person fontSize="small" color="action" sx={{ mr: 1 }} />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Created by: {event.creatorInfo.username}
+                                                </Typography>
+                                            </Box>
+                                        )}
 
                                         {event.review_count > 0 && (
                                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
