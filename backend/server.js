@@ -1501,6 +1501,368 @@ app.put('/api/admin/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(
     }
 });
 
+// Admin stats endpoint - comprehensive statistics
+app.get('/api/admin/stats', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Get user stats
+            const [userStats] = await connection.query('SELECT COUNT(*) as totalUsers FROM users');
+            
+            // Get event stats
+            const [eventStats] = await connection.query('SELECT COUNT(*) as totalEvents FROM events');
+            const [upcomingEvents] = await connection.query(
+                'SELECT COUNT(*) as upcomingCount FROM events WHERE event_date >= CURDATE()'
+            );
+            const [pastEvents] = await connection.query(
+                'SELECT COUNT(*) as pastCount FROM events WHERE event_date < CURDATE()'
+            );
+            
+            // Get review stats
+            const [reviewStats] = await connection.query('SELECT COUNT(*) as totalReviews FROM reviews');
+            const [pendingReviews] = await connection.query(
+                "SELECT COUNT(*) as pendingCount FROM reviews WHERE moderation_status = 'pending' OR moderation_status IS NULL"
+            );
+            const [avgRating] = await connection.query('SELECT AVG(rating) as averageRating FROM reviews');
+            
+            // Get category stats
+            const [categoryStats] = await connection.query('SELECT COUNT(*) as totalCategories FROM eventcategories');
+            
+            res.status(200).json({
+                totalUsers: userStats[0].totalUsers,
+                totalEvents: eventStats[0].totalEvents,
+                upcomingEvents: upcomingEvents[0].upcomingCount,
+                pastEvents: pastEvents[0].pastCount,
+                totalReviews: reviewStats[0].totalReviews,
+                pendingReviews: pendingReviews[0].pendingCount,
+                averageRating: avgRating[0].averageRating,
+                totalCategories: categoryStats[0].totalCategories
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching admin stats:', error);
+        res.status(500).json({ error: 'Failed to fetch admin statistics', details: error.message });
+    }
+});
+
+// Get all users (enhanced)
+app.get('/api/admin/users', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const searchTerm = req.query.search || '';
+        const roleFilter = req.query.role || 'all';
+        
+        const connection = await pool.getConnection();
+        try {
+            let queryParams = [];
+            let whereClause = '';
+            
+            // Add search filter
+            if (searchTerm) {
+                whereClause += ' WHERE (username LIKE ? OR email LIKE ?)';
+                queryParams.push(`%${searchTerm}%`, `%${searchTerm}%`);
+            }
+            
+            // Add role filter
+            if (roleFilter !== 'all') {
+                whereClause = whereClause ? `${whereClause} AND role = ?` : ' WHERE role = ?';
+                queryParams.push(roleFilter);
+            }
+            
+            // Get total count
+            const [countResult] = await connection.query(
+                `SELECT COUNT(*) as total FROM users${whereClause}`,
+                queryParams
+            );
+            
+            // Get users with pagination
+            const [users] = await connection.query(
+                `SELECT user_id, username, email, role, bio, created_at FROM users${whereClause} 
+                ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+                [...queryParams, limit, offset]
+            );
+            
+            // Add event and review counts
+            const enhancedUsers = await Promise.all(users.map(async (user) => {
+                const [eventCount] = await connection.query(
+                    'SELECT COUNT(*) as count FROM events WHERE user_id = ?',
+                    [user.user_id]
+                );
+                
+                const [reviewCount] = await connection.query(
+                    'SELECT COUNT(*) as count FROM reviews WHERE user_id = ?',
+                    [user.user_id]
+                );
+                
+                return {
+                    ...user,
+                    events_count: eventCount[0].count,
+                    reviews_count: reviewCount[0].count
+                };
+            }));
+            
+            res.status(200).json({
+                users: enhancedUsers,
+                pagination: {
+                    total: countResult[0].total,
+                    page,
+                    limit,
+                    pages: Math.ceil(countResult[0].total / limit)
+                }
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
+    }
+});
+
+// Get all events (enhanced)
+app.get('/api/admin/events', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const searchTerm = req.query.search || '';
+        const categoryFilter = req.query.category || 'all';
+        const statusFilter = req.query.status || 'all'; // 'upcoming', 'past', 'all'
+        
+        const connection = await pool.getConnection();
+        try {
+            let queryParams = [];
+            let whereClause = '';
+            
+            // Add search filter
+            if (searchTerm) {
+                whereClause += ' WHERE (e.name LIKE ? OR e.location LIKE ? OR e.description LIKE ?)';
+                queryParams.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
+            }
+            
+            // Add category filter
+            if (categoryFilter !== 'all') {
+                whereClause = whereClause ? `${whereClause} AND e.category_id = ?` : ' WHERE e.category_id = ?';
+                queryParams.push(categoryFilter);
+            }
+            
+            // Add status filter
+            if (statusFilter === 'upcoming') {
+                whereClause = whereClause ? `${whereClause} AND e.event_date >= CURDATE()` : ' WHERE e.event_date >= CURDATE()';
+            } else if (statusFilter === 'past') {
+                whereClause = whereClause ? `${whereClause} AND e.event_date < CURDATE()` : ' WHERE e.event_date < CURDATE()';
+            }
+            
+            // Get total count
+            const [countResult] = await connection.query(
+                `SELECT COUNT(*) as total FROM events e${whereClause}`,
+                queryParams
+            );
+            
+            // Get events with pagination and category info
+            const [events] = await connection.query(
+                `SELECT e.*, c.category_name, 
+                    (SELECT COUNT(*) FROM reviews r WHERE r.event_id = e.event_id) as review_count,
+                    (SELECT AVG(rating) FROM reviews r WHERE r.event_id = e.event_id) as avg_rating
+                FROM events e
+                LEFT JOIN eventcategories c ON e.category_id = c.category_id
+                ${whereClause} 
+                ORDER BY e.event_date DESC LIMIT ? OFFSET ?`,
+                [...queryParams, limit, offset]
+            );
+            
+            res.status(200).json({
+                events,
+                pagination: {
+                    total: countResult[0].total,
+                    page,
+                    limit,
+                    pages: Math.ceil(countResult[0].total / limit)
+                }
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        res.status(500).json({ error: 'Failed to fetch events', details: error.message });
+    }
+});
+
+// Get all reviews (enhanced)
+app.get('/api/admin/reviews', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const searchTerm = req.query.search || '';
+        const ratingFilter = req.query.rating || 'all';
+        const statusFilter = req.query.status || 'all'; // 'pending', 'approved', 'rejected', 'all'
+        
+        const connection = await pool.getConnection();
+        try {
+            let queryParams = [];
+            let whereClause = '';
+            
+            // Add search filter
+            if (searchTerm) {
+                whereClause += ' WHERE (r.review_text LIKE ? OR u.username LIKE ? OR e.name LIKE ?)';
+                queryParams.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
+            }
+            
+            // Add rating filter
+            if (ratingFilter !== 'all') {
+                whereClause = whereClause ? `${whereClause} AND r.rating = ?` : ' WHERE r.rating = ?';
+                queryParams.push(ratingFilter);
+            }
+            
+            // Add status filter
+            if (statusFilter !== 'all') {
+                whereClause = whereClause ? `${whereClause} AND r.moderation_status = ?` : ' WHERE r.moderation_status = ?';
+                queryParams.push(statusFilter);
+            }
+            
+            // Get total count
+            const [countResult] = await connection.query(
+                `SELECT COUNT(*) as total 
+                FROM reviews r
+                JOIN users u ON r.user_id = u.user_id
+                JOIN events e ON r.event_id = e.event_id
+                ${whereClause}`,
+                queryParams
+            );
+            
+            // Get reviews with pagination and related info
+            const [reviews] = await connection.query(
+                `SELECT r.*, u.username, e.name as event_name 
+                FROM reviews r
+                JOIN users u ON r.user_id = u.user_id
+                JOIN events e ON r.event_id = e.event_id
+                ${whereClause} 
+                ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+                [...queryParams, limit, offset]
+            );
+            
+            res.status(200).json({
+                reviews,
+                pagination: {
+                    total: countResult[0].total,
+                    page,
+                    limit,
+                    pages: Math.ceil(countResult[0].total / limit)
+                }
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        res.status(500).json({ error: 'Failed to fetch reviews', details: error.message });
+    }
+});
+
+// Add moderation_status column to reviews table if not exists
+app.post('/api/admin/setup', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Check if moderation_status column exists
+            const [columns] = await connection.query(`
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'reviews' AND COLUMN_NAME = 'moderation_status'
+            `, [process.env.DB_DATABASE]);
+            
+            if (columns.length === 0) {
+                // Add moderation_status column
+                await connection.query(`
+                    ALTER TABLE reviews 
+                    ADD COLUMN moderation_status VARCHAR(20) DEFAULT 'pending'
+                `);
+                
+                res.status(200).json({ message: 'Added moderation_status column to reviews table' });
+            } else {
+                res.status(200).json({ message: 'No database changes needed' });
+            }
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error setting up admin features:', error);
+        res.status(500).json({ error: 'Failed to set up admin features', details: error.message });
+    }
+});
+
+// Update review moderation status
+app.put('/api/admin/reviews/:reviewId/moderate', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const reviewId = req.params.reviewId;
+        const { status } = req.body;
+        
+        if (!status || !['approved', 'rejected', 'pending'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status value' });
+        }
+        
+        const connection = await pool.getConnection();
+        try {
+            const [result] = await connection.query(
+                'UPDATE reviews SET moderation_status = ? WHERE review_id = ?',
+                [status, reviewId]
+            );
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Review not found' });
+            }
+            
+            res.status(200).json({ message: `Review has been ${status}` });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating review status:', error);
+        res.status(500).json({ error: 'Failed to update review status', details: error.message });
+    }
+});
+
+// Generate DB schema modifications
+app.post('/api/admin/setup-schema', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            // Schema modifications for review moderation
+            await connection.query(`
+                ALTER TABLE reviews 
+                ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(20) DEFAULT 'pending'
+            `);
+            
+            // Add event views counter
+            await connection.query(`
+                ALTER TABLE events 
+                ADD COLUMN IF NOT EXISTS views INT DEFAULT 0
+            `);
+            
+            // Add created_by to categories
+            await connection.query(`
+                ALTER TABLE eventcategories 
+                ADD COLUMN IF NOT EXISTS created_by INT DEFAULT NULL,
+                ADD CONSTRAINT fk_category_creator
+                FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+            `);
+            
+            res.status(200).json({ message: 'Database schema updated successfully' });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Error updating database schema:', error);
+        res.status(500).json({ error: 'Failed to update database schema', details: error.message });
+    }
+});
+
 app.get('/', (req, res) => {
     res.status(200).send('Railway Deployment Healthy');
 });
