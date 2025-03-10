@@ -1,4 +1,3 @@
-// EventsList.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Container, Typography, Box, Grid, Card, CardContent,
@@ -8,7 +7,8 @@ import {
 } from '@mui/material';
 import {
     LocationOn, AccessTime, CalendarToday,
-    Share, FavoriteBorder, Favorite, History, Star, Event
+    Share, FavoriteBorder, Favorite, History, Star, Event,
+    Comment
 } from '@mui/icons-material';
 import { Add } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
@@ -24,8 +24,15 @@ function EventsList() {
     const [createEventOpen, setCreateEventOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+    const [userRole, setUserRole] = useState('user');
 
     useEffect(() => {
+        // Get user role from localStorage
+        const storedRole = localStorage.getItem('userRole');
+        if (storedRole) {
+            setUserRole(storedRole);
+        }
+        
         fetchEvents();
     }, []);
 
@@ -464,14 +471,17 @@ function EventsList() {
                     Events
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<Add />}
-                        onClick={handleOpenCreateEvent}
-                    >
-                        Create Event
-                    </Button>
+                    {/* Only show Create Event button for admin users */}
+                    {userRole === 'admin' && (
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<Add />}
+                            onClick={handleOpenCreateEvent}
+                        >
+                            Create Event
+                        </Button>
+                    )}
                     <Button
                         variant="outlined"
                         color="primary"
@@ -526,21 +536,24 @@ function EventsList() {
                 activeTab === 0 ? renderUpcomingEvents() : renderPastEvents()
             )}
 
-            <Tooltip title="Create Event">
-                <Fab
-                    color="primary"
-                    aria-label="add event"
-                    sx={{
-                        position: 'fixed',
-                        bottom: 20,
-                        right: 20,
-                        display: { xs: 'flex', md: 'none' }
-                    }}
-                    onClick={handleOpenCreateEvent}
-                >
-                    <Add />
-                </Fab>
-            </Tooltip>
+            {/* Only show FAB Create Event button for admin users */}
+            {userRole === 'admin' && (
+                <Tooltip title="Create Event">
+                    <Fab
+                        color="primary"
+                        aria-label="add event"
+                        sx={{
+                            position: 'fixed',
+                            bottom: 20,
+                            right: 20,
+                            display: { xs: 'flex', md: 'none' }
+                        }}
+                        onClick={handleOpenCreateEvent}
+                    >
+                        <Add />
+                    </Fab>
+                </Tooltip>
+            )}
 
             <CreateEventForm
                 open={createEventOpen}

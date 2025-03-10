@@ -256,7 +256,7 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
     });
 });
 
-app.post('/api/events', authenticateJWT, async (req, res) => {
+app.post('/api/events', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
     try {
         const userId = req.user.userId;
         const {

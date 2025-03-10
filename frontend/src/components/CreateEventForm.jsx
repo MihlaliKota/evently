@@ -10,7 +10,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
     Event, LocationOn, Description, Category,
-    Close, Save
+    Close, Save, Error
 } from '@mui/icons-material';
 import { fetchApi } from '../utils/api';
 
@@ -28,32 +28,39 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
     const [loadingCategories, setLoadingCategories] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
+    const [userRole, setUserRole] = useState('user');
     
     useEffect(() => {
-        const fetchCategories = async () => {
-            setLoadingCategories(true);
-            try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                const response = await fetch(`${apiUrl}/api/categories`);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch categories: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                setCategories(data);
-            } catch (error) {
-                console.error('Error fetching categories:', error);
-                setError('Failed to load categories. Please try again.');
-            } finally {
-                setLoadingCategories(false);
-            }
-        };
+        // Get user role from localStorage
+        const storedRole = localStorage.getItem('userRole');
+        if (storedRole) {
+            setUserRole(storedRole);
+        }
         
         if (open) {
             fetchCategories();
         }
     }, [open]);
+    
+    const fetchCategories = async () => {
+        setLoadingCategories(true);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            const response = await fetch(`${apiUrl}/api/categories`);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch categories: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            setCategories(data);
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+            setError('Failed to load categories. Please try again.');
+        } finally {
+            setLoadingCategories(false);
+        }
+    };
     
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -71,6 +78,11 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
     };
     
     const validateForm = () => {
+        if (userRole !== 'admin') {
+            setError('Only administrators can create events');
+            return false;
+        }
+        
         if (!formData.name.trim()) {
             setError('Event name is required');
             return false;
@@ -187,6 +199,49 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         setSuccess(null);
         onClose();
     };
+    
+    // If user is not admin, show access denied message
+    if (userRole !== 'admin') {
+        return (
+            <Dialog 
+                open={open} 
+                onClose={handleClose}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography variant="h6">Access Denied</Typography>
+                        <Button 
+                            color="inherit" 
+                            onClick={handleClose}
+                            startIcon={<Close />}
+                        >
+                            Close
+                        </Button>
+                    </Box>
+                </DialogTitle>
+                
+                <DialogContent dividers>
+                    <Alert severity="error" icon={<Error />} sx={{ mb: 2 }}>
+                        Only administrators can create events
+                    </Alert>
+                    <Typography variant="body1">
+                        You need administrator privileges to create and manage events. Please contact an administrator if you need to create an event.
+                    </Typography>
+                </DialogContent>
+                
+                <DialogActions sx={{ p: 2 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={handleClose}
+                    >
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        );
+    }
     
     return (
         <Dialog 
