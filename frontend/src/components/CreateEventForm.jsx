@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, TextField, FormControl, InputLabel, Select,
@@ -12,9 +12,10 @@ import {
     Event, LocationOn, Description, Category,
     Close, Save, Error
 } from '@mui/icons-material';
-import { fetchApi } from '../utils/api';
+import api from '../utils/api';
 
 const CreateEventForm = ({ open, onClose, onEventCreated }) => {
+    // Form state
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -23,36 +24,45 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         category_id: ''
     });
     
+    // UI state
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(false);
     const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
-    const [userRole, setUserRole] = useState('user');
+    const [success, setSuccessMessage] = useState(null);
     
+    // Get user role from localStorage
+    const [userRole, setUserRole] = useState(() => 
+        localStorage.getItem('userRole') || 'user'
+    );
+    
+    // Fetch categories when dialog opens
     useEffect(() => {
-        // Get user role from localStorage
-        const storedRole = localStorage.getItem('userRole');
-        if (storedRole) {
-            setUserRole(storedRole);
-        }
-        
         if (open) {
             fetchCategories();
         }
     }, [open]);
     
-    const fetchCategories = async () => {
+    // Reset form when dialog closes
+    useEffect(() => {
+        if (!open) {
+            setFormData({
+                name: '',
+                description: '',
+                location: '',
+                event_date: new Date(),
+                category_id: ''
+            });
+            setError(null);
+            setSuccessMessage(null);
+        }
+    }, [open]);
+    
+    // Fetch event categories
+    const fetchCategories = useCallback(async () => {
         setLoadingCategories(true);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${apiUrl}/api/categories`);
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch categories: ${response.status}`);
-            }
-            
-            const data = await response.json();
+            const data = await api.categories.getAllCategories();
             setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
@@ -60,24 +70,29 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         } finally {
             setLoadingCategories(false);
         }
-    };
+    }, []);
     
-    const handleInputChange = (e) => {
+    // Form input handlers
+    const handleInputChange = useCallback((e) => {
         const { name, value } = e.target;
-        setFormData({
-            ...formData,
+        setFormData(prev => ({
+            ...prev,
             [name]: value
-        });
-    };
+        }));
+        
+        // Clear error when user starts typing
+        if (error) setError(null);
+    }, [error]);
     
-    const handleDateChange = (newDate) => {
-        setFormData({
-            ...formData,
+    const handleDateChange = useCallback((newDate) => {
+        setFormData(prev => ({
+            ...prev,
             event_date: newDate
-        });
-    };
+        }));
+    }, []);
     
-    const validateForm = () => {
+    // Form validation
+    const validateForm = useCallback(() => {
         if (userRole !== 'admin') {
             setError('Only administrators can create events');
             return false;
@@ -94,9 +109,10 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         }
         
         return true;
-    };
+    }, [userRole, formData]);
     
-    const handleSubmit = async (e) => {
+    // Form submission
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         
         if (!validateForm()) {
@@ -105,7 +121,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         
         setLoading(true);
         setError(null);
-        setSuccess(null);
+        setSuccessMessage(null);
         
         try {
             const token = localStorage.getItem('authToken');
@@ -113,41 +129,21 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 throw new Error('You must be logged in to create an event');
             }
             
-            const payload = token.split('.')[1];
-            const decodedPayload = JSON.parse(atob(payload));
-            const user_id = decodedPayload.userId;
-            
-            if (!user_id) {
-                throw new Error('Unable to retrieve user ID from session');
-            }
-            
+            // Format date for API
             const eventData = {
                 ...formData
             };
             
             if (eventData.event_date instanceof Date) {
-                eventData.event_date = eventData.event_date.toISOString().slice(0, 19).replace('T', ' ');
+                eventData.event_date = eventData.event_date.toISOString();
             }
             
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            // Create event using API service
+            const data = await api.events.createEvent(eventData);
             
-            const response = await fetch(`${apiUrl}/api/events`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(eventData)
-            });
+            setSuccessMessage('Event created successfully!');
             
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Failed to create event: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            setSuccess('Event created successfully!');
-            
+            // Reset form
             setFormData({
                 name: '',
                 description: '',
@@ -160,6 +156,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 onEventCreated(data);
             }
             
+            // Close dialog after success
             setTimeout(() => {
                 onClose();
             }, 1500);
@@ -170,24 +167,9 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleNewReviewChange = (field, value) => {
-        if (field === 'event_date') {
-            const formattedDate = new Date(value).toISOString().slice(0, 19).replace('T', ' ');
-            setFormData({
-                ...formData,
-                [field]: formattedDate
-            });
-        } else {
-            setFormData({
-                ...formData,
-                [field]: value
-            });
-        }
-    };
+    }, [formData, validateForm, onEventCreated, onClose]);
     
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setFormData({
             name: '',
             description: '',
@@ -196,9 +178,9 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             category_id: ''
         });
         setError(null);
-        setSuccess(null);
+        setSuccessMessage(null);
         onClose();
-    };
+    }, [onClose]);
     
     // If user is not admin, show access denied message
     if (userRole !== 'admin') {

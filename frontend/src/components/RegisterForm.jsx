@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     TextField, Button, Typography, Box, Alert,
     InputAdornment, IconButton, CircularProgress
@@ -6,50 +6,56 @@ import {
 import {
     Visibility, VisibilityOff, PersonAdd
 } from '@mui/icons-material';
-import { fetchApi } from '../utils/api';
+import api from '../utils/api';
 
 const RegisterForm = ({ onLoginSuccess }) => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [email, setEmail] = useState('');
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
-    // Centralized API URL configuration
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app';
+    const handleInputChange = useCallback((e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        setError(''); // Clear errors when input changes
+    }, []);
 
-    const validateForm = () => {
-        if (!username) {
+    const validateForm = useCallback(() => {
+        if (!formData.username) {
             setError('Username is required');
             return false;
         }
 
-        if (!email || !email.includes('@')) {
+        if (!formData.email || !formData.email.includes('@')) {
             setError('A valid email address is required');
             return false;
         }
 
-        if (password.length < 6) {
+        if (formData.password.length < 6) {
             setError('Password must be at least 6 characters long');
             return false;
         }
 
-        if (password !== confirmPassword) {
+        if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
             return false;
         }
 
         return true;
-    };
+    }, [formData]);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setSuccessMessage('');
 
         if (!validateForm()) {
             setLoading(false);
@@ -57,33 +63,30 @@ const RegisterForm = ({ onLoginSuccess }) => {
         }
 
         try {
-            const data = await fetchApi('/api/register', {
-                method: 'POST',
-                body: JSON.stringify({ username, password, email })
+            // Register user
+            await api.auth.register({
+                username: formData.username,
+                email: formData.email,
+                password: formData.password
             });
 
-            // Successful registration
-            setUsername('');
-            setPassword('');
-            setConfirmPassword('');
-            setEmail('');
-
-            // After successful registration, you need to log the user in
-            // Make a login request to get a token
-            const loginData = await fetchApi('/api/login', {
-                method: 'POST',
-                body: JSON.stringify({ username, password })
+            // After successful registration, log the user in
+            const loginData = await api.auth.login({
+                username: formData.username,
+                password: formData.password
             });
 
             // Store the token in localStorage
             localStorage.setItem('authToken', loginData.token);
             localStorage.setItem('username', loginData.username);
 
+            // Show success message
+            setSuccessMessage('Registration successful! Logging you in...');
+
             // Trigger login success callback
             setTimeout(() => {
-                onLoginSuccess(username, loginData.role);
+                onLoginSuccess(formData.username, loginData.role);
             }, 1500);
-            setSuccessMessage('Registration successful! Logging you in...');
 
         } catch (error) {
             setError(error.message || 'Registration failed. Please try again.');
@@ -91,7 +94,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [formData, validateForm, onLoginSuccess]);
 
     return (
         <Box sx={{ maxWidth: 400, margin: 'auto' }}>
@@ -127,37 +130,40 @@ const RegisterForm = ({ onLoginSuccess }) => {
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
                 <TextField
                     label="Username"
+                    name="username"
                     variant="outlined"
                     fullWidth
                     margin="normal"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    disabled={loading}
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    disabled={loading || !!successMessage}
                     required
                     autoFocus
                 />
 
                 <TextField
                     label="Email"
+                    name="email"
                     type="email"
                     variant="outlined"
                     fullWidth
                     margin="normal"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    disabled={loading || !!successMessage}
                     required
                 />
 
                 <TextField
                     label="Password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     variant="outlined"
                     fullWidth
                     margin="normal"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    disabled={loading || !!successMessage}
                     required
                     InputProps={{
                         endAdornment: (
@@ -176,16 +182,17 @@ const RegisterForm = ({ onLoginSuccess }) => {
 
                 <TextField
                     label="Confirm Password"
+                    name="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     variant="outlined"
                     fullWidth
                     margin="normal"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading}
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    disabled={loading || !!successMessage}
                     required
-                    error={password !== confirmPassword && confirmPassword !== ''}
-                    helperText={password !== confirmPassword && confirmPassword !== '' ? 'Passwords do not match' : ''}
+                    error={formData.password !== formData.confirmPassword && formData.confirmPassword !== ''}
+                    helperText={formData.password !== formData.confirmPassword && formData.confirmPassword !== '' ? 'Passwords do not match' : ''}
                     InputProps={{
                         endAdornment: (
                             <InputAdornment position="end">
@@ -207,7 +214,7 @@ const RegisterForm = ({ onLoginSuccess }) => {
                     color="secondary"
                     fullWidth
                     size="large"
-                    disabled={loading}
+                    disabled={loading || !!successMessage}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PersonAdd />}
                     sx={{
                         mt: 3,

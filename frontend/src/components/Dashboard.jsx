@@ -1,42 +1,44 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent,
-    Divider, CircularProgress, Paper,
-    List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
-    Chip, Tabs, Tab, Dialog, DialogTitle, DialogContent, Rating, Avatar,
-    Button, Alert, useTheme, useMediaQuery, Badge, Tooltip, LinearProgress
+    Divider, CircularProgress, Paper, List, ListItem, 
+    ListItemText, ListItemIcon, ListItemSecondaryAction,
+    Chip, Tabs, Tab, Avatar, Button, Alert, useTheme, 
+    useMediaQuery, Badge, Tooltip, LinearProgress
 } from '@mui/material';
 import {
-    EventAvailable, People, CalendarToday, Check,
-    Event, History, Comment, TrendingUp, EmojiEvents,
-    LocalActivity, Person, School, Favorite, Star
+    EventAvailable, CalendarToday, Check, Event, 
+    History, Star, TrendingUp, Person, Refresh, 
+    Comment
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import ReviewDialog from './ReviewDialog';
 import { format, differenceInDays } from 'date-fns';
+import api from '../utils/api';
 
 function Dashboard({ username }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     
     const [stats, setStats] = useState({
         totalEvents: 0,
         upcomingEvents: 0,
-        totalAttendees: 0,
         completedEvents: 0
     });
+    
     const [loading, setLoading] = useState(true);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
     const [pastEvents, setPastEvents] = useState([]);
     const [eventTab, setEventTab] = useState(0);
+    const [dashboardTab, setDashboardTab] = useState(0);
     const [openReviewsDialog, setOpenReviewsDialog] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [eventReviews, setEventReviews] = useState([]);
     const [loadingReviews, setLoadingReviews] = useState(false);
     const [error, setError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
     
-    const [dashboardTab, setDashboardTab] = useState(0);
+    // Memoized user engagement data
     const [userEngagement, setUserEngagement] = useState({
         eventsAttended: 0,
         reviewsSubmitted: 0,
@@ -45,234 +47,87 @@ function Dashboard({ username }) {
         recentActivity: [],
         achievements: []
     });
-    const [showDetailedStats, setShowDetailedStats] = useState(false);
+    
     const [communityActivity, setCommunityActivity] = useState([]);
-    const [refreshing, setRefreshing] = useState(false);
 
-    const getToken = () => {
-        const token = localStorage.getItem('authToken');
-        return token;
-    };
-
+    // Fetch dashboard data (optimized to use our API service)
     const fetchDashboardData = useCallback(async () => {
         setLoading(true);
         setError(null);
+        
         try {
-            const token = getToken();
-            if (!token) {
-                console.error('No authentication token found');
-                setLoading(false);
-                return;
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const eventsResponse = await fetch(`${apiUrl}/api/events`, { headers });
-            if (!eventsResponse.ok) {
-                throw new Error('Failed to fetch events');
-            }
-            const eventsData = await eventsResponse.json();
-
-            let statsData = {};
-            try {
-                const statsResponse = await fetch(`${apiUrl}/api/dashboard/stats`, { headers });
-                if (statsResponse.ok) {
-                    statsData = await statsResponse.json();
-                } else {
-                    throw new Error('Failed to fetch stats');
-                }
-            } catch (statsError) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                const upcoming = eventsData.filter(event => {
-                    const eventDate = new Date(event.event_date);
-                    const normalizedDate = new Date(
-                        eventDate.getFullYear(),
-                        eventDate.getMonth(),
-                        eventDate.getDate(),
-                        0, 0, 0, 0
-                    );
-                    return normalizedDate >= today;
-                }).length;
-                
-                const completed = eventsData.length - upcoming;
-                const totalAttendees = eventsData.reduce((sum, event) => sum + (event.attendees || 0), 0);
-                
-                statsData = {
-                    totalEvents: eventsData.length,
-                    upcomingEvents: upcoming,
-                    completedEvents: completed,
-                    totalAttendees: totalAttendees
-                };
-            }
+            // Parallel API calls for better performance
+            const [statsData, eventsData] = await Promise.all([
+                api.dashboard.getStats().catch(() => ({
+                    totalEvents: 0,
+                    upcomingEvents: 0,
+                    completedEvents: 0
+                })),
+                api.events.getAllEvents()
+            ]);
             
             setStats(statsData);
-
+            
+            // Process events into upcoming and past
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-
+            
             const upcoming = [];
             const past = [];
-
+            
             eventsData.forEach(event => {
                 try {
                     const eventDate = new Date(event.event_date);
-                    const normalizedDate = new Date(
-                        eventDate.getFullYear(),
-                        eventDate.getMonth(),
-                        eventDate.getDate(),
-                        0, 0, 0, 0
-                    );
-                    
-                    if (normalizedDate >= today) {
+                    if (eventDate >= today) {
                         upcoming.push(event);
                     } else {
-                        const mockReviewCount = event.review_count !== undefined ? 
-                            event.review_count : Math.floor(Math.random() * 3);
-                        const mockAvgRating = event.avg_rating !== undefined ?
-                            event.avg_rating : (3 + Math.random() * 2).toFixed(1);
-                            
                         past.push({
                             ...event,
-                            review_count: mockReviewCount,
-                            avg_rating: mockAvgRating
+                            review_count: event.review_count || 0,
+                            avg_rating: event.avg_rating || 0
                         });
                     }
-                } catch (dateError) {
-                    console.error('Error parsing date for event:', event.name, dateError);
+                } catch (error) {
+                    console.error('Date parsing error:', error);
                 }
             });
-
+            
+            // Sort events for better UX
             upcoming.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
             past.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
-
+            
             setUpcomingEvents(upcoming);
             setPastEvents(past);
             
-            const mockUserEngagement = {
-                eventsAttended: past.length,
-                reviewsSubmitted: past.reduce((sum, event) => sum + (event.review_count || 0), 0),
-                averageRating: 4.2,
-                categoryPreferences: generateCategoryPreferences(past),
-                recentActivity: generateRecentActivity(past.slice(0, 3)),
-                achievements: generateAchievements(past.length, statsData)
-            };
+            // Generate insights from event data
+            generateInsights(past);
             
-            setUserEngagement(mockUserEngagement);
-            setCommunityActivity(generateCommunityActivity(past));
-
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            setError(error.message);
-            setUpcomingEvents([]);
-            setPastEvents([]);
+            setError(error.message || 'Failed to load dashboard data');
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
     }, []);
-
-    useEffect(() => {
-        fetchDashboardData();
-    }, [fetchDashboardData]);
-
-    const fetchEventReviews = async (eventId) => {
-        setLoadingReviews(true);
-        try {
-            const token = getToken();
-            if (!token) {
-                console.error('No authentication token found');
-                setLoadingReviews(false);
-                return;
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                const response = await fetch(`${apiUrl}/api/events/${eventId}/reviews`, { headers });
-                if (response.ok) {
-                    const data = await response.json();
-                    setEventReviews(data);
-                    return;
-                }
-                console.error('Reviews fetch error:', response.status);
-                throw new Error('Failed to fetch reviews');
-            } catch (apiError) {
-                const mockReviews = [
-                    {
-                        review_id: 1,
-                        username: 'MockUser1',
-                        rating: 4,
-                        review_text: 'This was a great event! Really enjoyed the presentations.',
-                        created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-                    },
-                    {
-                        review_id: 2,
-                        username: 'MockUser2',
-                        rating: 5,
-                        review_text: 'Excellent organization and content. Looking forward to the next one!',
-                        created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-                    }
-                ];
-                setEventReviews(mockReviews);
-            }
-        } catch (error) {
-            console.error('Error fetching event reviews:', error);
-            setEventReviews([]);
-        } finally {
-            setLoadingReviews(false);
-        }
-    };
-
-    const handleOpenReviews = (event) => {
-        setSelectedEvent(event);
-        fetchEventReviews(event.event_id);
-        setOpenReviewsDialog(true);
-    };
-
-    const handleCloseReviews = () => {
-        setOpenReviewsDialog(false);
-        setSelectedEvent(null);
-        setEventReviews([]);
-    };
-
-    const handleRefresh = () => {
-        setRefreshing(true);
-        fetchDashboardData();
-    };
-
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return format(date, 'EEE, MMM d, yyyy h:mm a');
-    };
-
-    const getDaysRemaining = (dateString) => {
-        const eventDate = new Date(dateString);
-        const today = new Date();
-        return differenceInDays(eventDate, today);
-    };
-
-    const formatRating = (rating) => {
-        return rating ? parseFloat(rating).toFixed(1) : 'No ratings';
-    };
-
-    const handleTabChange = (event, newValue) => {
-        setEventTab(newValue);
-    };
     
-    const handleDashboardTabChange = (event, newValue) => {
-        setDashboardTab(newValue);
-    };
+    // Generate insights from event data
+    const generateInsights = useCallback((pastEvents) => {
+        // Calculate user engagement metrics
+        const mockUserEngagement = {
+            eventsAttended: pastEvents.length,
+            reviewsSubmitted: pastEvents.reduce((sum, event) => sum + (event.review_count || 0), 0),
+            averageRating: 4.2,
+            categoryPreferences: generateCategoryPreferences(pastEvents),
+            recentActivity: generateRecentActivity(pastEvents.slice(0, 3)),
+            achievements: generateAchievements(pastEvents.length, stats)
+        };
+        
+        setUserEngagement(mockUserEngagement);
+        setCommunityActivity(generateCommunityActivity(pastEvents));
+    }, [stats]);
     
+    // Helper functions for generating insights
     const generateCategoryPreferences = (pastEvents) => {
         const categories = {};
         pastEvents.forEach(event => {
@@ -312,7 +167,7 @@ function Dashboard({ username }) {
                 id: 'event_explorer',
                 title: 'Event Explorer',
                 description: 'Attend 5 different events',
-                icon: <LocalActivity color="secondary" />,
+                icon: <Event color="secondary" />,
                 completed: pastEventsCount >= 5,
                 progress: Math.min(pastEventsCount / 5, 1)
             },
@@ -349,198 +204,166 @@ function Dashboard({ username }) {
             }
         ];
     };
+
+    // Fetch event reviews when an event is selected
+    const fetchEventReviews = useCallback(async (eventId) => {
+        if (!eventId) return;
+        
+        setLoadingReviews(true);
+        try {
+            const reviews = await api.reviews.getEventReviews(eventId);
+            setEventReviews(reviews);
+        } catch (error) {
+            console.error('Error fetching event reviews:', error);
+            setEventReviews([]);
+        } finally {
+            setLoadingReviews(false);
+        }
+    }, []);
+
+    // Initial data load
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
     
-    const renderAchievements = () => {
-        return (
-            <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    Your Achievements
-                </Typography>
-                <Grid container spacing={2}>
-                    {userEngagement.achievements.map((achievement) => (
-                        <Grid item xs={12} sm={4} key={achievement.id}>
-                            <Card sx={{ height: '100%' }}>
-                                <CardContent>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                        <Avatar sx={{ bgcolor: achievement.completed ? 'success.light' : 'action.disabledBackground', mr: 1 }}>
-                                            {achievement.icon}
-                                        </Avatar>
-                                        <Typography variant="subtitle1">
-                                            {achievement.title}
-                                        </Typography>
-                                    </Box>
-                                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                                        {achievement.description}
+    // Load tab-specific data
+    useEffect(() => {
+        if (dashboardTab === 1) {
+            // Load profile data if needed
+        }
+    }, [dashboardTab]);
+
+    // Event handlers
+    const handleOpenReviews = useCallback((event) => {
+        setSelectedEvent(event);
+        fetchEventReviews(event.event_id);
+        setOpenReviewsDialog(true);
+    }, [fetchEventReviews]);
+
+    const handleCloseReviews = useCallback(() => {
+        setOpenReviewsDialog(false);
+        setSelectedEvent(null);
+        setEventReviews([]);
+    }, []);
+
+    const handleRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchDashboardData();
+    }, [fetchDashboardData]);
+
+    const handleTabChange = useCallback((event, newValue) => {
+        setEventTab(newValue);
+    }, []);
+    
+    const handleDashboardTabChange = useCallback((event, newValue) => {
+        setDashboardTab(newValue);
+    }, []);
+
+    // Formatter functions
+    const formatDate = useCallback((dateString) => {
+        const date = new Date(dateString);
+        return format(date, 'EEE, MMM d, yyyy h:mm a');
+    }, []);
+
+    const getDaysRemaining = useCallback((dateString) => {
+        const eventDate = new Date(dateString);
+        const today = new Date();
+        return differenceInDays(eventDate, today);
+    }, []);
+
+    const formatRating = useCallback((rating) => {
+        return rating ? parseFloat(rating).toFixed(1) : 'No ratings';
+    }, []);
+
+    // Memoized rendering functions
+    const renderAchievements = useMemo(() => (
+        <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                Your Achievements
+            </Typography>
+            <Grid container spacing={2}>
+                {userEngagement.achievements.map((achievement) => (
+                    <Grid item xs={12} sm={4} key={achievement.id}>
+                        <Card sx={{ height: '100%' }}>
+                            <CardContent>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                    <Avatar sx={{ bgcolor: achievement.completed ? 'success.light' : 'action.disabledBackground', mr: 1 }}>
+                                        {achievement.icon}
+                                    </Avatar>
+                                    <Typography variant="subtitle1">
+                                        {achievement.title}
                                     </Typography>
-                                    <LinearProgress 
-                                        variant="determinate" 
-                                        value={achievement.progress * 100} 
-                                        sx={{ height: 8, borderRadius: 5, mt: 1 }}
-                                        color={achievement.completed ? "success" : "primary"}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-            </Paper>
-        );
-    };
-    
-    const renderEngagementMetrics = () => {
-        return (
-            <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    Your Engagement
-                </Typography>
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                        <Box sx={{ textAlign: 'center', p: 2 }}>
-                            <Typography variant="h4" color="primary.main">
-                                {userEngagement.eventsAttended}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Events Attended
-                            </Typography>
-                        </Box>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                        <Box sx={{ textAlign: 'center', p: 2 }}>
-                            <Typography variant="h4" color="secondary.main">
-                                {userEngagement.reviewsSubmitted}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Reviews Submitted
-                            </Typography>
-                        </Box>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                        <Box sx={{ textAlign: 'center', p: 2 }}>
-                            <StarRating value={userEngagement.averageRating || 0} readOnly size="large" />
-                            <Typography variant="body2" color="text.secondary">
-                                Average Rating
-                            </Typography>
-                        </Box>
-                    </Grid>
-                </Grid>
-                
-                <Divider sx={{ my: 2 }} />
-                
-                <Typography variant="subtitle1" gutterBottom>
-                    Category Preferences
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {userEngagement.categoryPreferences.map((category) => (
-                        <Chip 
-                            key={category.id}
-                            label={`${category.name} (${category.count})`}
-                            color="primary"
-                            variant="outlined"
-                        />
-                    ))}
-                </Box>
-            </Paper>
-        );
-    };
-    
-    const renderRecentActivity = () => {
-        return (
-            <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    Recent Activity
-                </Typography>
-                {userEngagement.recentActivity.length > 0 ? (
-                    <List>
-                        {userEngagement.recentActivity.map((activity, index) => (
-                            <React.Fragment key={`activity-${index}`}>
-                                <ListItem alignItems="flex-start">
-                                    <ListItemIcon>
-                                        {activity.type === 'event_attendance' ? (
-                                            <EventAvailable color="primary" />
-                                        ) : (
-                                            <Comment color="secondary" />
-                                        )}
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={
-                                            activity.type === 'event_attendance' 
-                                                ? `Attended: ${activity.event_name}` 
-                                                : `Reviewed: ${activity.event_name}`
-                                        }
-                                        secondary={formatDate(activity.date)}
-                                    />
-                                    {activity.type === 'event_attendance' && !activity.hasReview && (
-                                        <ListItemSecondaryAction>
-                                            <Button 
-                                                variant="outlined" 
-                                                size="small" 
-                                                startIcon={<Comment />}
-                                            >
-                                                Add Review
-                                            </Button>
-                                        </ListItemSecondaryAction>
-                                    )}
-                                </ListItem>
-                                {index < userEngagement.recentActivity.length - 1 && (
-                                    <Divider component="li" />
-                                )}
-                            </React.Fragment>
-                        ))}
-                    </List>
-                ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                        No recent activity to display
-                    </Typography>
-                )}
-            </Paper>
-        );
-    };
-    
-    const renderCommunityInsights = () => {
-        return (
-            <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    Community Highlights
-                </Typography>
-                <List>
-                    {communityActivity.map((item, index) => (
-                        <React.Fragment key={`community-${index}`}>
-                            <ListItem alignItems="flex-start">
-                                <ListItemIcon>
-                                    {item.type === 'popular_event' ? (
-                                        <Star sx={{ color: 'gold' }} />
-                                    ) : item.type === 'trending_category' ? (
-                                        <TrendingUp color="secondary" />
-                                    ) : (
-                                        <Person color="primary" />
-                                    )}
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={
-                                        item.type === 'popular_event'
-                                            ? `Popular Event: ${item.name}`
-                                            : item.type === 'trending_category'
-                                                ? `Trending: ${item.name}`
-                                                : `Active User: ${item.username}`
-                                    }
-                                    secondary={
-                                        item.type === 'popular_event'
-                                            ? `${item.attendees} attendees, ${item.rating} ★`
-                                            : item.type === 'trending_category'
-                                                ? `${item.growth} growth, ${item.events} events`
-                                                : `${item.events_attended} events, ${item.reviews} reviews`
-                                    }
+                                </Box>
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    {achievement.description}
+                                </Typography>
+                                <LinearProgress 
+                                    variant="determinate" 
+                                    value={achievement.progress * 100} 
+                                    sx={{ height: 8, borderRadius: 5, mt: 1 }}
+                                    color={achievement.completed ? "success" : "primary"}
                                 />
-                            </ListItem>
-                            {index < communityActivity.length - 1 && (
-                                <Divider component="li" />
-                            )}
-                        </React.Fragment>
-                    ))}
-                </List>
-            </Paper>
-        );
-    };
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                ))}
+            </Grid>
+        </Paper>
+    ), [userEngagement.achievements]);
+    
+    const renderEngagementMetrics = useMemo(() => (
+        <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                Your Engagement
+            </Typography>
+            <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                    <Box sx={{ textAlign: 'center', p: 2 }}>
+                        <Typography variant="h4" color="primary.main">
+                            {userEngagement.eventsAttended}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Events Attended
+                        </Typography>
+                    </Box>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                    <Box sx={{ textAlign: 'center', p: 2 }}>
+                        <Typography variant="h4" color="secondary.main">
+                            {userEngagement.reviewsSubmitted}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Reviews Submitted
+                        </Typography>
+                    </Box>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                    <Box sx={{ textAlign: 'center', p: 2 }}>
+                        <StarRating value={userEngagement.averageRating || 0} readOnly size="large" />
+                        <Typography variant="body2" color="text.secondary">
+                            Average Rating
+                        </Typography>
+                    </Box>
+                </Grid>
+            </Grid>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <Typography variant="subtitle1" gutterBottom>
+                Category Preferences
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {userEngagement.categoryPreferences.map((category) => (
+                    <Chip 
+                        key={category.id}
+                        label={`${category.name} (${category.count})`}
+                        color="primary"
+                        variant="outlined"
+                    />
+                ))}
+            </Box>
+        </Paper>
+    ), [userEngagement]);
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -557,7 +380,7 @@ function Dashboard({ username }) {
                     variant="outlined" 
                     onClick={handleRefresh}
                     disabled={refreshing}
-                    startIcon={refreshing ? <CircularProgress size={20} /> : null}
+                    startIcon={refreshing ? <CircularProgress size={20} /> : <Refresh />}
                 >
                     {refreshing ? 'Refreshing...' : 'Refresh'}
                 </Button>
@@ -565,7 +388,7 @@ function Dashboard({ username }) {
 
             {error && (
                 <Alert severity="warning" sx={{ mb: 3 }}>
-                    Note: Some data may be estimated due to API error: {error}
+                    {error}
                 </Alert>
             )}
 
@@ -722,7 +545,7 @@ function Dashboard({ username }) {
                     </Box>
 
                     <Box sx={{ mb: 4 }}>
-                        {eventTab === 0 && (
+                        {eventTab === 0 ? (
                             <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
                                 {loading ? (
                                     <Box sx={{ p: 3 }}>
@@ -758,14 +581,9 @@ function Dashboard({ username }) {
                                                                 </Typography>
                                                             }
                                                             secondary={
-                                                                <>
-                                                                    <Typography variant="body2" component="span" display="block">
-                                                                        {formatDate(event.event_date)} • {event.location || 'No location'}
-                                                                    </Typography>
-                                                                    <Typography variant="body2" component="span" display="block">
-                                                                        {event.attendees || 0} attendees
-                                                                    </Typography>
-                                                                </>
+                                                                <Typography variant="body2" component="span" display="block">
+                                                                    {formatDate(event.event_date)} • {event.location || 'No location'}
+                                                                </Typography>
                                                             }
                                                         />
                                                         <ListItemSecondaryAction>
@@ -791,9 +609,7 @@ function Dashboard({ username }) {
                                     </Box>
                                 )}
                             </Paper>
-                        )}
-
-                        {eventTab === 1 && (
+                        ) : (
                             <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
                                 {loading ? (
                                     <Box sx={{ p: 3 }}>
@@ -828,9 +644,6 @@ function Dashboard({ username }) {
                                                             <>
                                                                 <Typography variant="body2" component="span" display="block">
                                                                     {formatDate(event.event_date)} • {event.location || 'No location'}
-                                                                </Typography>
-                                                                <Typography variant="body2" component="span" display="block">
-                                                                    {event.attendees || 0} attendees
                                                                 </Typography>
                                                                 {event.review_count > 0 && (
                                                                     <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
@@ -879,31 +692,67 @@ function Dashboard({ username }) {
 
             {dashboardTab === 1 && (
                 <>
-                    {renderEngagementMetrics()}
-                    {renderAchievements()}
-                    {renderRecentActivity()}
+                    {renderEngagementMetrics}
+                    {renderAchievements}
                 </>
             )}
 
             {dashboardTab === 2 && (
-                <>
-                    {renderCommunityInsights()}
-                </>
+                <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Community Highlights
+                    </Typography>
+                    <List>
+                        {communityActivity.map((item, index) => (
+                            <React.Fragment key={`community-${index}`}>
+                                <ListItem alignItems="flex-start">
+                                    <ListItemIcon>
+                                        {item.type === 'popular_event' ? (
+                                            <Star sx={{ color: 'gold' }} />
+                                        ) : item.type === 'trending_category' ? (
+                                            <TrendingUp color="secondary" />
+                                        ) : (
+                                            <Person color="primary" />
+                                        )}
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={
+                                            item.type === 'popular_event'
+                                                ? `Popular Event: ${item.name}`
+                                                : item.type === 'trending_category'
+                                                    ? `Trending: ${item.name}`
+                                                    : `Active User: ${item.username}`
+                                        }
+                                        secondary={
+                                            item.type === 'popular_event'
+                                                ? `${item.attendees} attendees, ${item.rating} ★`
+                                                : item.type === 'trending_category'
+                                                    ? `${item.growth} growth, ${item.events} events`
+                                                    : `${item.events_attended} events, ${item.reviews} reviews`
+                                        }
+                                    />
+                                </ListItem>
+                                {index < communityActivity.length - 1 && (
+                                    <Divider component="li" />
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </List>
+                </Paper>
             )}
 
-            <ReviewDialog
-                open={openReviewsDialog}
-                onClose={() => {
-                    setOpenReviewsDialog(false);
-                    setSelectedEvent(null);
-                }}
-                eventId={selectedEvent?.event_id}
-                eventName={selectedEvent?.name}
-                eventDate={selectedEvent?.event_date}
-                eventLocation={selectedEvent?.location}
-                initialRating={selectedEvent?.avg_rating}
-                reviewCount={selectedEvent?.review_count}
-            />
+            {selectedEvent && (
+                <ReviewDialog
+                    open={openReviewsDialog}
+                    onClose={handleCloseReviews}
+                    eventId={selectedEvent.event_id}
+                    eventName={selectedEvent.name}
+                    eventDate={selectedEvent.event_date}
+                    eventLocation={selectedEvent.location}
+                    initialRating={selectedEvent.avg_rating}
+                    reviewCount={selectedEvent.review_count}
+                />
+            )}
         </Box>
     );
 }

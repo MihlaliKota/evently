@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+// LandingPage.jsx
+import React, { useState, useCallback } from 'react';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
 import { 
-    Box, Typography, Paper, Grid, Container, useTheme,
-    Card, CardContent, CardMedia, Button, Stack, Divider,
-    Tabs, Tab
+    Box, Typography, Paper, Grid, Container,
+    Card, CardContent, Button, Stack, Divider,
+    Tabs, Tab, useTheme
 } from '@mui/material';
 import { 
     EventAvailable, Security, People, BarChart,
-    CalendarMonth, Dashboard as DashboardIcon
+    CalendarMonth 
 } from '@mui/icons-material';
-import eventIllustration from '../assets/landing.jpg';
 
 const FeatureCard = ({ icon, title, description }) => {
     const theme = useTheme();
@@ -51,10 +51,11 @@ const LandingPage = ({ onLoginSuccess }) => {
     const theme = useTheme();
     const [authTab, setAuthTab] = useState(0);
 
-    const handleAuthTabChange = (event, newValue) => {
+    const handleAuthTabChange = useCallback((event, newValue) => {
         setAuthTab(newValue);
-    };
+    }, []);
     
+    // Memoize features to prevent re-creation on each render
     const features = [
         {
             icon: <EventAvailable fontSize="large" />,
@@ -126,7 +127,7 @@ const LandingPage = ({ onLoginSuccess }) => {
                 </Box>
                 <Box 
                     component="img"
-                    src={eventIllustration}
+                    src="https://source.unsplash.com/random/600x400/?event"
                     alt="Event illustration"
                     sx={{
                         width: { xs: '100%', md: '45%' },
@@ -211,7 +212,7 @@ const LandingPage = ({ onLoginSuccess }) => {
             <Divider sx={{ my: 4 }} />
             <Box component="footer" sx={{ py: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                    &copy; 2025 Evently. All rights reserved.
+                    &copy; {new Date().getFullYear()} Evently. All rights reserved.
                 </Typography>
             </Box>
         </Container>

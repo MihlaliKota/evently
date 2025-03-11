@@ -1,60 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Box, Typography, Paper, Button, IconButton, Grid, 
     Card, CardContent, Chip, Divider, CircularProgress,
     Dialog, DialogTitle, DialogContent, DialogActions,
-    Alert, useTheme, useMediaQuery, TextField, MenuItem,
-    FormControl, InputLabel, Select, Tooltip
+    Alert, useTheme, FormControl, InputLabel, Select, MenuItem, Tooltip
 } from '@mui/material';
 import { 
     ChevronLeft, ChevronRight, CalendarMonth, 
-    Event, FilterList, LocationOn, AccessTime, Share,
-    Add, Today, Download
+    Event, LocationOn, AccessTime, Share,
+    Today, Add
 } from '@mui/icons-material';
-
-// Function to get the days in a month
-const getDaysInMonth = (year, month) => {
-    return new Date(year, month + 1, 0).getDate();
-};
-
-// Function to get the first day of the month (0 = Sunday, 1 = Monday, etc.)
-const getFirstDayOfMonth = (year, month) => {
-    return new Date(year, month, 1).getDay();
-};
+import api from '../utils/api';
 
 function SimpleEventCalendar() {
+    const theme = useTheme();
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [selectedEvent, setSelectedEvent] = useState(null);
-    const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
-    const [categoryFilter, setCategoryFilter] = useState('all');
-    const [categories, setCategories] = useState([]);
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [selectedDay, setSelectedDay] = useState(new Date().getDate());
     const [dayEvents, setDayEvents] = useState([]);
+    const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [showFilters, setShowFilters] = useState(false);
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [categories, setCategories] = useState([]);
     
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    // Date helpers
+    const getDaysInMonth = useCallback((year, month) => {
+        return new Date(year, month + 1, 0).getDate();
+    }, []);
 
-    // Get token from localStorage
-    const getToken = () => {
-        return localStorage.getItem('authToken');
-    };
+    const getFirstDayOfMonth = useCallback((year, month) => {
+        return new Date(year, month, 1).getDay();
+    }, []);
 
-    // Format date (YYYY-MM-DD)
-    const formatDateISO = (date) => {
+    // Format dates
+    const formatDateISO = useCallback((date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
-    };
+    }, []);
 
-    // Format date for display
-    const formatDateForDisplay = (dateString) => {
+    const formatDateForDisplay = useCallback((dateString) => {
         const date = new Date(dateString);
         const options = { 
             weekday: 'long', 
@@ -65,114 +55,133 @@ function SimpleEventCalendar() {
             minute: '2-digit'
         };
         return date.toLocaleDateString('en-US', options);
-    };
+    }, []);
 
-    // Format time for display
-    const formatTimeForDisplay = (dateString) => {
+    const formatTimeForDisplay = useCallback((dateString) => {
         const date = new Date(dateString);
         const options = { hour: '2-digit', minute: '2-digit' };
         return date.toLocaleTimeString('en-US', options);
-    };
-
-    useEffect(() => {
-        const fetchEvents = async () => {
-            setLoading(true);
-            try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                const response = await fetch(`${apiUrl}/api/events`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                setEvents(data);
-                setLoading(false);
-            } catch (e) {
-                setError(e.message);
-                setLoading(false);
-                console.error("Error fetching events:", e);
-            }
-        };
-    
-        const fetchCategories = async () => {
-            try {
-                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-                const response = await fetch(`${apiUrl}/api/categories`);
-                if (response.ok) {
-                    const data = await response.json();
-                    setCategories(data);
-                }
-            } catch (error) {
-                console.error("Error fetching categories:", error);
-            }
-        };
-    
-        fetchEvents();
-        fetchCategories();
     }, []);
 
-    // Filter events for selected day
+    // Fetch events data
+    const fetchEvents = useCallback(async () => {
+        setLoading(true);
+        try {
+            // Calculate start and end dates for the current month view
+            const startDate = new Date(currentYear, currentMonth, 1);
+            const endDate = new Date(currentYear, currentMonth + 1, 0);
+            
+            const params = {
+                start_date: formatDateISO(startDate),
+                end_date: formatDateISO(endDate)
+            };
+            
+            if (categoryFilter !== 'all') {
+                params.category_id = categoryFilter;
+            }
+            
+            // Use the centralized API service
+            const data = await api.events.getAllEvents();
+            setEvents(data);
+            
+            // Update day events for the selected day
+            updateDayEvents(selectedDay, data);
+        } catch (error) {
+            console.error("Error fetching events:", error);
+            setError(error.message || "Failed to load events");
+        } finally {
+            setLoading(false);
+        }
+    }, [currentYear, currentMonth, selectedDay, categoryFilter, formatDateISO]);
+
+    // Fetch categories
+    const fetchCategories = useCallback(async () => {
+        try {
+            const data = await api.categories.getAllCategories();
+            setCategories(data);
+        } catch (error) {
+            console.error("Error fetching categories:", error);
+        }
+    }, []);
+
+    // Initial data loading
     useEffect(() => {
-        if (events.length > 0) {
-            const date = new Date(currentYear, currentMonth, selectedDay);
-            const dateStr = formatDateISO(date);
+        fetchEvents();
+        fetchCategories();
+    }, [fetchEvents, fetchCategories]);
+    
+    // Update day events when selection changes
+    const updateDayEvents = useCallback((day, eventsData = events) => {
+        const date = new Date(currentYear, currentMonth, day);
+        const dateStr = formatDateISO(date);
+        
+        // Filter events for the selected day
+        const filteredEvents = eventsData.filter(event => {
+            const eventDate = new Date(event.event_date);
+            const eventDateStr = formatDateISO(eventDate);
+            const categoryMatches = categoryFilter === 'all' || 
+                                  event.category_id === parseInt(categoryFilter);
             
-            // Filter events for the selected day
-            const filteredEvents = events.filter(event => {
-                const eventDate = new Date(event.event_date);
-                const eventDateStr = formatDateISO(eventDate);
-                const categoryMatches = categoryFilter === 'all' || 
-                                      event.category_id === parseInt(categoryFilter);
-                
-                return eventDateStr === dateStr && categoryMatches;
-            });
-            
-            setDayEvents(filteredEvents);
-        }
-    }, [selectedDay, currentMonth, currentYear, events, categoryFilter]);
+            return eventDateStr === dateStr && categoryMatches;
+        });
+        
+        setDayEvents(filteredEvents);
+    }, [events, currentYear, currentMonth, categoryFilter, formatDateISO]);
 
-    // Go to previous month
-    const goToPreviousMonth = () => {
-        if (currentMonth === 0) {
-            setCurrentMonth(11);
-            setCurrentYear(currentYear - 1);
-        } else {
-            setCurrentMonth(currentMonth - 1);
-        }
+    // Update day events when selection or filters change
+    useEffect(() => {
+        updateDayEvents(selectedDay);
+    }, [selectedDay, categoryFilter, updateDayEvents]);
+
+    // Navigation handlers
+    const goToPreviousMonth = useCallback(() => {
+        setCurrentMonth(prevMonth => {
+            if (prevMonth === 0) {
+                setCurrentYear(prevYear => prevYear - 1);
+                return 11;
+            } else {
+                return prevMonth - 1;
+            }
+        });
         setSelectedDay(1);
-    };
+    }, []);
 
-    // Go to next month
-    const goToNextMonth = () => {
-        if (currentMonth === 11) {
-            setCurrentMonth(0);
-            setCurrentYear(currentYear + 1);
-        } else {
-            setCurrentMonth(currentMonth + 1);
-        }
+    const goToNextMonth = useCallback(() => {
+        setCurrentMonth(prevMonth => {
+            if (prevMonth === 11) {
+                setCurrentYear(prevYear => prevYear + 1);
+                return 0;
+            } else {
+                return prevMonth + 1;
+            }
+        });
         setSelectedDay(1);
-    };
+    }, []);
 
-    // Go to today
-    const goToToday = () => {
+    const goToToday = useCallback(() => {
         const today = new Date();
         setCurrentYear(today.getFullYear());
         setCurrentMonth(today.getMonth());
         setSelectedDay(today.getDate());
-    };
+    }, []);
 
-    // Handle day selection
-    const handleDayClick = (day) => {
+    // Event handlers
+    const handleDayClick = useCallback((day) => {
         setSelectedDay(day);
-    };
+    }, []);
 
-    // Handle event click
-    const handleEventClick = (event) => {
+    const handleEventClick = useCallback((event) => {
         setSelectedEvent(event);
         setEventDetailsOpen(true);
-    };
+    }, []);
+
+    const handleCloseEventDetails = useCallback(() => {
+        setEventDetailsOpen(false);
+        setSelectedEvent(null);
+    }, []);
 
     // Add event to Google Calendar
-    const addToCalendar = (event) => {
+    const addToCalendar = useCallback((event) => {
         const { name, description, location, event_date } = event;
         const eventStart = new Date(event_date);
         // Default duration 1 hour
@@ -188,10 +197,25 @@ function SimpleEventCalendar() {
         
         // Open in new window
         window.open(googleCalendarUrl, '_blank');
-    };
+    }, []);
+
+    // Share event
+    const shareEvent = useCallback((event) => {
+        if (navigator.share) {
+            navigator.share({
+                title: event.name,
+                text: `Check out this event: ${event.name}`,
+                url: window.location.href
+            });
+        } else {
+            // Fallback for browsers that don't support the Web Share API
+            navigator.clipboard.writeText(window.location.href);
+            alert('Link copied to clipboard!');
+        }
+    }, []);
 
     // Get category color
-    const getCategoryColor = (categoryId) => {
+    const getCategoryColor = useCallback((categoryId) => {
         // Define a set of colors for categories
         const colors = [
             '#4caf50', // Green
@@ -205,11 +229,11 @@ function SimpleEventCalendar() {
         ];
         
         // Use modulo to cycle through colors if we have more categories than colors
-        return colors[categoryId % colors.length];
-    };
+        return colors[(categoryId || 0) % colors.length];
+    }, []);
 
     // Check if a date has events
-    const dateHasEvents = (year, month, day) => {
+    const dateHasEvents = useCallback((year, month, day) => {
         const date = new Date(year, month, day);
         const dateStr = formatDateISO(date);
         
@@ -218,31 +242,45 @@ function SimpleEventCalendar() {
             const eventDateStr = formatDateISO(eventDate);
             return eventDateStr === dateStr;
         });
-    };
+    }, [events, formatDateISO]);
 
-    // Render calendar
-    const renderCalendar = () => {
+    // Memoized calendar grid
+    const calendarGrid = useMemo(() => {
         const daysInMonth = getDaysInMonth(currentYear, currentMonth);
         const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
         
-        // Generate days of the week
+        // Days of the week (Sun-Sat)
         const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        
+        // Render days of the week headers
+        const weekdayLabels = daysOfWeek.map(day => (
+            <Grid item key={day} xs={12/7}>
+                <Typography variant="caption" align="center" display="block">
+                    {day}
+                </Typography>
+            </Grid>
+        ));
         
         // Generate calendar days
         const days = [];
         
-        // Add empty cells for days before the first day of the month
+        // Empty cells for days before the first day of the month
         for (let i = 0; i < firstDayOfMonth; i++) {
-            days.push(<Grid item key={`empty-${i}`} xs={12/7}><Box sx={{ height: 40 }}></Box></Grid>);
+            days.push(
+                <Grid item key={`empty-${i}`} xs={12/7}>
+                    <Box sx={{ height: 40 }}></Box>
+                </Grid>
+            );
         }
         
-        // Add cells for each day of the month
+        // Cells for each day of the month
+        const today = new Date();
+        const isCurrentMonth = 
+            currentYear === today.getFullYear() && 
+            currentMonth === today.getMonth();
+            
         for (let day = 1; day <= daysInMonth; day++) {
-            const isToday = 
-                currentYear === new Date().getFullYear() && 
-                currentMonth === new Date().getMonth() && 
-                day === new Date().getDate();
-                
+            const isToday = isCurrentMonth && day === today.getDate();
             const isSelected = day === selectedDay;
             const hasEvents = dateHasEvents(currentYear, currentMonth, day);
             
@@ -285,22 +323,167 @@ function SimpleEventCalendar() {
         }
         
         return (
-            <Box>
+            <>
                 <Grid container spacing={1} sx={{ mb: 2 }}>
-                    {daysOfWeek.map((day, index) => (
-                        <Grid item key={day} xs={12/7}>
-                            <Typography variant="caption" align="center" display="block">
-                                {day}
-                            </Typography>
-                        </Grid>
-                    ))}
+                    {weekdayLabels}
                 </Grid>
                 <Grid container spacing={1}>
                     {days}
                 </Grid>
+            </>
+        );
+    }, [
+        currentYear, currentMonth, selectedDay, 
+        getDaysInMonth, getFirstDayOfMonth, 
+        dateHasEvents, handleDayClick
+    ]);
+
+    // Memoized events list
+    const eventsList = useMemo(() => {
+        if (loading) {
+            return (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                </Box>
+            );
+        }
+        
+        if (dayEvents.length === 0) {
+            return (
+                <Box sx={{ py: 4, textAlign: 'center' }}>
+                    <CalendarMonth sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
+                    <Typography variant="body1" color="text.secondary">
+                        No events scheduled for this day
+                    </Typography>
+                    <Button 
+                        variant="outlined" 
+                        sx={{ mt: 2 }}
+                        startIcon={<Add />}
+                        onClick={() => {
+                            window.dispatchEvent(new CustomEvent('navigate', {
+                                detail: 'events'
+                            }));
+                        }}
+                    >
+                        Add an Event
+                    </Button>
+                </Box>
+            );
+        }
+        
+        return (
+            <Box sx={{ mt: 2 }}>
+                {dayEvents.map((event) => (
+                    <Card 
+                        key={event.event_id} 
+                        sx={{ 
+                            mb: 2, 
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s, box-shadow 0.2s',
+                            '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: 3,
+                            },
+                            borderLeft: '4px solid',
+                            borderColor: getCategoryColor(event.category_id)
+                        }}
+                        onClick={() => handleEventClick(event)}
+                    >
+                        <CardContent sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'bold' }}>
+                                    {event.name}
+                                </Typography>
+                                <Chip 
+                                    label={formatTimeForDisplay(event.event_date)} 
+                                    size="small" 
+                                    color="primary" 
+                                    icon={<AccessTime fontSize="small" />}
+                                />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                                <LocationOn fontSize="small" color="action" sx={{ mr: 0.5 }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    {event.location || 'No location specified'}
+                                </Typography>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                ))}
             </Box>
         );
-    };
+    }, [loading, dayEvents, getCategoryColor, handleEventClick, formatTimeForDisplay]);
+
+    // Event details dialog content
+    const eventDetailsDialog = useMemo(() => (
+        <Dialog
+            open={eventDetailsOpen}
+            onClose={handleCloseEventDetails}
+            fullWidth
+            maxWidth="sm"
+        >
+            {selectedEvent && (
+                <>
+                    <DialogTitle sx={{ pb: 1 }}>
+                        <Typography variant="h6">{selectedEvent.name}</Typography>
+                    </DialogTitle>
+                    <DialogContent dividers>
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle1" component="div" fontWeight="medium" gutterBottom>
+                                When
+                            </Typography>
+                            <Typography variant="body1">
+                                {formatDateForDisplay(selectedEvent.event_date)}
+                            </Typography>
+                        </Box>
+                        
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle1" component="div" fontWeight="medium" gutterBottom>
+                                Where
+                            </Typography>
+                            <Typography variant="body1">
+                                {selectedEvent.location || 'No location specified'}
+                            </Typography>
+                        </Box>
+                        
+                        <Divider sx={{ my: 2 }} />
+                        
+                        <Box>
+                            <Typography variant="subtitle1" component="div" fontWeight="medium" gutterBottom>
+                                Description
+                            </Typography>
+                            <Typography variant="body1">
+                                {selectedEvent.description || 'No description available'}
+                            </Typography>
+                        </Box>
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+                        <Button startIcon={<Share />} onClick={() => shareEvent(selectedEvent)}>
+                            Share
+                        </Button>
+                        <Box>
+                            <Button onClick={handleCloseEventDetails}>
+                                Close
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                color="primary"
+                                startIcon={<Event />}
+                                onClick={() => addToCalendar(selectedEvent)}
+                                sx={{ ml: 1 }}
+                            >
+                                Add to Calendar
+                            </Button>
+                        </Box>
+                    </DialogActions>
+                </>
+            )}
+        </Dialog>
+    ), [
+        eventDetailsOpen, selectedEvent, 
+        handleCloseEventDetails, formatDateForDisplay, 
+        shareEvent, addToCalendar
+    ]);
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -314,10 +497,10 @@ function SimpleEventCalendar() {
                 </Typography>
                 <Button 
                     variant="outlined" 
-                    startIcon={<FilterList />}
+                    startIcon={<Event />}
                     onClick={() => setShowFilters(!showFilters)}
                 >
-                    Filters
+                    {showFilters ? 'Hide Filters' : 'Show Filters'}
                 </Button>
             </Box>
             
@@ -384,12 +567,12 @@ function SimpleEventCalendar() {
                         </Box>
                         
                         {/* Calendar grid */}
-                        {loading ? (
+                        {loading && dayEvents.length === 0 ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                 <CircularProgress />
                             </Box>
                         ) : (
-                            renderCalendar()
+                            calendarGrid
                         )}
                     </Paper>
                 </Grid>
@@ -400,141 +583,13 @@ function SimpleEventCalendar() {
                         <Typography variant="h6" gutterBottom>
                             Events for {new Date(currentYear, currentMonth, selectedDay).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                         </Typography>
-                        {loading ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                <CircularProgress />
-                            </Box>
-                        ) : dayEvents.length > 0 ? (
-                            <Box sx={{ mt: 2 }}>
-                                {dayEvents.map((event) => (
-                                    <Card 
-                                        key={event.event_id} 
-                                        sx={{ 
-                                            mb: 2, 
-                                            cursor: 'pointer',
-                                            transition: 'transform 0.2s, box-shadow 0.2s',
-                                            '&:hover': {
-                                                transform: 'translateY(-2px)',
-                                                boxShadow: 3,
-                                            },
-                                            borderLeft: '4px solid',
-                                            borderColor: getCategoryColor(event.category_id)
-                                        }}
-                                        onClick={() => handleEventClick(event)}
-                                    >
-                                        <CardContent sx={{ p: 2 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                                                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'bold' }}>
-                                                    {event.name}
-                                                </Typography>
-                                                <Chip 
-                                                    label={formatTimeForDisplay(event.event_date)} 
-                                                    size="small" 
-                                                    color="primary" 
-                                                    icon={<AccessTime fontSize="small" />}
-                                                />
-                                            </Box>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                                <LocationOn fontSize="small" color="action" sx={{ mr: 0.5 }} />
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {event.location || 'No location specified'}
-                                                </Typography>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </Box>
-                        ) : (
-                            <Box sx={{ py: 4, textAlign: 'center' }}>
-                                <CalendarMonth sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
-                                <Typography variant="body1" color="text.secondary">
-                                    No events scheduled for this day
-                                </Typography>
-                                <Button 
-                                    variant="outlined" 
-                                    sx={{ mt: 2 }}
-                                    startIcon={<Add />}
-                                >
-                                    Add an Event
-                                </Button>
-                            </Box>
-                        )}
+                        {eventsList}
                     </Paper>
                 </Grid>
             </Grid>
             
-            {/* Event Details Modal */}
-            <Dialog
-                open={eventDetailsOpen}
-                onClose={() => setEventDetailsOpen(false)}
-                fullWidth
-                maxWidth="sm"
-            >
-                {selectedEvent && (
-                    <>
-                        <DialogTitle sx={{ pb: 1 }}>
-                            <Typography variant="h6">{selectedEvent.name}</Typography>
-                        </DialogTitle>
-                        <DialogContent dividers>
-                            <Box sx={{ mb: 3 }}>
-                                <Typography variant="subtitle1" component="div" fontWeight="medium" gutterBottom>
-                                    When
-                                </Typography>
-                                <Typography variant="body1">
-                                    {formatDateForDisplay(selectedEvent.event_date)}
-                                </Typography>
-                            </Box>
-                            
-                            <Box sx={{ mb: 3 }}>
-                                <Typography variant="subtitle1" component="div" fontWeight="medium" gutterBottom>
-                                    Where
-                                </Typography>
-                                <Typography variant="body1">
-                                    {selectedEvent.location || 'No location specified'}
-                                </Typography>
-                            </Box>
-                            
-                            <Divider sx={{ my: 2 }} />
-                            
-                            <Box>
-                                <Typography variant="subtitle1" component="div" fontWeight="medium" gutterBottom>
-                                    Description
-                                </Typography>
-                                <Typography variant="body1">
-                                    {selectedEvent.description || 'No description available'}
-                                </Typography>
-                            </Box>
-                        </DialogContent>
-                        <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
-                            <Button startIcon={<Share />} onClick={() => {
-                                if (navigator.share) {
-                                    navigator.share({
-                                        title: selectedEvent.name,
-                                        text: `Check out this event: ${selectedEvent.name}`,
-                                        url: window.location.href
-                                    });
-                                }
-                            }}>
-                                Share
-                            </Button>
-                            <Box>
-                                <Button onClick={() => setEventDetailsOpen(false)}>
-                                    Close
-                                </Button>
-                                <Button 
-                                    variant="contained" 
-                                    color="primary"
-                                    startIcon={<Event />}
-                                    onClick={() => addToCalendar(selectedEvent)}
-                                    sx={{ ml: 1 }}
-                                >
-                                    Add to Calendar
-                                </Button>
-                            </Box>
-                        </DialogActions>
-                    </>
-                )}
-            </Dialog>
+            {/* Event Details Dialog */}
+            {eventDetailsDialog}
         </Box>
     );
 }

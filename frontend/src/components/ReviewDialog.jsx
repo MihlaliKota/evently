@@ -1,17 +1,17 @@
-// ReviewDialog.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, Typography, Box, Avatar, Rating, TextField,
+    Button, Typography, Box, Avatar, TextField,
     Divider, CircularProgress, Chip, IconButton, Alert,
     Select, MenuItem, FormControl, InputLabel, Paper,
     Tabs, Tab
 } from '@mui/material';
 import {
-    Edit, Delete, Flag, Check, Close, Add,
-    Sort, FilterList, Search, Refresh, MoreVert
+    Edit, Delete, Add, Sort, FilterList, 
+    Search, Refresh, Close, Check
 } from '@mui/icons-material';
 import StarRating from './StarRating';
+import api from '../utils/api';
 
 const ReviewDialog = ({ 
     open, 
@@ -23,6 +23,7 @@ const ReviewDialog = ({
     initialRating,
     reviewCount
 }) => {
+    // State management
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -42,12 +43,9 @@ const ReviewDialog = ({
     const [filterRating, setFilterRating] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     
-    const getToken = () => {
-        return localStorage.getItem('authToken');
-    };
-
-    const getCurrentUserId = () => {
-        const token = getToken();
+    // Get current user ID from JWT
+    const getCurrentUserId = useCallback(() => {
+        const token = localStorage.getItem('authToken');
         if (!token) return null;
         
         try {
@@ -58,11 +56,12 @@ const ReviewDialog = ({
             console.error('Error decoding JWT token:', error);
             return null;
         }
-    };
+    }, []);
     
-    const currentUserId = getCurrentUserId();
+    const currentUserId = useMemo(() => getCurrentUserId(), [getCurrentUserId]);
 
-    const formatDate = (dateString) => {
+    // Format date for display
+    const formatDate = useCallback((dateString) => {
         const date = new Date(dateString);
         return new Intl.DateTimeFormat('en-US', {
             year: 'numeric',
@@ -71,93 +70,100 @@ const ReviewDialog = ({
             hour: 'numeric',
             minute: 'numeric'
         }).format(date);
-    };
+    }, []);
 
-    const fetchReviews = async () => {
-        if (!eventId) return;
+    // Fetch reviews when dialog opens or filters change
+    const fetchReviews = useCallback(async () => {
+        if (!eventId || !open) return;
         
         setLoading(true);
         setError(null);
         
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
+            const reviews = await api.reviews.getEventReviews(eventId);
             
-            let url = `http://localhost:5000/api/events/${eventId}/reviews?sort_by=${sortBy}&sort_order=${sortOrder}`;
+            // Apply client-side sorting and filtering for better UX
+            let filteredReviews = [...reviews];
             
+            // Apply rating filter
             if (filterRating !== 'all') {
-                url += `&rating=${filterRating}`;
-            }
-
-            const response = await fetch(url, { headers });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch reviews: ${response.status}`);
+                filteredReviews = filteredReviews.filter(
+                    review => review.rating === parseInt(filterRating)
+                );
             }
             
-            const data = await response.json();
-            setReviews(data);
+            // Apply sorting
+            filteredReviews.sort((a, b) => {
+                let compareA, compareB;
+                
+                if (sortBy === 'rating') {
+                    compareA = a.rating;
+                    compareB = b.rating;
+                } else {
+                    compareA = new Date(a.created_at);
+                    compareB = new Date(b.created_at);
+                }
+                
+                if (sortOrder === 'asc') {
+                    return compareA < compareB ? -1 : compareA > compareB ? 1 : 0;
+                } else {
+                    return compareA > compareB ? -1 : compareA < compareB ? 1 : 0;
+                }
+            });
+            
+            setReviews(filteredReviews);
         } catch (error) {
             console.error('Error fetching reviews:', error);
-            setError(error.message);
+            setError('Failed to load reviews');
             setReviews([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, [eventId, open, sortBy, sortOrder, filterRating]);
     
-    const fetchAnalytics = async () => {
-        if (!eventId) return;
+    // Fetch analytics for the event
+    const fetchAnalytics = useCallback(async () => {
+        if (!eventId || !open || currentTab !== 1) return;
         
         setLoadingAnalytics(true);
         
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-            
-            const response = await fetch(`http://localhost:5000/api/reviews/analytics?event_id=${eventId}`, { headers });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch analytics: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            setAnalytics(data);
+            const analyticsData = await api.reviews.getReviewAnalytics(eventId);
+            setAnalytics(analyticsData);
         } catch (error) {
             console.error('Error fetching analytics:', error);
             setAnalytics(null);
         } finally {
             setLoadingAnalytics(false);
         }
-    };
+    }, [eventId, open, currentTab]);
 
+    // Load data when dialog opens or dependencies change
     useEffect(() => {
-        if (open && eventId) {
+        if (open) {
             fetchReviews();
+            setShowAddReview(false);
+            setEditingReview(null);
         }
-    }, [open, eventId, sortBy, sortOrder, filterRating]);
+    }, [open, fetchReviews]);
     
     useEffect(() => {
-        if (open && eventId && currentTab === 1) {
-            fetchAnalytics();
-        }
-    }, [open, eventId, currentTab, reviews]);
+        fetchAnalytics();
+    }, [fetchAnalytics, reviews]);
 
-    const handleAddReview = async () => {
+    // Clear form when dialog closes
+    useEffect(() => {
+        if (!open) {
+            setNewReview({ rating: 0, review_text: '' });
+            setEditingReview(null);
+            setShowAddReview(false);
+            setError(null);
+            setSuccessMessage(null);
+        }
+    }, [open]);
+
+    // Handle adding a new review
+    const handleAddReview = useCallback(async () => {
         if (newReview.rating === 0) {
             setError('Please select a rating');
             return;
@@ -168,33 +174,12 @@ const ReviewDialog = ({
         setSuccessMessage(null);
         
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            const response = await fetch(`http://localhost:5000/api/events/${eventId}/reviews`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    rating: newReview.rating,
-                    review_text: newReview.review_text
-                })
+            const data = await api.reviews.createReview(eventId, {
+                rating: newReview.rating,
+                review_text: newReview.review_text
             });
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Failed to add review: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            setReviews([data, ...reviews]);
+            setReviews(prev => [data, ...prev]);
             setNewReview({ rating: 0, review_text: '' });
             setShowAddReview(false);
             setSuccessMessage('Review added successfully!');
@@ -202,13 +187,14 @@ const ReviewDialog = ({
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error adding review:', error);
-            setError(error.message);
+            setError(error.message || 'Failed to add review');
         } finally {
             setLoading(false);
         }
-    };
+    }, [eventId, newReview]);
 
-    const handleUpdateReview = async () => {
+    // Handle updating a review
+    const handleUpdateReview = useCallback(async () => {
         if (!editingReview) return;
         
         setLoading(true);
@@ -216,31 +202,10 @@ const ReviewDialog = ({
         setSuccessMessage(null);
         
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            const response = await fetch(`http://localhost:5000/api/reviews/${editingReview.review_id}`, {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify({
-                    rating: editingReview.rating,
-                    review_text: editingReview.review_text
-                })
+            const updatedReview = await api.reviews.updateReview(editingReview.review_id, {
+                rating: editingReview.rating,
+                review_text: editingReview.review_text
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Failed to update review: ${response.status}`);
-            }
-            
-            const updatedReview = await response.json();
             
             setReviews(reviews.map(review => 
                 review.review_id === updatedReview.review_id ? updatedReview : review
@@ -252,13 +217,14 @@ const ReviewDialog = ({
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error updating review:', error);
-            setError(error.message);
+            setError(error.message || 'Failed to update review');
         } finally {
             setLoading(false);
         }
-    };
+    }, [editingReview, reviews]);
 
-    const handleDeleteReview = async (reviewId) => {
+    // Handle deleting a review
+    const handleDeleteReview = useCallback(async (reviewId) => {
         if (!reviewId) return;
         
         if (!window.confirm('Are you sure you want to delete this review?')) {
@@ -270,23 +236,7 @@ const ReviewDialog = ({
         setSuccessMessage(null);
         
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`
-            };
-
-            const response = await fetch(`http://localhost:5000/api/reviews/${reviewId}`, {
-                method: 'DELETE',
-                headers
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to delete review: ${response.status}`);
-            }
+            await api.reviews.deleteReview(reviewId);
             
             setReviews(reviews.filter(review => review.review_id !== reviewId));
             setSuccessMessage('Review deleted successfully!');
@@ -294,42 +244,33 @@ const ReviewDialog = ({
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error deleting review:', error);
-            setError(error.message);
+            setError(error.message || 'Failed to delete review');
         } finally {
             setLoading(false);
         }
-    };
+    }, [reviews]);
 
-    const handleNewReviewChange = (field, value) => {
-        setNewReview({
-            ...newReview,
+    // Form input handlers
+    const handleNewReviewChange = useCallback((field, value) => {
+        setNewReview(prev => ({
+            ...prev,
             [field]: value
-        });
-    };
+        }));
+    }, []);
 
-    const handleEditingReviewChange = (field, value) => {
-        setEditingReview({
-            ...editingReview,
+    const handleEditingReviewChange = useCallback((field, value) => {
+        setEditingReview(prev => ({
+            ...prev,
             [field]: value
-        });
-    };
+        }));
+    }, []);
 
-    const handleTabChange = (event, newValue) => {
+    const handleTabChange = useCallback((event, newValue) => {
         setCurrentTab(newValue);
-    };
+    }, []);
 
-    const renderTabContent = () => {
-        switch (currentTab) {
-            case 0:
-                return renderReviewsTab();
-            case 1:
-                return renderAnalyticsTab();
-            default:
-                return renderReviewsTab();
-        }
-    };
-
-    const renderReviewsTab = () => {
+    // Tab content rendering functions
+    const renderReviewsTab = useCallback(() => {
         return (
             <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -571,9 +512,16 @@ const ReviewDialog = ({
                 )}
             </Box>
         );
-    };
+    }, [
+        loading, reviews, showAddReview, showFilters, filterRating, sortBy, sortOrder,
+        newReview, editingReview, successMessage, error, currentUserId, 
+        handleNewReviewChange, handleEditingReviewChange,
+        handleAddReview, handleUpdateReview, handleDeleteReview,
+        fetchReviews, formatDate
+    ]);
 
-    const renderAnalyticsTab = () => {
+    // Analytics tab content
+    const renderAnalyticsTab = useCallback(() => {
         if (loadingAnalytics) {
             return (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -707,7 +655,22 @@ const ReviewDialog = ({
                 </Paper>
             </Box>
         );
-    };
+    }, [analytics, loadingAnalytics]);
+
+    // Handle tab switching
+    const renderTabContent = useCallback(() => {
+        switch (currentTab) {
+            case 0:
+                return renderReviewsTab();
+            case 1:
+                return renderAnalyticsTab();
+            default:
+                return renderReviewsTab();
+        }
+    }, [currentTab, renderReviewsTab, renderAnalyticsTab]);
+
+    // Only render content when dialog is open for better performance
+    if (!open) return null;
 
     return (
         <Dialog
@@ -746,7 +709,18 @@ const ReviewDialog = ({
             </DialogContent>
             
             <DialogActions>
-                <Button onClick={onClose}>Close</Button>
+                <Button onClick={onClose} startIcon={<Close />}>Close</Button>
+                {currentTab === 0 && (
+                    <Button 
+                        variant="contained" 
+                        color="primary" 
+                        startIcon={<Add />}
+                        onClick={() => setShowAddReview(true)}
+                        disabled={showAddReview}
+                    >
+                        Add Review
+                    </Button>
+                )}
             </DialogActions>
         </Dialog>
     );

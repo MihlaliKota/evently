@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     TextField, Button, Typography, Box, Alert,
     InputAdornment, IconButton, CircularProgress
@@ -6,28 +6,49 @@ import {
 import {
     Visibility, VisibilityOff, Login as LoginIcon
 } from '@mui/icons-material';
-import { fetchApi } from '../utils/api';
+import api from '../utils/api';
 
 const LoginForm = ({ onLoginSuccess }) => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [formData, setFormData] = useState({
+        username: '',
+        password: ''
+    });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = async (e) => {
+    const handleInputChange = useCallback((e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        setError(''); // Clear errors when input changes
+    }, []);
+
+    const togglePasswordVisibility = useCallback(() => {
+        setShowPassword(prev => !prev);
+    }, []);
+
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
         
         try {
-            const data = await fetchApi('/api/login', {
-                method: 'POST',
-                body: JSON.stringify({ username, password })
+            const { username, password } = formData;
+            
+            if (!username || !password) {
+                throw new Error('Username and password are required');
+            }
+            
+            const data = await api.auth.login({
+                username,
+                password
             });
     
             // Store token and handle login success
             localStorage.setItem('authToken', data.token);
             localStorage.setItem('username', data.username);
+            
+            // Notify parent component of successful login
             onLoginSuccess(data.username, data.role);
             
         } catch (error) {
@@ -36,7 +57,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [formData, onLoginSuccess]);
 
     return (
         <Box sx={{ maxWidth: 400, margin: 'auto' }}>
@@ -63,11 +84,12 @@ const LoginForm = ({ onLoginSuccess }) => {
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
                 <TextField
                     label="Username"
+                    name="username"
                     variant="outlined"
                     fullWidth
                     margin="normal"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={formData.username}
+                    onChange={handleInputChange}
                     disabled={loading}
                     required
                     autoFocus
@@ -75,19 +97,20 @@ const LoginForm = ({ onLoginSuccess }) => {
 
                 <TextField
                     label="Password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     variant="outlined"
                     fullWidth
                     margin="normal"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={formData.password}
+                    onChange={handleInputChange}
                     disabled={loading}
                     required
                     InputProps={{
                         endAdornment: (
                             <InputAdornment position="end">
                                 <IconButton
-                                    onClick={() => setShowPassword(!showPassword)}
+                                    onClick={togglePasswordVisibility}
                                     edge="end"
                                     aria-label="toggle password visibility"
                                 >

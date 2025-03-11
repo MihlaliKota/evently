@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Typography, Paper, Avatar, TextField, Button,
     Grid, Divider, Tab, Tabs, CircularProgress, Alert,
@@ -12,8 +12,10 @@ import {
     CalendarToday, Email, AccountCircle,
     Visibility, VisibilityOff
 } from '@mui/icons-material';
+import api from '../utils/api';
 
 function UserProfile() {
+    // State management
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -38,165 +40,106 @@ function UserProfile() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
 
-    // Get token from localStorage
-    const getToken = () => {
-        // Add debugging output
-        const token = localStorage.getItem('authToken');
-        console.log('Token found in UserProfile:', token ? 'Yes' : 'No');
-        return token;
-    };
-
     // Fetch user profile
-    useEffect(() => {
-        const fetchUserProfile = async () => {
-            setLoading(true);
-            try {
-                const token = getToken();
-                if (!token) {
-                    throw new Error('No authentication token found');
-                }
-
-                const headers = {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                };
-
-                console.log('UserProfile: Fetching profile with token');
-
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                // Make request to backend - ensure it includes the full URL
-                const response = await fetch(`${apiUrl}/api/users/profile`, { headers });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error('Profile fetch error:', response.status, errorData);
-                    throw new Error(errorData.error || `Failed to fetch profile: ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.log('Profile data received');
-
-                setProfile(data);
-                setFormData({
-                    email: data.email || '',
-                    bio: data.bio || '',
-                    profile_picture: data.profile_picture || ''
-                });
-                setError(null);
-            } catch (err) {
-                console.error('Error fetching profile:', err);
-                setError(`Failed to load profile data: ${err.message}`);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUserProfile();
+    const fetchUserProfile = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await api.users.getProfile();
+            setProfile(data);
+            setFormData({
+                email: data.email || '',
+                bio: data.bio || '',
+                profile_picture: data.profile_picture || ''
+            });
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching profile:', err);
+            setError(`Failed to load profile data: ${err.message || 'Unknown error'}`);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     // Fetch user activities
-    const fetchUserActivities = async () => {
+    const fetchUserActivities = useCallback(async () => {
         if (tabValue !== 1) return;
 
         setLoadingActivities(true);
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            // Use full URL for API call
-            const response = await fetch('http://localhost:5000/api/users/activities', { headers });
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Failed to fetch activities: ${response.status}`);
-            }
-
-            const data = await response.json();
+            const data = await api.users.getUserActivities();
             setActivities(data);
         } catch (err) {
             console.error('Error fetching activities:', err);
         } finally {
             setLoadingActivities(false);
         }
-    };
-
-    useEffect(() => {
-        fetchUserActivities();
     }, [tabValue]);
 
-    const handleTabChange = (event, newValue) => {
-        setTabValue(newValue);
-    };
+    // Initial data loading
+    useEffect(() => {
+        fetchUserProfile();
+    }, [fetchUserProfile]);
 
-    const handleInputChange = (e) => {
+    // Load activities when tab changes
+    useEffect(() => {
+        fetchUserActivities();
+    }, [fetchUserActivities]);
+
+    // Form input handlers
+    const handleInputChange = useCallback((e) => {
         const { name, value } = e.target;
-        setFormData({
-            ...formData,
+        setFormData(prev => ({
+            ...prev,
             [name]: value
-        });
-    };
+        }));
+    }, []);
 
-    const handleEditToggle = () => {
+    const handlePasswordInputChange = useCallback((e) => {
+        const { name, value } = e.target;
+        setPasswordData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        setPasswordError(null);
+    }, []);
+
+    // Action handlers
+    const handleEditToggle = useCallback(() => {
         if (editMode) {
             // Cancel editing - reset form data to original profile values
             setFormData({
-                email: profile.email || '',
-                bio: profile.bio || '',
-                profile_picture: profile.profile_picture || ''
+                email: profile?.email || '',
+                bio: profile?.bio || '',
+                profile_picture: profile?.profile_picture || ''
             });
         }
-        setEditMode(!editMode);
+        setEditMode(prev => !prev);
         setSuccessMessage(null);
-    };
+    }, [editMode, profile]);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         setLoading(true);
         setSuccessMessage(null);
         setError(null);
 
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            // Use full URL for API call
-            const response = await fetch('http://localhost:5000/api/users/profile', {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify(formData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Failed to update profile: ${response.status}`);
-            }
-
-            const updatedProfile = await response.json();
+            const updatedProfile = await api.users.updateProfile(formData);
             setProfile(updatedProfile);
             setEditMode(false);
             setSuccessMessage('Profile updated successfully!');
+            
+            // Auto-dismiss success message after 3 seconds
+            setTimeout(() => setSuccessMessage(null), 3000);
         } catch (err) {
             console.error('Error updating profile:', err);
             setError(err.message || 'Failed to update profile. Please try again.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [formData]);
 
-    const handlePasswordChange = async (e) => {
+    const handlePasswordChange = useCallback(async (e) => {
         e.preventDefault();
         setPasswordError(null);
         setPasswordSuccess(null);
@@ -207,30 +150,10 @@ function UserProfile() {
         }
 
         try {
-            const token = getToken();
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
-
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            // Use full URL for API call
-            const response = await fetch('http://localhost:5000/api/users/password', {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify({
-                    currentPassword: passwordData.currentPassword,
-                    newPassword: passwordData.newPassword
-                })
+            await api.users.changePassword({
+                currentPassword: passwordData.currentPassword,
+                newPassword: passwordData.newPassword
             });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Failed to update password: ${response.status}`);
-            }
 
             setPasswordSuccess('Password updated successfully!');
             setPasswordData({
@@ -239,7 +162,7 @@ function UserProfile() {
                 confirmPassword: ''
             });
 
-            // Close dialog after 2 seconds
+            // Close dialog after success
             setTimeout(() => {
                 setChangePasswordOpen(false);
                 setPasswordSuccess(null);
@@ -248,18 +171,14 @@ function UserProfile() {
             console.error('Error updating password:', err);
             setPasswordError(err.message || 'Failed to update password');
         }
-    };
+    }, [passwordData]);
 
-    const handlePasswordInputChange = (e) => {
-        const { name, value } = e.target;
-        setPasswordData({
-            ...passwordData,
-            [name]: value
-        });
-        setPasswordError(null);
-    };
+    const handleTabChange = useCallback((event, newValue) => {
+        setTabValue(newValue);
+    }, []);
 
-    const formatDate = (dateString) => {
+    // Format date for display
+    const formatDate = useCallback((dateString) => {
         const date = new Date(dateString);
         return new Intl.DateTimeFormat('en-US', {
             year: 'numeric',
@@ -268,7 +187,7 @@ function UserProfile() {
             hour: 'numeric',
             minute: 'numeric'
         }).format(date);
-    };
+    }, []);
 
     // Loading state
     if (loading && !profile) {
@@ -287,7 +206,7 @@ function UserProfile() {
                 <Button
                     variant="contained"
                     sx={{ mt: 2 }}
-                    onClick={() => window.location.reload()}
+                    onClick={fetchUserProfile}
                 >
                     Retry
                 </Button>
@@ -661,10 +580,10 @@ function UserProfile() {
                             fullWidth
                             margin="normal"
                             required
-                            error={passwordData.newPassword !== passwordData.confirmPassword}
+                            error={passwordData.newPassword !== passwordData.confirmPassword && passwordData.confirmPassword !== ''}
                             helperText={
-                                passwordData.newPassword !== passwordData.confirmPassword ?
-                                    "Passwords don't match" : ""
+                                passwordData.newPassword !== passwordData.confirmPassword && passwordData.confirmPassword !== ''
+                                    ? "Passwords don't match" : ""
                             }
                         />
                     </form>

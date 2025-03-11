@@ -1,31 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import EventsList from './components/EventsList';
 import UserProfile from './components/UserProfile';
 import SimpleEventCalendar from './components/SimpleEventCalendar';
 import AdminDashboard from './components/AdminDashboard';
-import { AdminPanelSettings, PeopleAlt, Security } from '@mui/icons-material'
-
 import {
     Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline,
     useTheme, ThemeProvider, createTheme, Avatar, Button, Drawer, List,
-    ListItem, ListItemIcon, ListItemText, Divider, Chip
+    ListItem, ListItemIcon, ListItemText, Divider
 } from '@mui/material';
 import {
     Brightness4, Brightness7, Dashboard as DashboardIcon,
     EventNote, AccountCircle, Menu as MenuIcon, CalendarMonth,
-    Event, Comment
+    AdminPanelSettings
 } from '@mui/icons-material';
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState(null);
-    const [darkMode, setDarkMode] = useState(false);
+    const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [activePage, setActivePage] = useState('dashboard');
     const [userRole, setUserRole] = useState('user');
 
+    // Load auth state on mount - only runs once
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const storedUsername = localStorage.getItem('username');
@@ -48,7 +47,7 @@ function App() {
                     setUserRole(storedRole);
                 }
             } catch (error) {
-                console.error('Token Decoding Error:', error);
+                // Token is invalid, clear auth data
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('username');
                 localStorage.removeItem('userRole');
@@ -57,6 +56,7 @@ function App() {
         }
     }, []);
 
+    // Handle navigation events
     useEffect(() => {
         const handleNavigation = (event) => {
             if (event.detail && typeof event.detail === 'string') {
@@ -65,31 +65,11 @@ function App() {
         };
 
         window.addEventListener('navigate', handleNavigation);
-
-        return () => {
-            window.removeEventListener('navigate', handleNavigation);
-        };
+        return () => window.removeEventListener('navigate', handleNavigation);
     }, []);
 
-    const handleLoginSuccess = (loggedInUsername, role = 'user') => {
-        setIsLoggedIn(true);
-        setUsername(loggedInUsername);
-        setUserRole(role);
-        localStorage.setItem('username', loggedInUsername);
-        localStorage.setItem('userRole', role);
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('username');
-        setIsLoggedIn(false);
-        setUsername(null);
-        setUserRole(null);
-        setActivePage('dashboard');
-        console.log('JWT token removed from localStorage. User logged out.');
-    };
-
-    const theme = createTheme({
+    // Memoize theme to prevent unnecessary re-renders
+    const theme = useMemo(() => createTheme({
         palette: {
             mode: darkMode ? 'dark' : 'light',
             primary: {
@@ -105,15 +85,9 @@ function App() {
         },
         typography: {
             fontFamily: '"Poppins", "Roboto", "Helvetica", "Arial", sans-serif',
-            h1: {
-                fontWeight: 600,
-            },
-            h2: {
-                fontWeight: 500,
-            },
-            h6: {
-                fontWeight: 500,
-            },
+            h1: { fontWeight: 600 },
+            h2: { fontWeight: 500 },
+            h6: { fontWeight: 500 },
         },
         shape: {
             borderRadius: 8,
@@ -135,53 +109,100 @@ function App() {
                 },
             },
         },
-    });
+    }), [darkMode]);
 
-    const toggleDrawer = () => {
-        setDrawerOpen(!drawerOpen);
-    };
+    // Memoize handlers to prevent recreation on each render
+    const handleLoginSuccess = useCallback((loggedInUsername, role = 'user') => {
+        setIsLoggedIn(true);
+        setUsername(loggedInUsername);
+        setUserRole(role);
+        localStorage.setItem('username', loggedInUsername);
+        localStorage.setItem('userRole', role);
+    }, []);
 
-    const navigateTo = (page) => {
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
+        localStorage.removeItem('userRole');
+        setIsLoggedIn(false);
+        setUsername(null);
+        setUserRole(null);
+        setActivePage('dashboard');
+    }, []);
+
+    const toggleDrawer = useCallback(() => {
+        setDrawerOpen(prev => !prev);
+    }, []);
+
+    const navigateTo = useCallback((page) => {
         setActivePage(page);
         setDrawerOpen(false);
-    };
+    }, []);
 
-    const renderAppContent = () => {
-        if (activePage === 'dashboard') {
-            return (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                    <Dashboard username={username} />
-                </Box>
-            );
-        } else if (activePage === 'events') {
-            return <EventsList />;
-        } else if (activePage === 'calendar') {
-            return <SimpleEventCalendar />;
-        } else if (activePage === 'profile') {
-            return <UserProfile />;
-        } else if (activePage === 'admin-dashboard' && userRole === 'admin') {
-            return <AdminDashboard />;
-        } else {
-            // Fallback to dashboard if page not found or not authorized
-            return (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                    <Dashboard username={username} />
-                </Box>
-            );
-        }
-    };
+    const toggleDarkMode = useCallback(() => {
+        setDarkMode(prev => {
+            const newMode = !prev;
+            localStorage.setItem('darkMode', newMode.toString());
+            return newMode;
+        });
+    }, []);
 
-    const sidebarItems = [
+    // Memoize sidebar items to prevent recreation on each render
+    const sidebarItems = useMemo(() => [
         { text: 'Dashboard', icon: <DashboardIcon />, page: 'dashboard' },
         { text: 'Events', icon: <EventNote />, page: 'events' },
         { text: 'Calendar', icon: <CalendarMonth />, page: 'calendar' },
         { text: 'Profile', icon: <AccountCircle />, page: 'profile' },
-
         ...(userRole === 'admin' ? [
             { text: 'Admin Dashboard', icon: <AdminPanelSettings />, page: 'admin-dashboard' }
         ] : [])
-    ];
+    ], [userRole]);
 
+    // Memoize content rendering to prevent unnecessary re-renders
+    const appContent = useMemo(() => {
+        if (!isLoggedIn) {
+            return (
+                <>
+                    <Typography
+                        variant="h2"
+                        component="h1"
+                        align="center"
+                        gutterBottom
+                        sx={{
+                            fontWeight: 'bold',
+                            backgroundImage: 'linear-gradient(45deg, #3f51b5, #f50057)',
+                            backgroundClip: 'text',
+                            color: 'transparent',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            mb: 4
+                        }}
+                    >
+                        Evently
+                    </Typography>
+                    <LandingPage onLoginSuccess={handleLoginSuccess} />
+                </>
+            );
+        }
+
+        switch (activePage) {
+            case 'events':
+                return <EventsList />;
+            case 'calendar':
+                return <SimpleEventCalendar />;
+            case 'profile':
+                return <UserProfile />;
+            case 'admin-dashboard':
+                return userRole === 'admin' ? <AdminDashboard /> : <Dashboard username={username} />;
+            case 'dashboard':
+            default:
+                return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                        <Dashboard username={username} />
+                    </Box>
+                );
+        }
+    }, [isLoggedIn, activePage, username, userRole, handleLoginSuccess]);
 
     return (
         <ThemeProvider theme={theme}>
@@ -205,7 +226,7 @@ function App() {
                                 </Typography>
                             </Box>
                             <Box>
-                                <IconButton onClick={() => setDarkMode(!darkMode)} color="inherit">
+                                <IconButton onClick={toggleDarkMode} color="inherit">
                                     {darkMode ? <Brightness7 /> : <Brightness4 />}
                                 </IconButton>
                                 <Button
@@ -277,31 +298,7 @@ function App() {
                     px: { xs: 2, sm: 3 }
                 }}
             >
-                {!isLoggedIn && (
-                    <Typography
-                        variant="h2"
-                        component="h1"
-                        align="center"
-                        gutterBottom
-                        sx={{
-                            fontWeight: 'bold',
-                            backgroundImage: 'linear-gradient(45deg, #3f51b5, #f50057)',
-                            backgroundClip: 'text',
-                            color: 'transparent',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            mb: 4
-                        }}
-                    >
-                        Evently
-                    </Typography>
-                )}
-
-                {isLoggedIn ? (
-                    renderAppContent()
-                ) : (
-                    <LandingPage onLoginSuccess={handleLoginSuccess} />
-                )}
+                {appContent}
             </Container>
         </ThemeProvider>
     );

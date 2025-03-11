@@ -1,99 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Container, Typography, Box, Grid, Card, CardContent,
+    Typography, Box, Grid, Card, CardContent,
     CardMedia, CardActions, Button, Chip, IconButton,
-    Skeleton, Alert, Divider, CircularProgress, Avatar,
+    Alert, Divider, CircularProgress, Avatar,
     Tabs, Tab, Paper, Rating, Badge, Tooltip, Menu, MenuItem
 } from '@mui/material';
 import {
-    LocationOn, AccessTime, CalendarToday,
-    Share, FavoriteBorder, Favorite, History, Star, Event,
-    Comment, Add, FilterList, ModeEdit, Person, MoreVert, Delete
+    LocationOn, CalendarToday, FavoriteBorder, Favorite, 
+    History, Star, Event, Comment, Add, Edit, 
+    Person, MoreVert, Delete
 } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
 import ReviewDialog from './ReviewDialog';
 import { Fab } from '@mui/material';
+import api from '../utils/api';
 
 function EventsList() {
+    // State management
     const [events, setEvents] = useState({ upcoming: [], past: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [favorites, setFavorites] = useState({});
+    const [favorites, setFavorites] = useState(() => {
+        // Load favorites from localStorage
+        const storedFavorites = localStorage.getItem('eventFavorites');
+        return storedFavorites ? JSON.parse(storedFavorites) : {};
+    });
     const [activeTab, setActiveTab] = useState(0);
     const [createEventOpen, setCreateEventOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-    const [userRole, setUserRole] = useState('user');
+    const [userRole, setUserRole] = useState(() => localStorage.getItem('userRole') || 'user');
     const [currentUserId, setCurrentUserId] = useState(null);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
     const [selectedActionEvent, setSelectedActionEvent] = useState(null);
 
+    // Extract user ID from JWT on component mount
     useEffect(() => {
-        // Get user role from localStorage
-        const storedRole = localStorage.getItem('userRole');
-        if (storedRole) {
-            setUserRole(storedRole);
-        }
-        
-        // Get user ID from JWT token
         const token = localStorage.getItem('authToken');
         if (token) {
             try {
-                const parts = token.split('.');
-                if (parts.length === 3) {
-                    const payload = parts[1];
-                    // Use a safer approach for base64 decoding
-                    const decodedPayload = JSON.parse(
-                        decodeURIComponent(
-                            window.atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
-                                .split('')
-                                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                                .join('')
-                        )
-                    );
-                    console.log('Decoded token payload:', decodedPayload);
-                    setCurrentUserId(decodedPayload.userId);
-                }
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                setCurrentUserId(payload.userId);
             } catch (error) {
-                console.error("Error getting user ID from token:", error);
+                console.error("Error extracting user ID from token:", error);
             }
         }
-        
-        fetchEvents();
     }, []);
 
-    const fetchEvents = async () => {
+    // Fetch events data
+    const fetchEvents = useCallback(async () => {
         setLoading(true);
         setError(null);
+        
         try {
-            console.log("Fetching events...");
-            const token = localStorage.getItem('authToken');
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            console.log('Using API URL:', apiUrl);
+            const eventsData = await api.events.getAllEvents();
             
-            const response = await fetch(`${apiUrl}/api/events`, {
-                headers
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error fetching events: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('All events:', data);
-
-            // Simple approach - separate into upcoming and past events
+            // Process events into upcoming and past categories
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-
+            
             const upcomingEvents = [];
             const pastEvents = [];
-
-            for (const event of data) {
+            
+            eventsData.forEach(event => {
                 try {
                     const eventDate = new Date(event.event_date);
+                    
                     if (eventDate >= today) {
                         upcomingEvents.push(event);
                     } else {
@@ -104,36 +76,117 @@ function EventsList() {
                         });
                     }
                 } catch (error) {
-                    console.error("Error processing event date:", error, event);
-                    // Add to upcoming by default if there's a date parsing issue
+                    console.error("Date parsing error:", error);
                     upcomingEvents.push(event);
                 }
-            }
-
-            // Sort events
+            });
+            
+            // Sort events for better UX
             upcomingEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
             pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
-
+            
             setEvents({ upcoming: upcomingEvents, past: pastEvents });
-            console.log('Processed events:', { upcoming: upcomingEvents, past: pastEvents });
-
-        } catch (e) {
-            console.error("Error fetching events:", e);
-            setError(e.toString());
+        } catch (error) {
+            console.error("Error fetching events:", error);
+            setError(error.message || "Failed to load events");
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const toggleFavorite = (eventId, e) => {
+    // Initial data load
+    useEffect(() => {
+        fetchEvents();
+    }, [fetchEvents]);
+
+    // Save favorites to localStorage when they change
+    useEffect(() => {
+        localStorage.setItem('eventFavorites', JSON.stringify(favorites));
+    }, [favorites]);
+
+    // Event handlers
+    const toggleFavorite = useCallback((eventId, e) => {
         e.stopPropagation();
         setFavorites(prev => ({
             ...prev,
             [eventId]: !prev[eventId]
         }));
-    };
+    }, []);
 
-    const formatDate = (dateString) => {
+    const handleTabChange = useCallback((event, newValue) => {
+        setActiveTab(newValue);
+    }, []);
+
+    const handleOpenCreateEvent = useCallback(() => {
+        setCreateEventOpen(true);
+    }, []);
+
+    const handleCloseCreateEvent = useCallback(() => {
+        setCreateEventOpen(false);
+    }, []);
+
+    const handleViewEvent = useCallback((event) => {
+        setSelectedEvent(event);
+        setReviewDialogOpen(true);
+    }, []);
+
+    const handleCloseReviewDialog = useCallback(() => {
+        setSelectedEvent(null);
+        setReviewDialogOpen(false);
+        fetchEvents(); // Refresh events after potential review changes
+    }, [fetchEvents]);
+
+    const handleOpenActionMenu = useCallback((event, eventData) => {
+        event.stopPropagation();
+        setSelectedActionEvent(eventData);
+        setActionMenuAnchor(event.currentTarget);
+    }, []);
+
+    const handleCloseActionMenu = useCallback(() => {
+        setActionMenuAnchor(null);
+        setSelectedActionEvent(null);
+    }, []);
+
+    const handleEditEvent = useCallback(() => {
+        handleCloseActionMenu();
+        // Implement edit event functionality
+        console.log("Edit event:", selectedActionEvent);
+        alert("Edit functionality will be implemented soon!");
+    }, [handleCloseActionMenu, selectedActionEvent]);
+
+    const handleDeleteEvent = useCallback(async () => {
+        handleCloseActionMenu();
+        if (!selectedActionEvent) return;
+
+        if (window.confirm(`Are you sure you want to delete "${selectedActionEvent.name}"?`)) {
+            try {
+                setLoading(true);
+                await api.events.deleteEvent(selectedActionEvent.event_id);
+                fetchEvents(); // Refresh events after deletion
+            } catch (error) {
+                console.error("Error deleting event:", error);
+                setError(`Error deleting event: ${error.message}`);
+            } finally {
+                setLoading(false);
+            }
+        }
+    }, [handleCloseActionMenu, selectedActionEvent, fetchEvents]);
+
+    const handleEventCreated = useCallback(() => {
+        fetchEvents(); // Refresh all events when a new one is created
+        setCreateEventOpen(false);
+    }, [fetchEvents]);
+
+    // Helper functions
+    const isCreatedByUser = useCallback((event) => {
+        return !!currentUserId && event.user_id === currentUserId;
+    }, [currentUserId]);
+    
+    const canManageEvent = useCallback((event) => {
+        return userRole === 'admin' || isCreatedByUser(event);
+    }, [userRole, isCreatedByUser]);
+
+    const formatDate = useCallback((dateString) => {
         try {
             const date = new Date(dateString);
             return new Intl.DateTimeFormat('en-US', {
@@ -143,104 +196,17 @@ function EventsList() {
                 year: 'numeric'
             }).format(date);
         } catch (error) {
-            console.error("Error formatting date:", error, dateString);
+            console.error("Error formatting date:", error);
             return "Invalid date";
         }
-    };
+    }, []);
 
-    const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-    };
-
-    const formatRating = (rating) => {
+    const formatRating = useCallback((rating) => {
         return rating ? parseFloat(rating).toFixed(1) : 'No ratings';
-    };
+    }, []);
 
-    const handleOpenCreateEvent = () => {
-        setCreateEventOpen(true);
-    };
-
-    const handleCloseCreateEvent = () => {
-        setCreateEventOpen(false);
-    };
-
-    const handleViewEvent = (event) => {
-        setSelectedEvent(event);
-        setReviewDialogOpen(true);
-    };
-
-    const handleCloseReviewDialog = () => {
-        setSelectedEvent(null);
-        setReviewDialogOpen(false);
-        fetchEvents();
-    };
-
-    const handleOpenActionMenu = (event, eventData) => {
-        event.stopPropagation();
-        setSelectedActionEvent(eventData);
-        setActionMenuAnchor(event.currentTarget);
-    };
-
-    const handleCloseActionMenu = () => {
-        setActionMenuAnchor(null);
-        setSelectedActionEvent(null);
-    };
-
-    const handleEditEvent = () => {
-        handleCloseActionMenu();
-        // Implement edit event functionality
-        console.log("Edit event:", selectedActionEvent);
-        alert("Edit functionality will be implemented soon!");
-    };
-
-    const handleDeleteEvent = async () => {
-        handleCloseActionMenu();
-        if (!selectedActionEvent) return;
-
-        if (window.confirm(`Are you sure you want to delete "${selectedActionEvent.name}"?`)) {
-            try {
-                setLoading(true);
-                const token = localStorage.getItem('authToken');
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                
-                const response = await fetch(`${apiUrl}/api/events/${selectedActionEvent.event_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    // Refresh events list
-                    fetchEvents();
-                } else {
-                    throw new Error(`Failed to delete event: ${response.status}`);
-                }
-            } catch (error) {
-                console.error("Error deleting event:", error);
-                setError(`Error deleting event: ${error.message}`);
-            } finally {
-                setLoading(false);
-            }
-        }
-    };
-
-    const handleEventCreated = (newEvent) => {
-        fetchEvents(); // Refresh all events when a new one is created
-        setCreateEventOpen(false);
-    };
-
-    // Check if the user is the creator of the event
-    const isCreatedByUser = (event) => {
-        return !!currentUserId && event.user_id === currentUserId;
-    };
-    
-    // Check if user can manage this event (admin or creator)
-    const canManageEvent = (event) => {
-        return userRole === 'admin' || isCreatedByUser(event);
-    };
-
-    const renderEventsList = (displayEvents, isPast = false) => {
+    // Memoized render functions for better performance
+    const renderEventsList = useCallback((displayEvents, isPast = false) => {
         if (displayEvents.length === 0 && !loading) {
             return (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -401,7 +367,8 @@ function EventsList() {
                                         WebkitLineClamp: 3,
                                         WebkitBoxOrient: 'vertical',
                                         overflow: 'hidden',
-                                        textOverflow: 'ellipsis'
+                                        textOverflow: 'ellipsis',
+                                        height: '4.5rem' // Fixed height to prevent layout shifts
                                     }}
                                 >
                                     {event.description || 'No description provided'}
@@ -423,10 +390,22 @@ function EventsList() {
                 ))}
             </Grid>
         );
-    };
+    }, [
+        loading, userRole, favorites, 
+        handleOpenCreateEvent, handleViewEvent, 
+        toggleFavorite, handleOpenActionMenu,
+        isCreatedByUser, canManageEvent, formatDate, formatRating
+    ]);
+
+    // Memoized active events list based on selected tab
+    const activeEventsList = useMemo(() => {
+        return activeTab === 0 
+            ? renderEventsList(events.upcoming || [], false) 
+            : renderEventsList(events.past || [], true);
+    }, [activeTab, events, renderEventsList]);
 
     return (
-        <Container maxWidth={false} sx={{ width: '100%' }}>
+        <Box sx={{ width: '100%' }}>
             <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography
                     variant="h4"
@@ -463,11 +442,8 @@ function EventsList() {
             </Box>
 
             {error && (
-                <Alert
-                    severity="error"
-                    sx={{ mb: 4 }}
-                >
-                    Error loading events: {error}
+                <Alert severity="error" sx={{ mb: 4 }}>
+                    {error}
                 </Alert>
             )}
 
@@ -495,11 +471,7 @@ function EventsList() {
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                     <CircularProgress size={40} />
                 </Box>
-            ) : (
-                activeTab === 0 
-                    ? renderEventsList(events.upcoming || [], false) 
-                    : renderEventsList(events.past || [], true)
-            )}
+            ) : activeEventsList}
 
             {/* Only show FAB Create Event button for admin users */}
             {userRole === 'admin' && (
@@ -546,13 +518,13 @@ function EventsList() {
                 onClose={handleCloseActionMenu}
             >
                 <MenuItem onClick={handleEditEvent}>
-                    <ModeEdit fontSize="small" sx={{ mr: 1 }} /> Edit Event
+                    <Edit fontSize="small" sx={{ mr: 1 }} /> Edit Event
                 </MenuItem>
                 <MenuItem onClick={handleDeleteEvent}>
                     <Delete fontSize="small" sx={{ mr: 1 }} /> Delete Event
                 </MenuItem>
             </Menu>
-        </Container>
+        </Box>
     );
 }
 
