@@ -21,6 +21,7 @@ const handleTokenExpiration = (error) => {
 // Helper function for making API requests
 const apiRequest = async (endpoint, options = {}) => {
     const token = localStorage.getItem('authToken');
+    const cacheKey = `${endpoint}-${options.method || 'GET'}-${options.body || ''}`;
 
     const headers = {
         'Content-Type': 'application/json',
@@ -36,6 +37,12 @@ const apiRequest = async (endpoint, options = {}) => {
         headers,
     };
 
+    // Check cache for GET requests
+    if (!options.method || options.method === 'GET') {
+        const cachedData = apiCache.get(cacheKey);
+        if (cachedData) return cachedData;
+    }
+
     try {
         console.log(`🌐 API Request to: ${API_BASE_URL}${endpoint}`);
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
@@ -47,13 +54,40 @@ const apiRequest = async (endpoint, options = {}) => {
             throw new Error(errorData.error || `HTTP Error: ${response.status}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        
+        // Cache successful GET responses
+        if (!options.method || options.method === 'GET') {
+            apiCache.set(cacheKey, data);
+        }
+        
+        return data;
     } catch (error) {
         console.error('API Request Error:', error);
         if (handleTokenExpiration(error)) {
             return null; // Return null when token expires
         }
         throw error;
+    }
+};
+
+// API cache utility
+const apiCache = {
+    data: {},
+    set: (key, value, ttl = 60000) => {
+        apiCache.data[key] = {
+            value,
+            expiry: Date.now() + ttl
+        };
+    },
+    get: (key) => {
+        const item = apiCache.data[key];
+        if (!item) return null;
+        if (Date.now() > item.expiry) {
+            delete apiCache.data[key];
+            return null;
+        }
+        return item.value;
     }
 };
 
