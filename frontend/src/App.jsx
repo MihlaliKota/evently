@@ -60,13 +60,18 @@ function App() {
 
     // Handle navigation events
     useEffect(() => {
+        const savedPage = localStorage.getItem('activePage');
+        if (savedPage) {
+            setActivePage(savedPage);
+        }
+
         const handleNavigation = (event) => {
             if (event.detail && typeof event.detail === 'string') {
                 setActivePage(event.detail);
-                localStorage.setItem('activePage', event.detail);
+                localStorage.setItem('activePage', event.detail); // Add this line
             }
         };
-    
+
         window.addEventListener('navigate', handleNavigation);
         return () => window.removeEventListener('navigate', handleNavigation);
     }, []);
@@ -139,7 +144,7 @@ function App() {
 
     const navigateTo = useCallback((page) => {
         setActivePage(page);
-        localStorage.setItem('activePage', page); 
+        localStorage.setItem('activePage', page);
         setDrawerOpen(false);
     }, []);
 
