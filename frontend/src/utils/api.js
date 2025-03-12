@@ -142,6 +142,8 @@ export const userAPI = {
     }),
 
     getUserActivities: () => apiRequest('/api/users/activities'),
+
+    getAllUsers: () => apiRequest('/api/admin/users'),
 };
 
 // Categories-related API calls

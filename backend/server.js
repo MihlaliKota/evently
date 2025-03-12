@@ -908,6 +908,23 @@ app.get('/api/users/activities', authenticateJWT, async (req, res) => {
     }
 });
 
+app.get('/api/admin/users', authenticateJWT, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        try {
+            const [users] = await connection.query(
+                'SELECT user_id, username, email, bio, profile_picture, created_at, role FROM users'
+            );
+            
+            res.status(200).json(users);
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        handleError(res, error, 'Failed to fetch users');
+    }
+});
+
 // ======= CATEGORY ENDPOINTS =======
 
 // Get all categories

@@ -21,8 +21,10 @@ function App() {
     const [username, setUsername] = useState(null);
     const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [activePage, setActivePage] = useState('dashboard');
     const [userRole, setUserRole] = useState('user');
+    const [activePage, setActivePage] = useState(() => {
+        return localStorage.getItem('activePage') || 'dashboard';
+    });
 
     // Load auth state on mount - only runs once
     useEffect(() => {
@@ -61,9 +63,10 @@ function App() {
         const handleNavigation = (event) => {
             if (event.detail && typeof event.detail === 'string') {
                 setActivePage(event.detail);
+                localStorage.setItem('activePage', event.detail);
             }
         };
-
+    
         window.addEventListener('navigate', handleNavigation);
         return () => window.removeEventListener('navigate', handleNavigation);
     }, []);
@@ -136,6 +139,7 @@ function App() {
 
     const navigateTo = useCallback((page) => {
         setActivePage(page);
+        localStorage.setItem('activePage', page); 
         setDrawerOpen(false);
     }, []);
 
