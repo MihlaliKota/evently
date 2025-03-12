@@ -44,9 +44,9 @@ const pool = mysql.createPool({
 const handleError = (res, error, message = 'An error occurred') => {
     console.error(`Error: ${message}`, error);
     const statusCode = error.statusCode || 500;
-    res.status(statusCode).json({ 
-        error: message, 
-        details: process.env.NODE_ENV === 'production' ? null : error.message 
+    res.status(statusCode).json({
+        error: message,
+        details: process.env.NODE_ENV === 'production' ? null : error.message
     });
 };
 
@@ -172,7 +172,7 @@ app.post('/api/login', async (req, res) => {
                 username: user.username,
                 role: user.role || 'user'
             };
-            
+
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
             res.status(200).json({
@@ -336,13 +336,13 @@ app.delete('/api/events/:eventId', authenticateJWT, authorizeRole(['admin']), as
         try {
             // Begin transaction to handle related records
             await connection.beginTransaction();
-            
+
             // First delete related reviews to avoid foreign key constraints
             await connection.query(
                 'DELETE FROM reviews WHERE event_id = ?',
                 [eventId]
             );
-            
+
             // Then delete the event
             const [result] = await connection.query(
                 'DELETE FROM events WHERE event_id = ?',
@@ -453,7 +453,7 @@ app.post('/api/events/:eventId/reviews', authenticateJWT, async (req, res) => {
         try {
             // Begin transaction
             await connection.beginTransaction();
-            
+
             const [eventCheck] = await connection.query(
                 'SELECT * FROM events WHERE event_id = ?',
                 [eventId]
@@ -667,7 +667,7 @@ app.get('/api/reviews', authenticateJWT, async (req, res) => {
                 ${min_rating ? ' AND r.rating >= ?' : ''}
                 ${max_rating ? ' AND r.rating <= ?' : ''}
             `;
-            
+
             const countParams = [];
             if (event_id) countParams.push(event_id);
             if (user_id) countParams.push(user_id);
@@ -959,7 +959,7 @@ app.get('/', (req, res) => {
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on port http://localhost:${port}`);
-    
+
     // Test database connection on startup
     (async () => {
         let connection;
