@@ -3,12 +3,13 @@ import {
     Typography, Box, Grid, Card, CardContent,
     CardMedia, CardActions, Button, Chip, IconButton,
     Alert, Divider, CircularProgress, Avatar,
-    Tabs, Tab, Paper, Rating, Badge, Tooltip, Menu, MenuItem
+    Tabs, Tab, Paper, Rating, Badge, Tooltip, Menu, MenuItem,
+    TextField, InputAdornment
 } from '@mui/material';
 import {
     LocationOn, CalendarToday, FavoriteBorder, Favorite, 
     History, Star, Event, Comment, Add, Edit, 
-    Person, MoreVert, Delete
+    Person, MoreVert, Delete, Search
 } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
 import ReviewDialog from './ReviewDialog';
@@ -20,6 +21,7 @@ function EventsList() {
     const [events, setEvents] = useState({ upcoming: [], past: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const [favorites, setFavorites] = useState(() => {
         // Load favorites from localStorage
         const storedFavorites = localStorage.getItem('eventFavorites');
@@ -205,18 +207,37 @@ function EventsList() {
         return rating ? parseFloat(rating).toFixed(1) : 'No ratings';
     }, []);
 
+    // Filter events based on search term
+    const filterEvents = useCallback((events) => {
+        if (!searchTerm.trim()) return events;
+        
+        const search = searchTerm.toLowerCase();
+        return events.filter(event => 
+            (event.name && event.name.toLowerCase().includes(search)) || 
+            (event.location && event.location.toLowerCase().includes(search)) ||
+            (event.description && event.description.toLowerCase().includes(search))
+        );
+    }, [searchTerm]);
+
     // Memoized render functions for better performance
     const renderEventsList = useCallback((displayEvents, isPast = false) => {
-        if (displayEvents.length === 0 && !loading) {
+        // Apply search filter
+        const filteredEvents = filterEvents(displayEvents);
+        
+        if (filteredEvents.length === 0 && !loading) {
             return (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="h5" color="text.secondary" gutterBottom>
-                        No {isPast ? 'past' : 'upcoming'} events found
+                        {searchTerm ? 
+                            'No events match your search' : 
+                            `No ${isPast ? 'past' : 'upcoming'} events found`}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                        {isPast ? 
-                            'Events that have passed will appear here' : 
-                            'Check back later for upcoming events'}
+                        {searchTerm ? 
+                            'Try different search terms' : 
+                            (isPast ? 
+                                'Events that have passed will appear here' : 
+                                'Check back later for upcoming events')}
                     </Typography>
                     {userRole === 'admin' && !isPast && (
                         <Button 
@@ -235,7 +256,7 @@ function EventsList() {
 
         return (
             <Grid container spacing={3}>
-                {displayEvents.map(event => (
+                {filteredEvents.map(event => (
                     <Grid item xs={12} sm={6} md={4} key={event.event_id}>
                         <Card
                             sx={{
@@ -391,7 +412,7 @@ function EventsList() {
             </Grid>
         );
     }, [
-        loading, userRole, favorites, 
+        loading, userRole, favorites, searchTerm, filterEvents,
         handleOpenCreateEvent, handleViewEvent, 
         toggleFavorite, handleOpenActionMenu,
         isCreatedByUser, canManageEvent, formatDate, formatRating
@@ -446,6 +467,24 @@ function EventsList() {
                     {error}
                 </Alert>
             )}
+
+            {/* Search field */}
+            <TextField
+                fullWidth
+                variant="outlined"
+                size="small"
+                placeholder="Search events by name, location, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{ mb: 3 }}
+                InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">
+                            <Search />
+                        </InputAdornment>
+                    ),
+                }}
+            />
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs
