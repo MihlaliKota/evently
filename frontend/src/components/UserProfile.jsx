@@ -10,7 +10,7 @@ import {
 import {
     Edit, Save, Cancel, Event, Star,
     CalendarToday, Email, AccountCircle,
-    Visibility, VisibilityOff
+    Visibility, VisibilityOff,
 } from '@mui/icons-material';
 import api from '../utils/api';
 
@@ -29,6 +29,8 @@ function UserProfile() {
     });
     const [activities, setActivities] = useState([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
+    const [activitiesPage, setActivitiesPage] = useState(1);
+    const [totalActivities, setTotalActivities] = useState(0);
     const [changePasswordOpen, setChangePasswordOpen] = useState(false);
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
@@ -60,16 +62,25 @@ function UserProfile() {
         }
     }, []);
 
-    // Fetch user activities
     const fetchUserActivities = useCallback(async () => {
         if (tabValue !== 1) return;
-
+    
         setLoadingActivities(true);
         try {
             const data = await api.users.getUserActivities();
-            setActivities(data);
+            console.log('Activities data:', data); // Add debugging
+            
+            // Check if data is an array before setting it
+            if (Array.isArray(data)) {
+                setActivities(data);
+            } else {
+                // Handle non-array response
+                console.error('Expected array of activities but got:', typeof data);
+                setActivities([]);
+            }
         } catch (err) {
             console.error('Error fetching activities:', err);
+            setActivities([]); // Set empty array on error
         } finally {
             setLoadingActivities(false);
         }
@@ -128,7 +139,7 @@ function UserProfile() {
             setProfile(updatedProfile);
             setEditMode(false);
             setSuccessMessage('Profile updated successfully!');
-            
+
             // Auto-dismiss success message after 3 seconds
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (err) {
@@ -213,6 +224,7 @@ function UserProfile() {
             </Box>
         );
     }
+    
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -383,22 +395,22 @@ function UserProfile() {
                         ) : (
                             <List>
                                 {activities.map((activity, index) => (
-                                    <React.Fragment key={`${activity.activity_type}-${activity.event_id || activity.review_id}`}>
+                                    <React.Fragment key={`activity-${activity.activity_id}`}>
                                         <ListItem alignItems="flex-start">
                                             <ListItemAvatar>
-                                                <Avatar sx={{ bgcolor: activity.activity_type === 'event_created' ? 'primary.main' : 'secondary.main' }}>
-                                                    {activity.activity_type === 'event_created' ? <Event /> : <Star />}
+                                                <Avatar sx={{
+                                                    bgcolor: activity.activity_type === 'login' ? 'info.main' :
+                                                        activity.activity_type === 'event_created' ? 'primary.main' :
+                                                            activity.activity_type === 'event_viewed' ? 'success.main' :
+                                                                'secondary.main'
+                                                }}>
+                                                    {getActivityIcon(activity.activity_type)}
                                                 </Avatar>
                                             </ListItemAvatar>
                                             <ListItemText
                                                 primary={
                                                     <Typography variant="subtitle1">
-                                                        {activity.activity_type === 'event_created'
-                                                            ? 'Created event: '
-                                                            : 'Reviewed event: '}
-                                                        <Typography component="span" fontWeight="bold">
-                                                            {activity.name}
-                                                        </Typography>
+                                                        {getActivityLabel(activity)}
                                                     </Typography>
                                                 }
                                                 secondary={
@@ -406,7 +418,7 @@ function UserProfile() {
                                                         <Typography variant="body2" color="text.secondary">
                                                             {formatDate(activity.created_at)}
                                                         </Typography>
-                                                        {activity.activity_type === 'review_submitted' && (
+                                                        {activity.activity_type === 'review_submitted' && activity.rating && (
                                                             <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                                                                 {[...Array(5)].map((_, i) => (
                                                                     <Star
@@ -420,21 +432,19 @@ function UserProfile() {
                                                                 ))}
                                                             </Box>
                                                         )}
-                                                        {activity.activity_type === 'event_created' && activity.event_date && (
-                                                            <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                                                                <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
-                                                                <Typography variant="body2">
-                                                                    {formatDate(activity.event_date)}
-                                                                </Typography>
-                                                            </Box>
-                                                        )}
                                                     </>
                                                 }
                                             />
                                             <ListItemSecondaryAction>
                                                 <Chip
-                                                    label={activity.activity_type === 'event_created' ? 'Created' : 'Reviewed'}
-                                                    color={activity.activity_type === 'event_created' ? 'primary' : 'secondary'}
+                                                    label={activity.activity_type === 'login' ? 'Login' :
+                                                        activity.activity_type === 'event_created' ? 'Created' :
+                                                            activity.activity_type === 'event_viewed' ? 'Viewed' :
+                                                                'Reviewed'}
+                                                    color={activity.activity_type === 'login' ? 'info' :
+                                                        activity.activity_type === 'event_created' ? 'primary' :
+                                                            activity.activity_type === 'event_viewed' ? 'success' :
+                                                                'secondary'}
                                                     size="small"
                                                 />
                                             </ListItemSecondaryAction>
@@ -446,6 +456,7 @@ function UserProfile() {
                         )}
                     </Box>
                 )}
+
 
                 {/* Security Tab */}
                 {tabValue === 2 && (
