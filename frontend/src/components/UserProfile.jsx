@@ -66,21 +66,21 @@ function UserProfile() {
         if (tabValue !== 1) return;
     
         setLoadingActivities(true);
+        setActivities([]); // Clear previous activities to avoid rendering issues
+        
         try {
             const data = await api.users.getUserActivities();
-            console.log('Activities data:', data); // Add debugging
             
-            // Check if data is an array before setting it
-            if (Array.isArray(data)) {
+            // Ensure we have valid activity data
+            if (Array.isArray(data) && data.length > 0) {
                 setActivities(data);
             } else {
-                // Handle non-array response
-                console.error('Expected array of activities but got:', typeof data);
+                console.log('No activities found or invalid data format');
                 setActivities([]);
             }
         } catch (err) {
             console.error('Error fetching activities:', err);
-            setActivities([]); // Set empty array on error
+            setActivities([]);
         } finally {
             setLoadingActivities(false);
         }
@@ -224,7 +224,7 @@ function UserProfile() {
             </Box>
         );
     }
-    
+
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -395,28 +395,28 @@ function UserProfile() {
                         ) : (
                             <List>
                                 {activities.map((activity, index) => (
-                                    <React.Fragment key={`activity-${activity.activity_id}`}>
+                                    <React.Fragment key={`${activity.activity_type}-${activity.event_id || activity.review_id}`}>
                                         <ListItem alignItems="flex-start">
                                             <ListItemAvatar>
-                                                <Avatar sx={{
-                                                    bgcolor: activity.activity_type === 'login' ? 'info.main' :
-                                                        activity.activity_type === 'event_created' ? 'primary.main' :
-                                                            activity.activity_type === 'event_viewed' ? 'success.main' :
-                                                                'secondary.main'
-                                                }}>
-                                                    {getActivityIcon(activity.activity_type)}
+                                                <Avatar sx={{ bgcolor: activity.activity_type === 'event_created' ? 'primary.main' : 'secondary.main' }}>
+                                                    {activity.activity_type === 'event_created' ? <Event /> : <Star />}
                                                 </Avatar>
                                             </ListItemAvatar>
                                             <ListItemText
                                                 primary={
                                                     <Typography variant="subtitle1">
-                                                        {getActivityLabel(activity)}
+                                                        {activity.activity_type === 'event_created'
+                                                            ? 'Created event: '
+                                                            : 'Reviewed event: '}
+                                                        <Typography component="span" fontWeight="bold">
+                                                            {activity.name || 'Unnamed event'}
+                                                        </Typography>
                                                     </Typography>
                                                 }
                                                 secondary={
                                                     <>
                                                         <Typography variant="body2" color="text.secondary">
-                                                            {formatDate(activity.created_at)}
+                                                            {formatDate(activity.created_at || new Date())}
                                                         </Typography>
                                                         {activity.activity_type === 'review_submitted' && activity.rating && (
                                                             <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
@@ -425,11 +425,19 @@ function UserProfile() {
                                                                         key={i}
                                                                         fontSize="small"
                                                                         sx={{
-                                                                            color: i < activity.rating ? 'gold' : 'gray',
+                                                                            color: i < (activity.rating || 0) ? 'gold' : 'gray',
                                                                             mr: 0.5
                                                                         }}
                                                                     />
                                                                 ))}
+                                                            </Box>
+                                                        )}
+                                                        {activity.activity_type === 'event_created' && activity.event_date && (
+                                                            <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                                                                <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
+                                                                <Typography variant="body2">
+                                                                    {formatDate(activity.event_date)}
+                                                                </Typography>
                                                             </Box>
                                                         )}
                                                     </>
@@ -437,14 +445,8 @@ function UserProfile() {
                                             />
                                             <ListItemSecondaryAction>
                                                 <Chip
-                                                    label={activity.activity_type === 'login' ? 'Login' :
-                                                        activity.activity_type === 'event_created' ? 'Created' :
-                                                            activity.activity_type === 'event_viewed' ? 'Viewed' :
-                                                                'Reviewed'}
-                                                    color={activity.activity_type === 'login' ? 'info' :
-                                                        activity.activity_type === 'event_created' ? 'primary' :
-                                                            activity.activity_type === 'event_viewed' ? 'success' :
-                                                                'secondary'}
+                                                    label={activity.activity_type === 'event_created' ? 'Created' : 'Reviewed'}
+                                                    color={activity.activity_type === 'event_created' ? 'primary' : 'secondary'}
                                                     size="small"
                                                 />
                                             </ListItemSecondaryAction>
