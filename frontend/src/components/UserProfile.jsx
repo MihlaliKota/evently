@@ -62,29 +62,48 @@ function UserProfile() {
         }
     }, []);
 
+    // Update the fetchUserActivities function to get real data
     const fetchUserActivities = useCallback(async () => {
         if (tabValue !== 1) return;
-    
+
         setLoadingActivities(true);
-        setActivities([]); // Clear previous activities to avoid rendering issues
-        
+
         try {
-            const data = await api.users.getUserActivities();
-            
-            // Ensure we have valid activity data
-            if (Array.isArray(data) && data.length > 0) {
-                setActivities(data);
-            } else {
-                console.log('No activities found or invalid data format');
-                setActivities([]);
-            }
+            // Get user reviews using the existing API endpoint
+            const reviewsData = await api.reviews.getAllReviews({ user_id: currentUserId });
+
+            // Transform reviews into activity items
+            const reviewActivities = reviewsData.map(review => ({
+                type: 'review_submitted',
+                review_id: review.review_id,
+                event_id: review.event_id,
+                event_name: review.event_name,
+                rating: review.rating,
+                created_at: review.created_at
+            }));
+
+            // Get user stats
+            const totalReviews = reviewActivities.length;
+            const avgRating = totalReviews > 0
+                ? reviewActivities.reduce((sum, act) => sum + act.rating, 0) / totalReviews
+                : 0;
+
+            // Update user engagement with real data
+            setUserEngagement(prev => ({
+                ...prev,
+                reviewsSubmitted: totalReviews,
+                averageRating: avgRating.toFixed(1),
+                recentActivity: reviewActivities.slice(0, 5) // Just show 5 most recent
+            }));
+
+            setActivities(reviewActivities);
         } catch (err) {
             console.error('Error fetching activities:', err);
             setActivities([]);
         } finally {
             setLoadingActivities(false);
         }
-    }, [tabValue]);
+    }, [tabValue, currentUserId]);
 
     // Initial data loading
     useEffect(() => {
