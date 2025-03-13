@@ -81,11 +81,14 @@ const eventModel = {
   async create(eventData) {
     const { user_id, category_id, name, description, event_date, location, event_type } = eventData;
     
+    // Format the ISO date to MySQL format (YYYY-MM-DD HH:MM:SS)
+    const formattedDate = new Date(event_date).toISOString().slice(0, 19).replace('T', ' ');
+    
     const [result] = await pool.query(
       `INSERT INTO events 
        (user_id, category_id, name, description, event_date, location, event_type, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, category_id, name, description, event_date, location, event_type]
+      [user_id, category_id, name, description, formattedDate, location, event_type]
     );
     
     const [newEvent] = await pool.query(
