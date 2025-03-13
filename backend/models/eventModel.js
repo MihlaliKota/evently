@@ -97,8 +97,8 @@ const eventModel = {
     );
     
     // Invalidate relevant caches
-    cache.delPattern('events:list');
-    cache.delPattern('events:upcoming');
+    cache.invalidateByPrefix('events:list');
+    cache.invalidateByPrefix('events:upcoming');
     
     return newEvent[0];
   },
