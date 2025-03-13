@@ -10,7 +10,7 @@ import {
 import {
     Edit, Save, Cancel, Event, Star,
     CalendarToday, Email, AccountCircle,
-    Visibility, VisibilityOff,
+    Visibility, VisibilityOff, Person, Comment
 } from '@mui/icons-material';
 import api from '../utils/api';
 
@@ -41,6 +41,26 @@ function UserProfile() {
     const [passwordSuccess, setPasswordSuccess] = useState(null);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [userEngagement, setUserEngagement] = useState({
+        eventsAttended: 0,
+        reviewsSubmitted: 0,
+        averageRating: 0,
+        categoryPreferences: [],
+    });
+
+    // Extract user ID from JWT on component mount
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                setCurrentUserId(payload.userId);
+            } catch (error) {
+                console.error("Error extracting user ID from token:", error);
+            }
+        }
+    }, []);
 
     // Fetch user profile
     const fetchUserProfile = useCallback(async () => {
@@ -62,40 +82,45 @@ function UserProfile() {
         }
     }, []);
 
-    // Update the fetchUserActivities function to get real data
+    // Fetch user activities - real reviews from the API
     const fetchUserActivities = useCallback(async () => {
-        if (tabValue !== 1) return;
-
+        if (tabValue !== 1 || !currentUserId) return;
+    
         setLoadingActivities(true);
-
+        
         try {
-            // Get user reviews using the existing API endpoint
-            const reviewsData = await api.reviews.getAllReviews({ user_id: currentUserId });
-
-            // Transform reviews into activity items
-            const reviewActivities = reviewsData.map(review => ({
-                type: 'review_submitted',
+            // Get real review data from API
+            const reviewsData = await api.reviews.getAllReviews();
+            
+            // Filter to only show current user's reviews
+            const userReviews = reviewsData.filter(review => review.user_id === currentUserId);
+            
+            // Transform reviews into activity format
+            const reviewActivities = userReviews.map(review => ({
+                activity_type: 'review_submitted',
                 review_id: review.review_id,
                 event_id: review.event_id,
-                event_name: review.event_name,
+                name: review.event_name || `Event #${review.event_id}`,
                 rating: review.rating,
                 created_at: review.created_at
             }));
-
-            // Get user stats
+            
+            // Calculate engagement stats
             const totalReviews = reviewActivities.length;
-            const avgRating = totalReviews > 0
-                ? reviewActivities.reduce((sum, act) => sum + act.rating, 0) / totalReviews
-                : 0;
-
-            // Update user engagement with real data
+            let avgRating = 0;
+            
+            if (totalReviews > 0) {
+                const totalRating = reviewActivities.reduce((sum, item) => sum + item.rating, 0);
+                avgRating = totalRating / totalReviews;
+            }
+            
+            // Update engagement metrics
             setUserEngagement(prev => ({
                 ...prev,
                 reviewsSubmitted: totalReviews,
-                averageRating: avgRating.toFixed(1),
-                recentActivity: reviewActivities.slice(0, 5) // Just show 5 most recent
+                averageRating: avgRating
             }));
-
+            
             setActivities(reviewActivities);
         } catch (err) {
             console.error('Error fetching activities:', err);
@@ -110,10 +135,12 @@ function UserProfile() {
         fetchUserProfile();
     }, [fetchUserProfile]);
 
-    // Load activities when tab changes
+    // Load activities when tab changes or user ID is available
     useEffect(() => {
-        fetchUserActivities();
-    }, [fetchUserActivities]);
+        if (currentUserId) {
+            fetchUserActivities();
+        }
+    }, [fetchUserActivities, currentUserId, tabValue]);
 
     // Form input handlers
     const handleInputChange = useCallback((e) => {
@@ -397,6 +424,39 @@ function UserProfile() {
                 {/* Activity Tab */}
                 {tabValue === 1 && (
                     <Box sx={{ p: 3 }}>
+                        {/* New Activity Stats Section */}
+                        <Paper sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+                            <Typography variant="h6" gutterBottom>Your Activity Stats</Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6}>
+                                    <Card sx={{ height: '100%' }}>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Comment color="secondary" sx={{ fontSize: 40, mb: 1 }} />
+                                            <Typography variant="h4" color="secondary.main">
+                                                {userEngagement.reviewsSubmitted}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Reviews Submitted
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <Card sx={{ height: '100%' }}>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Star sx={{ fontSize: 40, mb: 1, color: 'gold' }} />
+                                            <Typography variant="h4" sx={{ color: 'gold' }}>
+                                                {userEngagement.averageRating.toFixed(1)}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Average Rating Given
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            </Grid>
+                        </Paper>
+
                         <Typography variant="h6" gutterBottom>
                             Recent Activity
                         </Typography>
@@ -410,6 +470,18 @@ function UserProfile() {
                                 <Typography variant="body1" color="text.secondary">
                                     No recent activity found
                                 </Typography>
+                                <Button 
+                                    variant="contained"
+                                    color="primary"
+                                    sx={{ mt: 2 }}
+                                    onClick={() => {
+                                        window.dispatchEvent(new CustomEvent('navigate', {
+                                            detail: 'events'
+                                        }));
+                                    }}
+                                >
+                                    Browse Events
+                                </Button>
                             </Box>
                         ) : (
                             <List>
