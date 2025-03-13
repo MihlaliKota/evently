@@ -85,18 +85,15 @@ function UserProfile() {
     // Fetch user activities - real reviews from the API
     const fetchUserActivities = useCallback(async () => {
         if (tabValue !== 1 || !currentUserId) return;
-    
+
         setLoadingActivities(true);
-        
+
         try {
-            // Get real review data from API
-            const reviewsData = await api.reviews.getAllReviews();
-            
-            // Filter to only show current user's reviews
-            const userReviews = reviewsData.filter(review => review.user_id === currentUserId);
-            
-            // Transform reviews into activity format
-            const reviewActivities = userReviews.map(review => ({
+            // IMPORTANT: Pass user_id as a query parameter to filter server-side
+            const reviewsData = await api.reviews.getAllReviews({ user_id: currentUserId });
+
+            // No client-side filtering needed now since we're filtering at the API level
+            const reviewActivities = reviewsData.map(review => ({
                 activity_type: 'review_submitted',
                 review_id: review.review_id,
                 event_id: review.event_id,
@@ -104,23 +101,23 @@ function UserProfile() {
                 rating: review.rating,
                 created_at: review.created_at
             }));
-            
+
             // Calculate engagement stats
             const totalReviews = reviewActivities.length;
             let avgRating = 0;
-            
+
             if (totalReviews > 0) {
                 const totalRating = reviewActivities.reduce((sum, item) => sum + item.rating, 0);
                 avgRating = totalRating / totalReviews;
             }
-            
-            // Update engagement metrics
+
+            // Update engagement metrics with correct counts
             setUserEngagement(prev => ({
                 ...prev,
                 reviewsSubmitted: totalReviews,
                 averageRating: avgRating
             }));
-            
+
             setActivities(reviewActivities);
         } catch (err) {
             console.error('Error fetching activities:', err);
@@ -470,7 +467,7 @@ function UserProfile() {
                                 <Typography variant="body1" color="text.secondary">
                                     No recent activity found
                                 </Typography>
-                                <Button 
+                                <Button
                                     variant="contained"
                                     color="primary"
                                     sx={{ mt: 2 }}
