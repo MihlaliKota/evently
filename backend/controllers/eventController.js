@@ -1,0 +1,138 @@
+const eventModel = require('../models/eventModel');
+const reviewModel = require('../models/reviewModel');
+const { AppError } = require('../middleware/error');
+const asyncHandler = require('../utils/asyncHandler');
+
+const eventController = {
+  // Get all events
+  getAllEvents: asyncHandler(async (req, res) => {
+    const events = await eventModel.getAll({
+      page: req.query.page,
+      limit: req.query.limit,
+      sortBy: req.query.sort_by,
+      sortOrder: req.query.sort_order,
+      category_id: req.query.category_id
+    });
+    
+    // Set pagination headers
+    if (events.pagination) {
+      res.set('X-Total-Count', events.pagination.total);
+      res.set('X-Total-Pages', events.pagination.pages);
+      res.set('X-Current-Page', events.pagination.page);
+      res.set('X-Per-Page', events.pagination.limit);
+    }
+    
+    res.status(200).json(events.events);
+  }),
+  
+  // Get single event
+  getEvent: asyncHandler(async (req, res) => {
+    const event = await eventModel.getById(req.params.eventId);
+    
+    if (!event) {
+      throw new AppError('Event not found', 404);
+    }
+    
+    res.status(200).json(event);
+  }),
+  
+  // Create event
+  createEvent: asyncHandler(async (req, res) => {
+    const userId = req.user.userId;
+    const { name, description, event_date, location, event_type, category_id } = req.body;
+    
+    if (!name || !category_id || !event_date) {
+      throw new AppError('Name, category_id, and event_date are required', 400);
+    }
+    
+    const eventData = {
+      user_id: userId,
+      category_id,
+      name: name.trim(),
+      description: description ? description.trim() : null,
+      event_date,
+      location: location ? location.trim() : null,
+      event_type
+    };
+    
+    const newEvent = await eventModel.create(eventData);
+    res.status(201).json(newEvent);
+  }),
+  
+  // Update event
+  updateEvent: asyncHandler(async (req, res) => {
+    const eventId = req.params.eventId;
+    const { name, description, event_date, location, event_type, category_id } = req.body;
+    
+    const updatedEvent = await eventModel.update(eventId, {
+      name, description, event_date, location, event_type, category_id
+    });
+    
+    if (!updatedEvent) {
+      throw new AppError('Event not found', 404);
+    }
+    
+    if (updatedEvent.success === false) {
+      throw new AppError(updatedEvent.message, 400);
+    }
+    
+    res.status(200).json(updatedEvent);
+  }),
+  
+  // Delete event
+  deleteEvent: asyncHandler(async (req, res) => {
+    const eventId = req.params.eventId;
+    const deleted = await eventModel.delete(eventId);
+    
+    if (!deleted) {
+      throw new AppError('Event not found', 404);
+    }
+    
+    res.status(204).send();
+  }),
+  
+  // Get upcoming events
+  getUpcomingEvents: asyncHandler(async (req, res) => {
+    const events = await eventModel.getUpcoming();
+    res.status(200).json(events);
+  }),
+  
+  // Get past events
+  getPastEvents: asyncHandler(async (req, res) => {
+    const events = await eventModel.getPast();
+    res.status(200).json(events);
+  }),
+  
+  // Get event reviews
+  getEventReviews: asyncHandler(async (req, res) => {
+    const eventId = req.params.eventId;
+    const reviews = await reviewModel.getEventReviews(eventId);
+    res.status(200).json(reviews);
+  }),
+  
+  // Create review for event
+  createReview: asyncHandler(async (req, res) => {
+    const eventId = req.params.eventId;
+    const userId = req.user.userId;
+    const { review_text, rating } = req.body;
+    
+    if (!rating || rating < 1 || rating > 5) {
+      throw new AppError('Rating must be between 1 and 5', 400);
+    }
+    
+    const result = await reviewModel.create({
+      event_id: eventId,
+      user_id: userId,
+      review_text,
+      rating
+    });
+    
+    if (result.error) {
+      throw new AppError(result.error, result.status);
+    }
+    
+    res.status(201).json(result);
+  })
+};
+
+module.exports = eventController;
