@@ -159,9 +159,9 @@ const eventModel = {
     
     // Invalidate caches
     cache.del(getCacheKey(eventId));
-    cache.delPattern('events:list');
-    cache.delPattern('events:upcoming');
-    cache.delPattern('events:past');
+    cache.invalidateByPrefix('events:list');
+    cache.invalidateByPrefix('events:upcoming');
+    cache.invalidateByPrefix('events:past');
     
     const [updatedEvent] = await pool.query(
       'SELECT * FROM events WHERE event_id = ?',
@@ -191,9 +191,9 @@ const eventModel = {
       
       // Invalidate caches
       cache.del(getCacheKey(eventId));
-      cache.delPattern('events:list');
-      cache.delPattern('events:upcoming');
-      cache.delPattern('events:past');
+      cache.invalidateByPrefix('events:list');
+      cache.invalidateByPrefix('events:upcoming');
+      cache.invalidateByPrefix('events:past');
       
       return result.affectedRows > 0;
     } catch (error) {
