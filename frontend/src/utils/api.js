@@ -92,17 +92,16 @@ const apiCache = {
 };
 
 // Auth-related API calls
-export const authAPI = {
-    login: (credentials) => apiRequest('/api/login', {
-        method: 'POST',
-        body: JSON.stringify(credentials),
+const authAPI = {
+    login: (credentials) => apiRequest('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
     }),
-
-    register: (userData) => apiRequest('/api/register', {
-        method: 'POST',
-        body: JSON.stringify(userData),
+    register: (userData) => apiRequest('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
     }),
-};
+  };
 
 // Events-related API calls
 export const eventsAPI = {
