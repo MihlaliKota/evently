@@ -1,6 +1,7 @@
 const reviewModel = require('../models/reviewModel');
 const { AppError } = require('../middleware/error');
 const asyncHandler = require('../utils/asyncHandler');
+const pool = require('../config/database');
 
 const reviewController = {
   // Get all reviews
@@ -73,7 +74,7 @@ const reviewController = {
     const userId = req.user.userId;
     
     // Get review to check ownership
-    const [reviews] = await (await import('../config/database')).default.query(
+    const [reviews] = await pool.query(
       'SELECT * FROM reviews WHERE review_id = ?',
       [reviewId]
     );

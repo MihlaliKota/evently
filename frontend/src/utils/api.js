@@ -63,6 +63,12 @@ const apiRequest = async (endpoint, options = {}) => {
         try {
             const data = await response.json();
             
+            // Process response if needed
+            if (options.processResponse && typeof options.processResponse === 'function') {
+                const processedData = options.processResponse(response, data);
+                return processedData;
+            }
+            
             // Cache successful GET responses
             if (!options.method || options.method === 'GET') {
                 apiCache.set(cacheKey, data);
@@ -138,9 +144,57 @@ export const eventsAPI = {
         method: 'DELETE',
     }),
 
-    getUpcomingEvents: () => apiRequest('/api/events/upcoming'),
+    getUpcomingEvents: (params = {}) => {
+        const queryParams = new URLSearchParams();
+        
+        // Add pagination params
+        if (params.page) queryParams.append('page', params.page);
+        if (params.limit) queryParams.append('limit', params.limit);
+        if (params.sort_by) queryParams.append('sort_by', params.sort_by);
+        if (params.sort_order) queryParams.append('sort_order', params.sort_order);
+        
+        const queryString = queryParams.toString();
+        return apiRequest(`/api/events/upcoming${queryString ? `?${queryString}` : ''}`, {
+          processResponse: (response, data) => {
+            // Extract pagination metadata from headers
+            return {
+              events: data,
+              pagination: {
+                total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                limit: parseInt(response.headers.get('X-Per-Page') || '10')
+              }
+            };
+          }
+        });
+    },
 
-    getPastEvents: () => apiRequest('/api/events/past'),
+    getPastEvents: (params = {}) => {
+        const queryParams = new URLSearchParams();
+        
+        // Add pagination params
+        if (params.page) queryParams.append('page', params.page);
+        if (params.limit) queryParams.append('limit', params.limit);
+        if (params.sort_by) queryParams.append('sort_by', params.sort_by);
+        if (params.sort_order) queryParams.append('sort_order', params.sort_order);
+        
+        const queryString = queryParams.toString();
+        return apiRequest(`/api/events/past${queryString ? `?${queryString}` : ''}`, {
+          processResponse: (response, data) => {
+            // Extract pagination metadata from headers
+            return {
+              events: data,
+              pagination: {
+                total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                limit: parseInt(response.headers.get('X-Per-Page') || '10')
+              }
+            };
+          }
+        });
+    }
 };
 
 // Reviews-related API calls

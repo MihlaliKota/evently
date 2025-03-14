@@ -35,6 +35,21 @@ function EventsList() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
     const [selectedActionEvent, setSelectedActionEvent] = useState(null);
+    
+    // Pagination states
+    const [upcomingPagination, setUpcomingPagination] = useState({
+        page: 1,
+        limit: 6,
+        total: 0,
+        pages: 0
+    });
+
+    const [pastPagination, setPastPagination] = useState({
+        page: 1,
+        limit: 6,
+        total: 0,
+        pages: 0
+    });
 
     // Extract user ID from JWT on component mount
     useEffect(() => {
@@ -49,57 +64,74 @@ function EventsList() {
         }
     }, []);
 
-    // Fetch events data
-    const fetchEvents = useCallback(async () => {
+    // Fetch upcoming events with pagination
+    const fetchUpcomingEvents = useCallback(async () => {
+        if (activeTab !== 0) return; // Only fetch when on upcoming tab
+        
         setLoading(true);
         setError(null);
         
         try {
-            const eventsData = await api.events.getAllEvents();
-            
-            // Process events into upcoming and past categories
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const upcomingEvents = [];
-            const pastEvents = [];
-            
-            eventsData.forEach(event => {
-                try {
-                    const eventDate = new Date(event.event_date);
-                    
-                    if (eventDate >= today) {
-                        upcomingEvents.push(event);
-                    } else {
-                        pastEvents.push({
-                            ...event,
-                            review_count: event.review_count || 0,
-                            avg_rating: event.avg_rating || 0
-                        });
-                    }
-                } catch (error) {
-                    console.error("Date parsing error:", error);
-                    upcomingEvents.push(event);
-                }
+            const result = await api.events.getUpcomingEvents({
+                page: upcomingPagination.page,
+                limit: upcomingPagination.limit,
+                sort_by: 'event_date',
+                sort_order: 'asc'
             });
             
-            // Sort events for better UX
-            upcomingEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-            pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+            setEvents(prev => ({
+                ...prev,
+                upcoming: result.events || []
+            }));
             
-            setEvents({ upcoming: upcomingEvents, past: pastEvents });
+            // Update pagination state
+            setUpcomingPagination(result.pagination || upcomingPagination);
         } catch (error) {
-            console.error("Error fetching events:", error);
-            setError(error.message || "Failed to load events");
+            console.error("Error fetching upcoming events:", error);
+            setError(error.message || "Failed to load upcoming events");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [activeTab, upcomingPagination.page, upcomingPagination.limit]);
 
-    // Initial data load
+    // Fetch past events with pagination
+    const fetchPastEvents = useCallback(async () => {
+        if (activeTab !== 1) return; // Only fetch when on past events tab
+        
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const result = await api.events.getPastEvents({
+                page: pastPagination.page,
+                limit: pastPagination.limit,
+                sort_by: 'event_date',
+                sort_order: 'desc'
+            });
+            
+            setEvents(prev => ({
+                ...prev,
+                past: result.events || []
+            }));
+            
+            // Update pagination state
+            setPastPagination(result.pagination || pastPagination);
+        } catch (error) {
+            console.error("Error fetching past events:", error);
+            setError(error.message || "Failed to load past events");
+        } finally {
+            setLoading(false);
+        }
+    }, [activeTab, pastPagination.page, pastPagination.limit]);
+
+    // Effect to load events based on active tab
     useEffect(() => {
-        fetchEvents();
-    }, [fetchEvents]);
+        if (activeTab === 0) {
+            fetchUpcomingEvents();
+        } else {
+            fetchPastEvents();
+        }
+    }, [activeTab, fetchUpcomingEvents, fetchPastEvents]);
 
     // Save favorites to localStorage when they change
     useEffect(() => {
@@ -135,8 +167,14 @@ function EventsList() {
     const handleCloseReviewDialog = useCallback(() => {
         setSelectedEvent(null);
         setReviewDialogOpen(false);
-        fetchEvents(); // Refresh events after potential review changes
-    }, [fetchEvents]);
+        
+        // Refresh events after potential review changes
+        if (activeTab === 0) {
+            fetchUpcomingEvents();
+        } else {
+            fetchPastEvents();
+        }
+    }, [activeTab, fetchUpcomingEvents, fetchPastEvents]);
 
     const handleOpenActionMenu = useCallback((event, eventData) => {
         event.stopPropagation();
@@ -164,7 +202,13 @@ function EventsList() {
             try {
                 setLoading(true);
                 await api.events.deleteEvent(selectedActionEvent.event_id);
-                fetchEvents(); // Refresh events after deletion
+                
+                // Refresh events based on current tab
+                if (activeTab === 0) {
+                    fetchUpcomingEvents();
+                } else {
+                    fetchPastEvents();
+                }
             } catch (error) {
                 console.error("Error deleting event:", error);
                 setError(`Error deleting event: ${error.message}`);
@@ -172,12 +216,32 @@ function EventsList() {
                 setLoading(false);
             }
         }
-    }, [handleCloseActionMenu, selectedActionEvent, fetchEvents]);
+    }, [handleCloseActionMenu, selectedActionEvent, activeTab, fetchUpcomingEvents, fetchPastEvents]);
 
     const handleEventCreated = useCallback(() => {
-        fetchEvents(); // Refresh all events when a new one is created
+        // Refresh all events when a new one is created
+        if (activeTab === 0) {
+            fetchUpcomingEvents();
+        } else {
+            fetchPastEvents();
+        }
         setCreateEventOpen(false);
-    }, [fetchEvents]);
+    }, [activeTab, fetchUpcomingEvents, fetchPastEvents]);
+
+    // Handle pagination
+    const handleChangePage = useCallback((newPage) => {
+        if (activeTab === 0) {
+            setUpcomingPagination(prev => ({
+                ...prev,
+                page: newPage
+            }));
+        } else {
+            setPastPagination(prev => ({
+                ...prev,
+                page: newPage
+            }));
+        }
+    }, [activeTab]);
 
     // Helper functions
     const isCreatedByUser = useCallback((event) => {
@@ -218,6 +282,33 @@ function EventsList() {
             (event.description && event.description.toLowerCase().includes(search))
         );
     }, [searchTerm]);
+
+    // Render pagination controls
+    const renderPagination = useCallback(() => {
+        const pagination = activeTab === 0 ? upcomingPagination : pastPagination;
+        
+        return (
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                <Button
+                    disabled={pagination.page <= 1}
+                    onClick={() => handleChangePage(pagination.page - 1)}
+                >
+                    Previous
+                </Button>
+                
+                <Typography sx={{ mx: 2, display: 'flex', alignItems: 'center' }}>
+                    Page {pagination.page} of {pagination.pages || 1}
+                </Typography>
+                
+                <Button
+                    disabled={pagination.page >= pagination.pages}
+                    onClick={() => handleChangePage(pagination.page + 1)}
+                >
+                    Next
+                </Button>
+            </Box>
+        );
+    }, [activeTab, upcomingPagination, pastPagination, handleChangePage]);
 
     // Memoized render functions for better performance
     const renderEventsList = useCallback((displayEvents, isPast = false) => {
@@ -511,6 +602,9 @@ function EventsList() {
                     <CircularProgress size={40} />
                 </Box>
             ) : activeEventsList}
+
+            {/* Pagination controls */}
+            {!loading && renderPagination()}
 
             {/* Only show FAB Create Event button for admin users */}
             {userRole === 'admin' && (

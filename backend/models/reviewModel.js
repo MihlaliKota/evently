@@ -128,7 +128,7 @@ const reviewModel = {
     // Invalidate caches
     const review = reviews[0];
     cache.del(`event:${review.event_id}:reviews`);
-    cache.delPattern(`reviews:*`);
+    cache.invalidateByPrefix(`reviews:*`);
     
     return review;
   },
