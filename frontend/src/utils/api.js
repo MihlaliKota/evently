@@ -54,14 +54,26 @@ const apiRequest = async (endpoint, options = {}) => {
             throw new Error(errorData.error || `HTTP Error: ${response.status}`);
         }
 
-        const data = await response.json();
-        
-        // Cache successful GET responses
-        if (!options.method || options.method === 'GET') {
-            apiCache.set(cacheKey, data);
+        // Handle 204 No Content responses
+        if (response.status === 204) {
+            return { success: true };
         }
-        
-        return data;
+
+        // Try to parse response as JSON
+        try {
+            const data = await response.json();
+            
+            // Cache successful GET responses
+            if (!options.method || options.method === 'GET') {
+                apiCache.set(cacheKey, data);
+            }
+            
+            return data;
+        } catch (jsonError) {
+            // If JSON parsing fails but response was successful, return success object
+            console.warn('Response could not be parsed as JSON:', jsonError);
+            return { success: true };
+        }
     } catch (error) {
         console.error('API Request Error:', error);
         if (handleTokenExpiration(error)) {
