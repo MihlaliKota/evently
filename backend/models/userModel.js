@@ -182,15 +182,35 @@ const userModel = {
     return activities;
   },
   
-  async getAllUsers() {
-    const cacheKey = 'users:all:v2';
-    const cachedUsers = cache.get(cacheKey);
+  async getAllUsers(options = {}) {
+    const { page = 1, limit = 10, search = '', role = 'all' } = options;
+    const offset = (page - 1) * limit;
     
-    if (cachedUsers) {
-        return cachedUsers;
+    // Build dynamic query conditions
+    const conditions = [];
+    const params = [];
+    
+    if (search) {
+        conditions.push('(username LIKE ? OR email LIKE ?)');
+        params.push(`%${search}%`, `%${search}%`);
     }
     
+    if (role !== 'all') {
+        conditions.push('role = ?');
+        params.push(role);
+    }
+    
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    
     try {
+        // First, get total count for pagination
+        const [countResult] = await pool.query(
+            `SELECT COUNT(*) AS total FROM users ${whereClause}`,
+            params
+        );
+        const totalUsers = countResult[0].total;
+        
+        // Then fetch paginated users
         const [users] = await pool.query(`
             SELECT 
                 user_id, 
@@ -201,16 +221,23 @@ const userModel = {
                 profile_picture, 
                 created_at 
             FROM users 
+            ${whereClause}
             ORDER BY created_at DESC
-        `);
+            LIMIT ? OFFSET ?
+        `, [...params, parseInt(limit), offset]);
         
-        // Cache for 10 minutes with more robust mechanism
-        cache.set(cacheKey, users, 10 * 60);
-        
-        return users;
+        return {
+            users,
+            pagination: {
+                total: totalUsers,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                pages: Math.ceil(totalUsers / limit)
+            }
+        };
     } catch (error) {
         console.error('Database error fetching users:', error);
-        throw error; // Rethrow for controller to handle
+        throw error;
     }
 }
 };

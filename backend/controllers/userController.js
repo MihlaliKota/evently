@@ -68,11 +68,24 @@ const userController = {
   
   // Get all users (admin only)
   getAllUsers: asyncHandler(async (req, res) => {
+    const { page = 1, limit = 3, search = '', role = 'all' } = req.query;
+    
     try {
-        const users = await userModel.getAllUsers();
+        const result = await userModel.getAllUsers({
+            page: parseInt(page),
+            limit: parseInt(limit),
+            search,
+            role
+        });
+        
+        // Set pagination headers
+        res.set('X-Total-Count', result.pagination.total);
+        res.set('X-Total-Pages', result.pagination.pages);
+        res.set('X-Current-Page', result.pagination.page);
+        res.set('X-Per-Page', result.pagination.limit);
         
         // Sanitize user data to remove sensitive information
-        const sanitizedUsers = users.map(user => ({
+        const sanitizedUsers = result.users.map(user => ({
             user_id: user.user_id,
             username: user.username,
             email: user.email,
@@ -87,7 +100,7 @@ const userController = {
         console.error('Error fetching users:', error);
         throw new AppError('Failed to retrieve users', 500);
     }
-})
+}),
 };
 
 module.exports = userController;

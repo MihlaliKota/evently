@@ -272,7 +272,23 @@ export const userAPI = {
 
     getUserActivities: () => apiRequest('/api/users/activities'),
 
-    getAllUsers: () => apiRequest('/api/admin/users'),
+    getAllUsers: (params = {}) => {
+        const queryParams = new URLSearchParams(params).toString();
+        return apiRequest(`/api/admin/users${queryParams ? `?${queryParams}` : ''}`, {
+            processResponse: (response, data) => {
+                // Extract pagination metadata from headers
+                return {
+                    users: data,
+                    pagination: {
+                        total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                        page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                        limit: parseInt(response.headers.get('X-Per-Page') || '10')
+                    }
+                };
+            }
+        });
+    },
 };
 
 // Categories-related API calls

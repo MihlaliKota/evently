@@ -12,7 +12,7 @@ import {
     CheckCircle, Cancel, Delete, Edit, Refresh, FilterList, ViewList,
     MoreVert, Event, Star, Person, CalendarMonth, Info, Check, Close
 } from '@mui/icons-material';
-import { fetchApi } from '../utils/api';
+import api from '../utils/api';
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState(0);
@@ -78,8 +78,13 @@ function AdminDashboard() {
         setError(null);
         
         try {
-            // Directly use the API service method
-            const users = await api.users.getAllUsers();
+            // Use API method with pagination and filtering
+            const users = await api.users.getAllUsers({
+                page: page + 1,
+                limit: rowsPerPage,
+                search: searchTerm,
+                role: filters.userRole
+            });
             
             setUsers(users);
             setError(null);
