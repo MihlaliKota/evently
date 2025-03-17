@@ -104,7 +104,7 @@ const eventController = {
 
   // Get upcoming events
   getUpcomingEvents: asyncHandler(async (req, res) => {
-    const { page = 1, limit = 12, sortBy = 'event_date', sortOrder = 'asc' } = req.query;
+    const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'asc' } = req.query;
 
     const events = await eventModel.getUpcomingPaginated({
       page: parseInt(page),
@@ -126,7 +126,7 @@ const eventController = {
 
   // Get past events
   getPastEvents: asyncHandler(async (req, res) => {
-    const { page = 1, limit = 12, sortBy = 'event_date', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'desc' } = req.query;
 
     const events = await eventModel.getPastPaginated({
       page: parseInt(page),

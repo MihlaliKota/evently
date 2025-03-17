@@ -7,7 +7,7 @@ const getCacheKey = (id) => `event:${id}`;
 const eventModel = {
   // Get all events with optimized query
   async getAll(options = {}) {
-    const { page = 1, limit = 12, sortBy, sortOrder, category_id } = options;
+    const { page = 1, limit = 3, sortBy, sortOrder, category_id } = options;
     const offset = (page - 1) * limit;
 
     // Build query parts
@@ -185,7 +185,7 @@ const eventModel = {
 
   // Get upcoming events with pagination
   async getUpcomingPaginated(options = {}) {
-    const { page = 1, limit = 12, sortBy = 'event_date', sortOrder = 'asc' } = options;
+    const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'asc' } = options;
     const offset = (page - 1) * limit;
 
     // Build base query
@@ -227,7 +227,7 @@ const eventModel = {
 
   // Get past events with pagination
   async getPastPaginated(options = {}) {
-    const { page = 1, limit = 12, sortBy = 'event_date', sortOrder = 'desc' } = options;
+    const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'desc' } = options;
     const offset = (page - 1) * limit;
 
     // Build base query

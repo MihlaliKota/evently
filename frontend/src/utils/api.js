@@ -193,7 +193,7 @@ export const eventsAPI = {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
                         pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
                         page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                        limit: parseInt(response.headers.get('X-Per-Page') || '12')
+                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
                     }
                 };
             }
@@ -219,7 +219,7 @@ export const eventsAPI = {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
                         pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
                         page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                        limit: parseInt(response.headers.get('X-Per-Page') || '12')
+                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
                     }
                 };
             }
