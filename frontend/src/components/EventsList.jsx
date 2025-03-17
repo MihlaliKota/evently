@@ -371,8 +371,17 @@ function EventsList() {
                             <CardMedia
                                 component="img"
                                 height="140"
-                                image={`https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`}
+                                // Use uploaded image if available, otherwise use placeholder
+                                image={event.image_path ? 
+                                    `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${event.image_path}` :
+                                    `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`
+                                }
                                 alt={event.name}
+                                onError={(e) => {
+                                    console.error('Image failed to load:', event.image_path);
+                                    // Fall back to placeholder on error
+                                    e.target.src = `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`;
+                                }}
                             />
                             <CardContent sx={{ flexGrow: 1 }}>
                                 <Box sx={{ 

@@ -153,24 +153,24 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
     // Form submission
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
-
+        
         if (!validateForm()) {
             return;
         }
-
+        
         setLoading(true);
         setError(null);
         setSuccessMessage(null);
-
+        
         try {
             const token = localStorage.getItem('authToken');
             if (!token) {
                 throw new Error('You must be logged in to create an event');
             }
-
+            
             // Create FormData object to handle file upload
             const formDataObj = new FormData();
-
+            
             // Add all form fields to FormData
             Object.keys(formData).forEach(key => {
                 if (key === 'event_date' && formData[key] instanceof Date) {
@@ -179,19 +179,19 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                     formDataObj.append(key, formData[key]);
                 }
             });
-
+            
             // Add image file if selected
             if (selectedImage) {
                 formDataObj.append('image', selectedImage);
                 console.log('Image added to form data:', selectedImage.name, selectedImage.type, selectedImage.size);
             }
-
+            
             // Log what we're sending (for debugging)
             console.log('Submitting form with fields:', Object.keys(formData).map(k => `${k}: ${formData[k]}`));
-
+            
             // Define the API URL directly to avoid any issues with the utility function
             const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/events`;
-
+            
             // Create custom fetch with proper headers
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -201,17 +201,17 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                     // Do NOT set Content-Type header - browser will set it with boundary for multipart/form-data
                 }
             });
-
+            
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Server response:', response.status, errorText);
                 throw new Error(`Server error: ${response.status} ${errorText || 'Unknown error'}`);
             }
-
+            
             const data = await response.json();
-
+            
             setSuccessMessage('Event created successfully!');
-
+            
             // Reset form
             setFormData({
                 name: '',
@@ -222,16 +222,16 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             });
             setSelectedImage(null);
             setImagePreview(null);
-
+            
             if (onEventCreated) {
                 onEventCreated(data);
             }
-
+            
             // Close dialog after success
             setTimeout(() => {
                 onClose();
             }, 1500);
-
+            
         } catch (error) {
             console.error('Error creating event:', error);
             setError(error.message || 'Failed to create event. Please try again.');
