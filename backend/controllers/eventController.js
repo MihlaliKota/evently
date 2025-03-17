@@ -38,13 +38,17 @@ const eventController = {
 
   // Create event
   createEvent: asyncHandler(async (req, res) => {
+    // Log request for debugging
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+    
     const userId = req.user.userId;
     const { name, description, event_date, location, event_type, category_id } = req.body;
-
+  
     if (!name || !category_id || !event_date) {
       throw new AppError('Name, category_id, and event_date are required', 400);
     }
-
+  
     // Handle image path from file upload
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 

@@ -145,14 +145,28 @@ export const eventsAPI = {
     }),
 
     createEventWithImage: (formData) => {
+        const token = localStorage.getItem('authToken');
+
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         return apiRequest('/api/events', {
             method: 'POST',
             body: formData,
-            headers: {},
+            headers: headers,
         });
     },
 
     updateEventWithImage: (eventId, formData) => {
+        const token = localStorage.getItem('authToken');
+
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         return apiRequest(`/api/events/${eventId}`, {
             method: 'PUT',
             body: formData,

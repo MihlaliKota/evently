@@ -23,30 +23,30 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         event_date: new Date(),
         category_id: ''
     });
-    
+
     // Image state
     const [selectedImage, setSelectedImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
-    
+
     // UI state
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccessMessage] = useState(null);
-    
+
     // Get user role from localStorage
-    const [userRole, setUserRole] = useState(() => 
+    const [userRole, setUserRole] = useState(() =>
         localStorage.getItem('userRole') || 'user'
     );
-    
+
     // Fetch categories when dialog opens
     useEffect(() => {
         if (open) {
             fetchCategories();
         }
     }, [open]);
-    
+
     // Reset form when dialog closes
     useEffect(() => {
         if (!open) {
@@ -63,7 +63,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             setSuccessMessage(null);
         }
     }, [open]);
-    
+
     // Fetch event categories
     const fetchCategories = useCallback(async () => {
         setLoadingCategories(true);
@@ -77,7 +77,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             setLoadingCategories(false);
         }
     }, []);
-    
+
     // Form input handlers
     const handleInputChange = useCallback((e) => {
         const { name, value } = e.target;
@@ -85,18 +85,18 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             ...prev,
             [name]: value
         }));
-        
+
         // Clear error when user starts typing
         if (error) setError(null);
     }, [error]);
-    
+
     const handleDateChange = useCallback((newDate) => {
         setFormData(prev => ({
             ...prev,
             event_date: newDate
         }));
     }, []);
-    
+
     // Handle image selection
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -106,15 +106,15 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 setError('Please select an image file');
                 return;
             }
-            
+
             // Check file size (limit to 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 setError('Image size should be less than 5MB');
                 return;
             }
-            
+
             setSelectedImage(file);
-            
+
             // Create image preview
             const reader = new FileReader();
             reader.onload = () => {
@@ -123,73 +123,95 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             reader.readAsDataURL(file);
         }
     };
-    
+
     // Remove selected image
     const handleRemoveImage = () => {
         setSelectedImage(null);
         setImagePreview(null);
     };
-    
+
     // Form validation
     const validateForm = useCallback(() => {
         if (userRole !== 'admin') {
             setError('Only administrators can create events');
             return false;
         }
-        
+
         if (!formData.name.trim()) {
             setError('Event name is required');
             return false;
         }
-        
+
         if (!formData.category_id) {
             setError('Please select a category');
             return false;
         }
-        
+
         return true;
     }, [userRole, formData]);
-    
+
     // Form submission
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
-        
+
         if (!validateForm()) {
             return;
         }
-        
+
         setLoading(true);
         setError(null);
         setSuccessMessage(null);
-        
+
         try {
             const token = localStorage.getItem('authToken');
             if (!token) {
                 throw new Error('You must be logged in to create an event');
             }
-            
+
             // Create FormData object to handle file upload
             const formDataObj = new FormData();
-            
+
             // Add all form fields to FormData
             Object.keys(formData).forEach(key => {
                 if (key === 'event_date' && formData[key] instanceof Date) {
                     formDataObj.append(key, formData[key].toISOString());
-                } else {
+                } else if (formData[key] !== null && formData[key] !== undefined) {
                     formDataObj.append(key, formData[key]);
                 }
             });
-            
+
             // Add image file if selected
             if (selectedImage) {
                 formDataObj.append('image', selectedImage);
+                console.log('Image added to form data:', selectedImage.name, selectedImage.type, selectedImage.size);
             }
-            
-            // Create event with FormData
-            const data = await api.events.createEventWithImage(formDataObj);
-            
+
+            // Log what we're sending (for debugging)
+            console.log('Submitting form with fields:', Object.keys(formData).map(k => `${k}: ${formData[k]}`));
+
+            // Define the API URL directly to avoid any issues with the utility function
+            const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/events`;
+
+            // Create custom fetch with proper headers
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                body: formDataObj,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // Do NOT set Content-Type header - browser will set it with boundary for multipart/form-data
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', response.status, errorText);
+                throw new Error(`Server error: ${response.status} ${errorText || 'Unknown error'}`);
+            }
+
+            const data = await response.json();
+
             setSuccessMessage('Event created successfully!');
-            
+
             // Reset form
             setFormData({
                 name: '',
@@ -200,16 +222,16 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             });
             setSelectedImage(null);
             setImagePreview(null);
-            
+
             if (onEventCreated) {
                 onEventCreated(data);
             }
-            
+
             // Close dialog after success
             setTimeout(() => {
                 onClose();
             }, 1500);
-            
+
         } catch (error) {
             console.error('Error creating event:', error);
             setError(error.message || 'Failed to create event. Please try again.');
@@ -217,7 +239,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             setLoading(false);
         }
     }, [formData, selectedImage, validateForm, onEventCreated, onClose]);
-    
+
     const handleClose = useCallback(() => {
         setFormData({
             name: '',
@@ -232,12 +254,12 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         setSuccessMessage(null);
         onClose();
     }, [onClose]);
-    
+
     // If user is not admin, show access denied message
     if (userRole !== 'admin') {
         return (
-            <Dialog 
-                open={open} 
+            <Dialog
+                open={open}
                 onClose={handleClose}
                 fullWidth
                 maxWidth="sm"
@@ -245,8 +267,8 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 <DialogTitle>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography variant="h6">Access Denied</Typography>
-                        <Button 
-                            color="inherit" 
+                        <Button
+                            color="inherit"
                             onClick={handleClose}
                             startIcon={<Close />}
                         >
@@ -254,7 +276,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                         </Button>
                     </Box>
                 </DialogTitle>
-                
+
                 <DialogContent dividers>
                     <Alert severity="error" icon={<Error />} sx={{ mb: 2 }}>
                         Only administrators can create events
@@ -263,7 +285,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                         You need administrator privileges to create and manage events. Please contact an administrator if you need to create an event.
                     </Typography>
                 </DialogContent>
-                
+
                 <DialogActions sx={{ p: 2 }}>
                     <Button
                         variant="outlined"
@@ -275,10 +297,10 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             </Dialog>
         );
     }
-    
+
     return (
-        <Dialog 
-            open={open} 
+        <Dialog
+            open={open}
             onClose={handleClose}
             fullWidth
             maxWidth="md"
@@ -286,8 +308,8 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             <DialogTitle>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Typography variant="h6">Create New Event</Typography>
-                    <Button 
-                        color="inherit" 
+                    <Button
+                        color="inherit"
                         onClick={handleClose}
                         startIcon={<Close />}
                     >
@@ -295,7 +317,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                     </Button>
                 </Box>
             </DialogTitle>
-            
+
             <form onSubmit={handleSubmit}>
                 <DialogContent dividers>
                     {error && (
@@ -303,13 +325,13 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                             {error}
                         </Alert>
                     )}
-                    
+
                     {success && (
                         <Alert severity="success" sx={{ mb: 2 }}>
                             {success}
                         </Alert>
                     )}
-                    
+
                     <Grid container spacing={3}>
                         <Grid item xs={12}>
                             <TextField
@@ -328,10 +350,10 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                 }}
                             />
                         </Grid>
-                        
+
                         <Grid item xs={12} sm={6}>
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                <DateTimePicker 
+                                <DateTimePicker
                                     label="Event Date & Time"
                                     value={formData.event_date}
                                     onChange={handleDateChange}
@@ -340,7 +362,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                 />
                             </LocalizationProvider>
                         </Grid>
-                        
+
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth required>
                                 <InputLabel id="category-label">Category</InputLabel>
@@ -370,7 +392,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        
+
                         <Grid item xs={12}>
                             <TextField
                                 label="Location"
@@ -387,7 +409,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                 }}
                             />
                         </Grid>
-                        
+
                         <Grid item xs={12}>
                             <TextField
                                 label="Description"
@@ -406,7 +428,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                 }}
                             />
                         </Grid>
-                        
+
                         {/* Image Upload Section */}
                         <Grid item xs={12}>
                             <Box sx={{ border: '1px dashed #ccc', p: 2, borderRadius: 1 }}>
@@ -414,22 +436,22 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                     <Image sx={{ mr: 1 }} />
                                     Event Image
                                 </Typography>
-                                
+
                                 {imagePreview ? (
                                     <Box sx={{ position: 'relative', mt: 2, mb: 2 }}>
-                                        <img 
-                                            src={imagePreview} 
-                                            alt="Event preview" 
-                                            style={{ 
-                                                width: '100%', 
-                                                maxHeight: '200px', 
-                                                objectFit: 'contain' 
-                                            }} 
+                                        <img
+                                            src={imagePreview}
+                                            alt="Event preview"
+                                            style={{
+                                                width: '100%',
+                                                maxHeight: '200px',
+                                                objectFit: 'contain'
+                                            }}
                                         />
-                                        <IconButton 
-                                            sx={{ 
-                                                position: 'absolute', 
-                                                top: 0, 
+                                        <IconButton
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
                                                 right: 0,
                                                 backgroundColor: 'rgba(0,0,0,0.5)',
                                                 color: 'white',
@@ -459,7 +481,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                         />
                                     </Button>
                                 )}
-                                
+
                                 <Typography variant="caption" color="text.secondary">
                                     Recommended image size: 1200x600 pixels. Maximum file size: 5MB.
                                 </Typography>
@@ -467,7 +489,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                         </Grid>
                     </Grid>
                 </DialogContent>
-                
+
                 <DialogActions sx={{ p: 2 }}>
                     <Button
                         variant="contained"

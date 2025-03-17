@@ -1,7 +1,7 @@
 const corsOptions = {
   origin: [
     'http://localhost:5173',
-    'https://evently-five-pi.vercel.app',
+    'https://evently-five-pi.vercel.app',  // Add your Vercel domain
     'https://evently-production-cd21.up.railway.app'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
