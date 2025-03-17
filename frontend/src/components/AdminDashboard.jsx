@@ -75,24 +75,19 @@ function AdminDashboard() {
 
     const fetchUsers = async () => {
         setLoading(true);
+        setError(null);
+        
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch users: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setUsers(data.users || data); // Handle both formats
+            // Directly use the API service method
+            const users = await api.users.getAllUsers();
+            
+            setUsers(users);
             setError(null);
         } catch (error) {
             console.error('Error fetching users:', error);
-            setError('Failed to load users');
+            
+            // Provide a more descriptive error message
+            setError(error.response?.data?.message || 'Failed to load users. Please try again.');
         } finally {
             setLoading(false);
         }

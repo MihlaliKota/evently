@@ -182,24 +182,37 @@ const userModel = {
     return activities;
   },
   
-  // Get all users (admin only)
   async getAllUsers() {
-    const cacheKey = 'users:all';
+    const cacheKey = 'users:all:v2';
     const cachedUsers = cache.get(cacheKey);
     
     if (cachedUsers) {
-      return cachedUsers;
+        return cachedUsers;
     }
     
-    const [users] = await pool.query(
-      'SELECT user_id, username, email, bio, profile_picture, created_at, role FROM users'
-    );
-    
-    // Cache for 5 minutes
-    cache.set(cacheKey, users, 5 * 60);
-    
-    return users;
-  }
+    try {
+        const [users] = await pool.query(`
+            SELECT 
+                user_id, 
+                username, 
+                email, 
+                role, 
+                bio, 
+                profile_picture, 
+                created_at 
+            FROM users 
+            ORDER BY created_at DESC
+        `);
+        
+        // Cache for 10 minutes with more robust mechanism
+        cache.set(cacheKey, users, 10 * 60);
+        
+        return users;
+    } catch (error) {
+        console.error('Database error fetching users:', error);
+        throw error; // Rethrow for controller to handle
+    }
+}
 };
 
 module.exports = userModel;

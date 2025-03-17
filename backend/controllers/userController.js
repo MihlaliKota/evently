@@ -68,9 +68,26 @@ const userController = {
   
   // Get all users (admin only)
   getAllUsers: asyncHandler(async (req, res) => {
-    const users = await userModel.getAllUsers();
-    res.status(200).json(users);
-  })
+    try {
+        const users = await userModel.getAllUsers();
+        
+        // Sanitize user data to remove sensitive information
+        const sanitizedUsers = users.map(user => ({
+            user_id: user.user_id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            created_at: user.created_at,
+            bio: user.bio || null,
+            profile_picture: user.profile_picture || null
+        }));
+
+        res.status(200).json(sanitizedUsers);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        throw new AppError('Failed to retrieve users', 500);
+    }
+})
 };
 
 module.exports = userController;
