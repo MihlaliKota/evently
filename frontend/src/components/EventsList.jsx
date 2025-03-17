@@ -356,8 +356,9 @@ function EventsList() {
                                 flexDirection: 'column',
                                 transition: 'transform 0.2s, box-shadow 0.2s',
                                 '&:hover': {
-                                    transform: 'translateY(-4px)',
+                                    transform: 'translateY(-4px) scale(1.05)',
                                     boxShadow: 6,
+                                    zIndex: 1, 
                                 },
                                 position: 'relative',
                                 cursor: 'pointer',

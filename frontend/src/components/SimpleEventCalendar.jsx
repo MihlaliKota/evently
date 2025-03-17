@@ -381,8 +381,9 @@ function SimpleEventCalendar() {
                             cursor: 'pointer',
                             transition: 'transform 0.2s, box-shadow 0.2s',
                             '&:hover': {
-                                transform: 'translateY(-2px)',
+                                transform: 'translateY(-2px) scale(1.03)',
                                 boxShadow: 3,
+                                zIndex: 1, s
                             },
                             borderLeft: '4px solid',
                             borderColor: getCategoryColor(event.category_id)
