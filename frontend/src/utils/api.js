@@ -62,18 +62,18 @@ const apiRequest = async (endpoint, options = {}) => {
         // Try to parse response as JSON
         try {
             const data = await response.json();
-            
+
             // Process response if needed
             if (options.processResponse && typeof options.processResponse === 'function') {
                 const processedData = options.processResponse(response, data);
                 return processedData;
             }
-            
+
             // Cache successful GET responses
             if (!options.method || options.method === 'GET') {
                 apiCache.set(cacheKey, data);
             }
-            
+
             return data;
         } catch (jsonError) {
             // If JSON parsing fails but response was successful, return success object
@@ -112,14 +112,14 @@ const apiCache = {
 // Auth-related API calls
 const authAPI = {
     login: (credentials) => apiRequest('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
+        method: 'POST',
+        body: JSON.stringify(credentials),
     }),
     register: (userData) => apiRequest('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
+        method: 'POST',
+        body: JSON.stringify(userData),
     }),
-  };
+};
 
 // Events-related API calls
 export const eventsAPI = {
@@ -144,55 +144,71 @@ export const eventsAPI = {
         method: 'DELETE',
     }),
 
+    createEventWithImage: (formData) => {
+        return apiRequest('/api/events', {
+            method: 'POST',
+            body: formData,
+            headers: {},
+        });
+    },
+
+    updateEventWithImage: (eventId, formData) => {
+        return apiRequest(`/api/events/${eventId}`, {
+            method: 'PUT',
+            body: formData,
+            headers: {},
+        });
+    },
+
     getUpcomingEvents: (params = {}) => {
         const queryParams = new URLSearchParams();
-        
+
         // Add pagination params
         if (params.page) queryParams.append('page', params.page);
         if (params.limit) queryParams.append('limit', params.limit);
         if (params.sort_by) queryParams.append('sort_by', params.sort_by);
         if (params.sort_order) queryParams.append('sort_order', params.sort_order);
-        
+
         const queryString = queryParams.toString();
         return apiRequest(`/api/events/upcoming${queryString ? `?${queryString}` : ''}`, {
-          processResponse: (response, data) => {
-            // Extract pagination metadata from headers
-            return {
-              events: data,
-              pagination: {
-                total: parseInt(response.headers.get('X-Total-Count') || '0'),
-                pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
-                page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                limit: parseInt(response.headers.get('X-Per-Page') || '12')
-              }
-            };
-          }
+            processResponse: (response, data) => {
+                // Extract pagination metadata from headers
+                return {
+                    events: data,
+                    pagination: {
+                        total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                        page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                        limit: parseInt(response.headers.get('X-Per-Page') || '12')
+                    }
+                };
+            }
         });
     },
 
     getPastEvents: (params = {}) => {
         const queryParams = new URLSearchParams();
-        
+
         // Add pagination params
         if (params.page) queryParams.append('page', params.page);
         if (params.limit) queryParams.append('limit', params.limit);
         if (params.sort_by) queryParams.append('sort_by', params.sort_by);
         if (params.sort_order) queryParams.append('sort_order', params.sort_order);
-        
+
         const queryString = queryParams.toString();
         return apiRequest(`/api/events/past${queryString ? `?${queryString}` : ''}`, {
-          processResponse: (response, data) => {
-            // Extract pagination metadata from headers
-            return {
-              events: data,
-              pagination: {
-                total: parseInt(response.headers.get('X-Total-Count') || '0'),
-                pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
-                page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                limit: parseInt(response.headers.get('X-Per-Page') || '12')
-              }
-            };
-          }
+            processResponse: (response, data) => {
+                // Extract pagination metadata from headers
+                return {
+                    events: data,
+                    pagination: {
+                        total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                        page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                        limit: parseInt(response.headers.get('X-Per-Page') || '12')
+                    }
+                };
+            }
         });
     }
 };

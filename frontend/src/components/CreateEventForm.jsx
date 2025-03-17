@@ -3,14 +3,14 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, TextField, FormControl, InputLabel, Select,
     MenuItem, Grid, Alert, CircularProgress,
-    Box, Typography, InputAdornment
+    Box, Typography, InputAdornment, IconButton
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
     Event, LocationOn, Description, Category,
-    Close, Save, Error
+    Close, Save, Error, Image, CloudUpload, Delete
 } from '@mui/icons-material';
 import api from '../utils/api';
 
@@ -23,6 +23,10 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         event_date: new Date(),
         category_id: ''
     });
+    
+    // Image state
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
     
     // UI state
     const [loading, setLoading] = useState(false);
@@ -53,6 +57,8 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 event_date: new Date(),
                 category_id: ''
             });
+            setSelectedImage(null);
+            setImagePreview(null);
             setError(null);
             setSuccessMessage(null);
         }
@@ -90,6 +96,39 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             event_date: newDate
         }));
     }, []);
+    
+    // Handle image selection
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check if file is an image
+            if (!file.type.startsWith('image/')) {
+                setError('Please select an image file');
+                return;
+            }
+            
+            // Check file size (limit to 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Image size should be less than 5MB');
+                return;
+            }
+            
+            setSelectedImage(file);
+            
+            // Create image preview
+            const reader = new FileReader();
+            reader.onload = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    // Remove selected image
+    const handleRemoveImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+    };
     
     // Form validation
     const validateForm = useCallback(() => {
@@ -129,17 +168,25 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 throw new Error('You must be logged in to create an event');
             }
             
-            // Format date for API
-            const eventData = {
-                ...formData
-            };
+            // Create FormData object to handle file upload
+            const formDataObj = new FormData();
             
-            if (eventData.event_date instanceof Date) {
-                eventData.event_date = eventData.event_date.toISOString();
+            // Add all form fields to FormData
+            Object.keys(formData).forEach(key => {
+                if (key === 'event_date' && formData[key] instanceof Date) {
+                    formDataObj.append(key, formData[key].toISOString());
+                } else {
+                    formDataObj.append(key, formData[key]);
+                }
+            });
+            
+            // Add image file if selected
+            if (selectedImage) {
+                formDataObj.append('image', selectedImage);
             }
             
-            // Create event using API service
-            const data = await api.events.createEvent(eventData);
+            // Create event with FormData
+            const data = await api.events.createEventWithImage(formDataObj);
             
             setSuccessMessage('Event created successfully!');
             
@@ -151,6 +198,8 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 event_date: new Date(),
                 category_id: ''
             });
+            setSelectedImage(null);
+            setImagePreview(null);
             
             if (onEventCreated) {
                 onEventCreated(data);
@@ -167,7 +216,7 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
         } finally {
             setLoading(false);
         }
-    }, [formData, validateForm, onEventCreated, onClose]);
+    }, [formData, selectedImage, validateForm, onEventCreated, onClose]);
     
     const handleClose = useCallback(() => {
         setFormData({
@@ -177,6 +226,8 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             event_date: new Date(),
             category_id: ''
         });
+        setSelectedImage(null);
+        setImagePreview(null);
         setError(null);
         setSuccessMessage(null);
         onClose();
@@ -354,6 +405,65 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                                     ),
                                 }}
                             />
+                        </Grid>
+                        
+                        {/* Image Upload Section */}
+                        <Grid item xs={12}>
+                            <Box sx={{ border: '1px dashed #ccc', p: 2, borderRadius: 1 }}>
+                                <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Image sx={{ mr: 1 }} />
+                                    Event Image
+                                </Typography>
+                                
+                                {imagePreview ? (
+                                    <Box sx={{ position: 'relative', mt: 2, mb: 2 }}>
+                                        <img 
+                                            src={imagePreview} 
+                                            alt="Event preview" 
+                                            style={{ 
+                                                width: '100%', 
+                                                maxHeight: '200px', 
+                                                objectFit: 'contain' 
+                                            }} 
+                                        />
+                                        <IconButton 
+                                            sx={{ 
+                                                position: 'absolute', 
+                                                top: 0, 
+                                                right: 0,
+                                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                                color: 'white',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(0,0,0,0.7)',
+                                                }
+                                            }}
+                                            onClick={handleRemoveImage}
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </Box>
+                                ) : (
+                                    <Button
+                                        component="label"
+                                        variant="outlined"
+                                        startIcon={<CloudUpload />}
+                                        sx={{ mt: 2 }}
+                                        fullWidth
+                                    >
+                                        Upload Image
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            hidden
+                                            onChange={handleImageChange}
+                                        />
+                                    </Button>
+                                )}
+                                
+                                <Typography variant="caption" color="text.secondary">
+                                    Recommended image size: 1200x600 pixels. Maximum file size: 5MB.
+                                </Typography>
+                            </Box>
                         </Grid>
                     </Grid>
                 </DialogContent>

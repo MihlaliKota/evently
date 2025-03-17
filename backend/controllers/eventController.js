@@ -45,6 +45,9 @@ const eventController = {
       throw new AppError('Name, category_id, and event_date are required', 400);
     }
 
+    // Handle image path from file upload
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+
     const eventData = {
       user_id: userId,
       category_id,
@@ -52,7 +55,8 @@ const eventController = {
       description: description ? description.trim() : null,
       event_date,
       location: location ? location.trim() : null,
-      event_type
+      event_type,
+      image_path: imagePath
     };
 
     const newEvent = await eventModel.create(eventData);
@@ -64,8 +68,11 @@ const eventController = {
     const eventId = req.params.eventId;
     const { name, description, event_date, location, event_type, category_id } = req.body;
 
+    // Handle image path from file upload if a new file was uploaded
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
+
     const updatedEvent = await eventModel.update(eventId, {
-      name, description, event_date, location, event_type, category_id
+      name, description, event_date, location, event_type, category_id, image_path: imagePath
     });
 
     if (!updatedEvent) {

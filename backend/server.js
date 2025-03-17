@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const corsOptions = require('./config/cors');
 const { errorHandler } = require('./middleware/error');
 
@@ -18,6 +19,9 @@ const app = express();
 // Apply middleware
 app.use(express.json());
 app.use(cors(corsOptions));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Register routes
 app.use('/api/auth', authRoutes);  // For login/register

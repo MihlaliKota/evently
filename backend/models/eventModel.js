@@ -11,8 +11,8 @@ const eventModel = {
     const offset = (page - 1) * limit;
 
     // Build query parts
-    const conditions =[];
-    const params=[];
+    const conditions = [];
+    const params = [];
 
     if (category_id) {
       conditions.push('category_id = ?');
@@ -79,16 +79,16 @@ const eventModel = {
 
   // Create event
   async create(eventData) {
-    const { user_id, category_id, name, description, event_date, location, event_type } = eventData;
-    
+    const { user_id, category_id, name, description, event_date, location, event_type, image_path } = eventData;
+
     // Format the ISO date to MySQL format (YYYY-MM-DD HH:MM:SS)
     const formattedDate = new Date(event_date).toISOString().slice(0, 19).replace('T', ' ');
 
     const [result] = await pool.query(
       `INSERT INTO events 
-       (user_id, category_id, name, description, event_date, location, event_type, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, category_id, name, description, formattedDate, location, event_type]
+       (user_id, category_id, name, description, event_date, location, event_type, image_path, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [user_id, category_id, name, description, formattedDate, location, event_type, image_path]
     );
 
     const [newEvent] = await pool.query(
@@ -106,8 +106,8 @@ const eventModel = {
   // Update event
   async update(eventId, eventData) {
     const { name, description, event_date, location, event_type, category_id } = eventData;
-    const updateFields =[];
-    const updateValues =[];
+    const updateFields = [];
+    const updateValues = [];
 
     if (name) {
       updateFields.push('name = ?');
@@ -140,7 +140,7 @@ const eventModel = {
     }
 
     if (updateFields.length === 0) {
-       return { success: false, message: 'No fields to update' };
+      return { success: false, message: 'No fields to update' };
     }
 
     const updateQuery = `
@@ -187,33 +187,33 @@ const eventModel = {
   async getUpcomingPaginated(options = {}) {
     const { page = 1, limit = 12, sortBy = 'event_date', sortOrder = 'asc' } = options;
     const offset = (page - 1) * limit;
-  
+
     // Build base query
     const baseQuery = `
       FROM events 
       WHERE event_date >= CURDATE()
     `;
-  
+
     // Get total count
     const [countResult] = await pool.query(
       `SELECT COUNT(*) AS total_count ${baseQuery}`
     );
     const totalCount = countResult[0].total_count;
-  
+
     // Validate sort parameters for security
     let orderByClause = 'ORDER BY event_date ASC';
     if (sortBy && ['name', 'event_date', 'created_at'].includes(sortBy)) {
       const sqlSortOrder = sortOrder?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       orderByClause = `ORDER BY ${sortBy} ${sqlSortOrder}`;
     }
-  
+
     // Get paginated data
     const [rows] = await pool.query(`
       SELECT * ${baseQuery}
       ${orderByClause}
       LIMIT ? OFFSET ?
     `, [parseInt(limit), offset]);
-  
+
     return {
       events: rows,
       pagination: {
@@ -224,38 +224,38 @@ const eventModel = {
       }
     };
   },
-  
+
   // Get past events with pagination
   async getPastPaginated(options = {}) {
     const { page = 1, limit = 12, sortBy = 'event_date', sortOrder = 'desc' } = options;
     const offset = (page - 1) * limit;
-  
+
     // Build base query
     const baseQuery = `
       FROM events 
       WHERE event_date < CURDATE()
     `;
-  
+
     // Get total count
     const [countResult] = await pool.query(
       `SELECT COUNT(*) AS total_count ${baseQuery}`
     );
     const totalCount = countResult[0].total_count;
-  
+
     // Validate sort parameters
     let orderByClause = 'ORDER BY event_date DESC';
     if (sortBy && ['name', 'event_date', 'created_at'].includes(sortBy)) {
       const sqlSortOrder = sortOrder?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       orderByClause = `ORDER BY ${sortBy} ${sqlSortOrder}`;
     }
-  
+
     // Get paginated data
     const [rows] = await pool.query(`
       SELECT * ${baseQuery}
       ${orderByClause}
       LIMIT ? OFFSET ?
     `, [parseInt(limit), offset]);
-  
+
     return {
       events: rows,
       pagination: {

@@ -1,4 +1,4 @@
-// EventDetail.jsx - Enhanced event detail page with review functionality
+// EventDetail.jsx - Enhanced event detail page with review functionality and image support
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -228,16 +228,46 @@ const EventDetail = () => {
                     <Card sx={{ mb: 3 }}>
                         <Box 
                             sx={{ 
-                                height: 200, 
+                                height: 250,  // Increased height for better image display
                                 bgcolor: 'primary.main', 
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 color: 'white',
-                                position: 'relative'
+                                position: 'relative',
+                                overflow: 'hidden' // Ensure image doesn't overflow
                             }}
                         >
-                            <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', zIndex: 1 }}>
+                            {/* Display uploaded image or fallback to background color */}
+                            {event.image_path && (
+                                <img 
+                                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${event.image_path}`}
+                                    alt={event.name}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0
+                                    }}
+                                />
+                            )}
+                            
+                            {/* Add an overlay to ensure text is readable over the image */}
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    background: 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6))',
+                                    zIndex: 1
+                                }}
+                            />
+                            
+                            <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', zIndex: 2 }}>
                                 {event.name}
                             </Typography>
                             
@@ -248,7 +278,8 @@ const EventDetail = () => {
                                 sx={{ 
                                     position: 'absolute', 
                                     top: 16, 
-                                    right: 16
+                                    right: 16,
+                                    zIndex: 2
                                 }}
                             />
                         </Box>
