@@ -23,13 +23,16 @@ const apiRequest = async (endpoint, options = {}) => {
     const token = localStorage.getItem('authToken');
     const cacheKey = `${endpoint}-${options.method || 'GET'}-${options.body || ''}`;
 
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-    };
+    const headers = { ...options.headers };
 
-    if (token) {
+    // Handle authentication with proper token attachment
+    if (token && !headers['Authorization']) {
         headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Only set Content-Type for non-FormData requests
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
     }
 
     const config = {
@@ -37,10 +40,15 @@ const apiRequest = async (endpoint, options = {}) => {
         headers,
     };
 
+    // Stringify body for JSON requests (not FormData)
+    if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData) && !options.skipStringify) {
+        config.body = JSON.stringify(config.body);
+    }
+
     // Check cache for GET requests
     if (!options.method || options.method === 'GET') {
         const cachedData = apiCache.get(cacheKey);
-        if (cachedData) return cachedData;
+        if (cachedData && !options.skipCache) return cachedData;
     }
 
     try {
@@ -48,15 +56,29 @@ const apiRequest = async (endpoint, options = {}) => {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({
-                error: `HTTP Error: ${response.status}`,
-            }));
-            throw new Error(errorData.error || `HTTP Error: ${response.status}`);
+            let errorMessage;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorData.message || `HTTP Error: ${response.status}`;
+            } catch (e) {
+                // If we can't parse the error as JSON, use status text
+                errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
         }
 
         // Handle 204 No Content responses
         if (response.status === 204) {
             return { success: true };
+        }
+
+        // Process response headers for pagination if needed
+        let headers = {};
+        if (options.extractHeaders) {
+            const headersList = options.extractHeaders;
+            headersList.forEach(header => {
+                headers[header] = response.headers.get(header);
+            });
         }
 
         // Try to parse response as JSON
@@ -70,8 +92,13 @@ const apiRequest = async (endpoint, options = {}) => {
             }
 
             // Cache successful GET responses
-            if (!options.method || options.method === 'GET') {
-                apiCache.set(cacheKey, data);
+            if ((!options.method || options.method === 'GET') && !options.skipCache) {
+                apiCache.set(cacheKey, data, options.cacheTTL || 60000);
+            }
+
+            // Include headers in response if requested
+            if (options.extractHeaders) {
+                return { data, headers };
             }
 
             return data;
@@ -145,32 +172,19 @@ export const eventsAPI = {
     }),
 
     createEventWithImage: (formData) => {
-        const token = localStorage.getItem('authToken');
-
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
         return apiRequest('/api/events', {
             method: 'POST',
             body: formData,
-            headers: headers,
+            // Skip both content-type header and body stringification for FormData
+            skipStringify: true
         });
     },
-
+    
     updateEventWithImage: (eventId, formData) => {
-        const token = localStorage.getItem('authToken');
-
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
         return apiRequest(`/api/events/${eventId}`, {
             method: 'PUT',
             body: formData,
-            headers: {},
+            skipStringify: true
         });
     },
 

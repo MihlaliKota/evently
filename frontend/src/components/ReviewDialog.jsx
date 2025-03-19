@@ -80,9 +80,14 @@ const ReviewDialog = ({
         setError(null);
         
         try {
+            // Use the centralized API service with proper error handling
             const reviews = await api.reviews.getEventReviews(eventId);
             
-            // Apply client-side sorting and filtering for better UX
+            if (!reviews || !Array.isArray(reviews)) {
+                throw new Error("Invalid response format");
+            }
+            
+            // Apply client-side sorting and filtering
             let filteredReviews = [...reviews];
             
             // Apply rating filter
@@ -114,7 +119,7 @@ const ReviewDialog = ({
             setReviews(filteredReviews);
         } catch (error) {
             console.error('Error fetching reviews:', error);
-            setError('Failed to load reviews');
+            setError(typeof error === 'string' ? error : error.message || 'Failed to load reviews');
             setReviews([]);
         } finally {
             setLoading(false);
@@ -164,34 +169,39 @@ const ReviewDialog = ({
 
     // Handle adding a new review
     const handleAddReview = useCallback(async () => {
-        if (newReview.rating === 0) {
-            setError('Please select a rating');
-            return;
+    if (newReview.rating === 0) {
+        setError('Please select a rating');
+        return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    
+    try {
+        const data = await api.reviews.createReview(eventId, {
+            rating: newReview.rating,
+            review_text: newReview.review_text
+        });
+        
+        // Validate response data
+        if (!data) {
+            throw new Error('Failed to add review: Invalid response');
         }
         
-        setLoading(true);
-        setError(null);
-        setSuccessMessage(null);
+        setReviews(prev => [data, ...prev]);
+        setNewReview({ rating: 0, review_text: '' });
+        setShowAddReview(false);
+        setSuccessMessage('Review added successfully!');
         
-        try {
-            const data = await api.reviews.createReview(eventId, {
-                rating: newReview.rating,
-                review_text: newReview.review_text
-            });
-            
-            setReviews(prev => [data, ...prev]);
-            setNewReview({ rating: 0, review_text: '' });
-            setShowAddReview(false);
-            setSuccessMessage('Review added successfully!');
-            
-            setTimeout(() => setSuccessMessage(null), 3000);
-        } catch (error) {
-            console.error('Error adding review:', error);
-            setError(error.message || 'Failed to add review');
-        } finally {
-            setLoading(false);
-        }
-    }, [eventId, newReview]);
+        setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+        console.error('Error adding review:', error);
+        setError(typeof error === 'string' ? error : error.message || 'Failed to add review');
+    } finally {
+        setLoading(false);
+    }
+}, [eventId, newReview]);
 
     // Handle updating a review
     const handleUpdateReview = useCallback(async () => {

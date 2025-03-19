@@ -56,33 +56,17 @@ const EventDetail = () => {
             setError(null);
             
             try {
-                const token = getToken();
-                const headers = token ? {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                } : {
-                    'Content-Type': 'application/json'
-                };
-                
-                // Fetch event details
-                const eventResponse = await fetch(`http://localhost:5000/api/events/${eventId}`, { headers });
-                if (!eventResponse.ok) {
-                    throw new Error(`Failed to fetch event: ${eventResponse.status}`);
-                }
-                
-                const eventData = await eventResponse.json();
+                // Use the centralized API service
+                const eventData = await api.events.getEvent(eventId);
                 setEvent(eventData);
                 
                 // Fetch event reviews
                 setLoadingReviews(true);
                 try {
-                    const reviewsResponse = await fetch(`http://localhost:5000/api/events/${eventId}/reviews`, { headers });
-                    if (reviewsResponse.ok) {
-                        const reviewsData = await reviewsResponse.json();
-                        setReviews(reviewsData);
-                    }
-                } catch (error) {
-                    console.error('Error fetching reviews:', error);
+                    const reviewsData = await api.reviews.getEventReviews(eventId);
+                    setReviews(reviewsData);
+                } catch (reviewError) {
+                    console.error('Error fetching reviews:', reviewError);
                 } finally {
                     setLoadingReviews(false);
                 }
@@ -90,25 +74,22 @@ const EventDetail = () => {
                 // Fetch similar events (same category)
                 try {
                     if (eventData.category_id) {
-                        const similarEventsResponse = await fetch(
-                            `http://localhost:5000/api/events?category_id=${eventData.category_id}&limit=3`, 
-                            { headers }
-                        );
+                        const similarEventsData = await api.events.getAllEvents({
+                            category_id: eventData.category_id,
+                            limit: 3
+                        });
                         
-                        if (similarEventsResponse.ok) {
-                            const similarEventsData = await similarEventsResponse.json();
-                            // Filter out the current event
-                            setSimilarEvents(
-                                similarEventsData.filter(e => e.event_id !== parseInt(eventId))
-                            );
-                        }
+                        // Filter out the current event
+                        setSimilarEvents(
+                            similarEventsData.filter(e => e.event_id !== parseInt(eventId))
+                        );
                     }
-                } catch (error) {
-                    console.error('Error fetching similar events:', error);
+                } catch (similarError) {
+                    console.error('Error fetching similar events:', similarError);
                 }
             } catch (error) {
                 console.error('Error fetching event data:', error);
-                setError(error.message);
+                setError(error.message || 'Failed to load event details');
             } finally {
                 setLoading(false);
             }

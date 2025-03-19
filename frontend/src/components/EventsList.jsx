@@ -72,27 +72,33 @@ function EventsList() {
         setError(null);
         
         try {
-            const result = await api.events.getUpcomingEvents({
-                page: upcomingPagination.page,
-                limit: upcomingPagination.limit,
-                sort_by: 'event_date',
-                sort_order: 'asc'
-            });
-            
-            setEvents(prev => ({
-                ...prev,
-                upcoming: result.events || []
-            }));
-            
-            // Update pagination state
-            setUpcomingPagination(result.pagination || upcomingPagination);
+          const result = await api.events.getUpcomingEvents({
+            page: upcomingPagination.page,
+            limit: upcomingPagination.limit,
+            sort_by: 'event_date',
+            sort_order: 'asc'
+          });
+          
+          if (!result || !result.events) {
+            throw new Error("Invalid response format");
+          }
+          
+          setEvents(prev => ({
+            ...prev,
+            upcoming: result.events
+          }));
+          
+          // Update pagination state if available
+          if (result.pagination) {
+            setUpcomingPagination(result.pagination);
+          }
         } catch (error) {
-            console.error("Error fetching upcoming events:", error);
-            setError(error.message || "Failed to load upcoming events");
+          console.error("Error fetching upcoming events:", error);
+          setError(typeof error === 'string' ? error : error.message || "Failed to load upcoming events");
         } finally {
-            setLoading(false);
+          setLoading(false);
         }
-    }, [activeTab, upcomingPagination.page, upcomingPagination.limit]);
+      }, [activeTab, upcomingPagination.page, upcomingPagination.limit]);
 
     // Fetch past events with pagination
     const fetchPastEvents = useCallback(async () => {

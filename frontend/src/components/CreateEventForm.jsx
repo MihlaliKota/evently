@@ -186,29 +186,8 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 console.log('Image added to form data:', selectedImage.name, selectedImage.type, selectedImage.size);
             }
             
-            // Log what we're sending (for debugging)
-            console.log('Submitting form with fields:', Object.keys(formData).map(k => `${k}: ${formData[k]}`));
-            
-            // Define the API URL directly to avoid any issues with the utility function
-            const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/events`;
-            
-            // Create custom fetch with proper headers
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                body: formDataObj,
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                    // Do NOT set Content-Type header - browser will set it with boundary for multipart/form-data
-                }
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server response:', response.status, errorText);
-                throw new Error(`Server error: ${response.status} ${errorText || 'Unknown error'}`);
-            }
-            
-            const data = await response.json();
+            // Use the API service to handle the request
+            const data = await api.events.createEventWithImage(formDataObj);
             
             setSuccessMessage('Event created successfully!');
             
