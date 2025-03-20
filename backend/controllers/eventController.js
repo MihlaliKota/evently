@@ -38,10 +38,6 @@ const eventController = {
 
   // Create event
   createEvent: asyncHandler(async (req, res) => {
-    // Log request for debugging
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file);
-    
     const userId = req.user.userId;
     const { name, description, event_date, location, event_type, category_id } = req.body;
   
@@ -49,8 +45,8 @@ const eventController = {
       throw new AppError('Name, category_id, and event_date are required', 400);
     }
   
-    // Handle image path from file upload
-    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+    // Handle image upload via Cloudinary
+    const imagePath = req.file ? req.file.path : null;
 
     const eventData = {
       user_id: userId,
@@ -72,11 +68,17 @@ const eventController = {
     const eventId = req.params.eventId;
     const { name, description, event_date, location, event_type, category_id } = req.body;
 
-    // Handle image path from file upload if a new file was uploaded
-    const imagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
+    // Handle image upload via Cloudinary
+    const imagePath = req.file ? req.file.path : undefined;
 
     const updatedEvent = await eventModel.update(eventId, {
-      name, description, event_date, location, event_type, category_id, image_path: imagePath
+      name, 
+      description, 
+      event_date, 
+      location, 
+      event_type, 
+      category_id, 
+      image_path: imagePath
     });
 
     if (!updatedEvent) {
