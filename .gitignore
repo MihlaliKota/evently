@@ -1,9 +1,26 @@
+# Node modules
 node_modules/
 frontend/node_modules/
 backend/node_modules/
+
+# Environment files - be very explicit
 .env
-frontend/.env
-backend/.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.env
+
+# Project-specific environment files - cover all variations including spaces
+frontend/.env*
+backend/.env*
+*/.env*
+
+# Other sensitive files
 vercel.json
 evently_db_backup.sql
 repomix-output.txt
+
+# Build files
+dist/
+build/
