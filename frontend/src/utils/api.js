@@ -1,6 +1,7 @@
 // api.js - Centralized API service
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app';
+console.log('API base URL:', API_BASE_URL);
 
 // Handle token expiration
 const handleTokenExpiration = (error) => {
