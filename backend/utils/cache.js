@@ -1,3 +1,5 @@
+// backend/utils/cache.js - Add the missing delPattern function
+
 const NodeCache = require('node-cache');
 
 // Create cache with default TTL of 5 minutes and check period of 10 minutes
@@ -26,6 +28,11 @@ module.exports = {
       if (key.startsWith(prefix)) keysToDelete.push(key);
     }
     return cache.del(keysToDelete);
+  },
+
+  // Alias for invalidateByPrefix - to fix the delPattern error
+  delPattern(pattern) {
+    return this.invalidateByPrefix(pattern);
   },
 
   // Flush entire cache
