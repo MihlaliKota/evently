@@ -110,49 +110,91 @@ function AdminDashboard() {
 
     const fetchEvents = async () => {
         setLoading(true);
+        setError(null);
+        
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/events`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
+            console.log('Fetching events with filters:', {
+                page: page + 1,
+                limit: rowsPerPage,
+                category_id: filters.eventCategory !== 'all' ? filters.eventCategory : undefined,
+                search: searchTerm || undefined
             });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch events: ${response.status}`);
+            
+            // Use the centralized API service
+            const data = await api.events.getAllEvents({
+                page: page + 1,
+                limit: rowsPerPage,
+                category_id: filters.eventCategory !== 'all' ? filters.eventCategory : undefined,
+                search: searchTerm || undefined
+            });
+            
+            console.log('Events API response:', data);
+            
+            if (Array.isArray(data)) {
+                // If API returns array directly
+                setEvents(data);
+            } else if (data && data.events && Array.isArray(data.events)) {
+                // If API returns object with events array
+                setEvents(data.events);
+            } else if (data && typeof data === 'object') {
+                // If API returns object that's not in expected format, try to use it
+                setEvents(Object.values(data));
+            } else {
+                console.error('Unexpected API response format:', data);
+                setError('Invalid response format from API');
+                setEvents([]);
             }
-
-            const data = await response.json();
-            setEvents(data);
-            setError(null);
         } catch (error) {
             console.error('Error fetching events:', error);
-            setError('Failed to load events');
+            setError(error.message || 'Failed to load events. Please try again.');
+            setEvents([]);
         } finally {
             setLoading(false);
         }
     };
-
+    
     const fetchReviews = async () => {
         setLoading(true);
+        setError(null);
+        
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reviews`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
+            console.log('Fetching reviews with filters:', {
+                page: page + 1,
+                limit: rowsPerPage,
+                min_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
+                max_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
+                search: searchTerm || undefined
             });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch reviews: ${response.status}`);
+            
+            // Use the centralized API service
+            const data = await api.reviews.getAllReviews({
+                page: page + 1,
+                limit: rowsPerPage,
+                min_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
+                max_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
+                search: searchTerm || undefined
+            });
+            
+            console.log('Reviews API response:', data);
+            
+            if (Array.isArray(data)) {
+                // If API returns array directly
+                setReviews(data);
+            } else if (data && data.reviews && Array.isArray(data.reviews)) {
+                // If API returns object with reviews array
+                setReviews(data.reviews);
+            } else if (data && typeof data === 'object') {
+                // If API returns object that's not in expected format, try to use it
+                setReviews(Object.values(data));
+            } else {
+                console.error('Unexpected API response format:', data);
+                setError('Invalid response format from API');
+                setReviews([]);
             }
-
-            const data = await response.json();
-            setReviews(data);
-            setError(null);
         } catch (error) {
             console.error('Error fetching reviews:', error);
-            setError('Failed to load reviews');
+            setError(error.message || 'Failed to load reviews. Please try again.');
+            setReviews([]);
         } finally {
             setLoading(false);
         }
