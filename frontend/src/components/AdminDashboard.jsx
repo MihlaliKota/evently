@@ -79,14 +79,24 @@ function AdminDashboard() {
         
         try {
             // Use API method with pagination and filtering
-            const users = await api.users.getAllUsers({
+            const result = await api.users.getAllUsers({
                 page: page + 1,
                 limit: rowsPerPage,
                 search: searchTerm,
                 role: filters.userRole
             });
             
-            setUsers(users);
+            // Check if the response has expected structure
+            if (result && result.users) {
+                setUsers(result.users);
+            } else if (Array.isArray(result)) {
+                // Handle case where API returns array directly
+                setUsers(result);
+            } else {
+                console.error('Unexpected API response format:', result);
+                setError('Invalid response format from API');
+            }
+            
             setError(null);
         } catch (error) {
             console.error('Error fetching users:', error);

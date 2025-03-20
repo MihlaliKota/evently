@@ -179,7 +179,7 @@ export const eventsAPI = {
             skipStringify: true
         });
     },
-    
+
     updateEventWithImage: (eventId, formData) => {
         return apiRequest(`/api/events/${eventId}`, {
             method: 'PUT',
@@ -288,7 +288,7 @@ export const userAPI = {
 
     getAllUsers: (params = {}) => {
         const queryParams = new URLSearchParams(params).toString();
-        return apiRequest(`/api/admin/users${queryParams ? `?${queryParams}` : ''}`, {
+        return apiRequest(`/api/users${queryParams ? `?${queryParams}` : ''}`, {
             processResponse: (response, data) => {
                 // Extract pagination metadata from headers
                 return {
@@ -297,7 +297,7 @@ export const userAPI = {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
                         pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
                         page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                        limit: parseInt(response.headers.get('X-Per-Page') || '10')
+                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
                     }
                 };
             }
