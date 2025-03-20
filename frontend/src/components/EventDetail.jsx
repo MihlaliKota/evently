@@ -222,7 +222,7 @@ const EventDetail = () => {
                             {/* Display uploaded image or fallback to background color */}
                             {event.image_path && (
                                 <img 
-                                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${event.image_path}`}
+                                    src={`${import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app'}${event.image_path}`}
                                     alt={event.name}
                                     style={{
                                         width: '100%',
@@ -231,6 +231,10 @@ const EventDetail = () => {
                                         position: 'absolute',
                                         top: 0,
                                         left: 0
+                                    }}
+                                    onError={(e) => {
+                                        console.error('Image failed to load:', event.image_path);
+                                        e.target.src = `https://source.unsplash.com/random/1200x600/?event&sig=${event.event_id}`;
                                     }}
                                 />
                             )}
