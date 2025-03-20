@@ -76,7 +76,7 @@ function AdminDashboard() {
     const fetchUsers = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Use API method with pagination and filtering
             const result = await api.users.getAllUsers({
@@ -85,7 +85,7 @@ function AdminDashboard() {
                 search: searchTerm,
                 role: filters.userRole
             });
-            
+
             // Check if the response has expected structure
             if (result && result.users) {
                 setUsers(result.users);
@@ -96,11 +96,11 @@ function AdminDashboard() {
                 console.error('Unexpected API response format:', result);
                 setError('Invalid response format from API');
             }
-            
+
             setError(null);
         } catch (error) {
             console.error('Error fetching users:', error);
-            
+
             // Provide a more descriptive error message
             setError(error.response?.data?.message || 'Failed to load users. Please try again.');
         } finally {
@@ -111,25 +111,16 @@ function AdminDashboard() {
     const fetchEvents = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
-            console.log('Fetching events with filters:', {
-                page: page + 1,
-                limit: rowsPerPage,
-                category_id: filters.eventCategory !== 'all' ? filters.eventCategory : undefined,
-                search: searchTerm || undefined
-            });
-            
-            // Use the centralized API service
+            // Use the centralized API service with simplified parameters
             const data = await api.events.getAllEvents({
                 page: page + 1,
                 limit: rowsPerPage,
                 category_id: filters.eventCategory !== 'all' ? filters.eventCategory : undefined,
                 search: searchTerm || undefined
             });
-            
-            console.log('Events API response:', data);
-            
+
             if (Array.isArray(data)) {
                 // If API returns array directly
                 setEvents(data);
@@ -152,11 +143,11 @@ function AdminDashboard() {
             setLoading(false);
         }
     };
-    
+
     const fetchReviews = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             console.log('Fetching reviews with filters:', {
                 page: page + 1,
@@ -165,7 +156,7 @@ function AdminDashboard() {
                 max_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
                 search: searchTerm || undefined
             });
-            
+
             // Use the centralized API service
             const data = await api.reviews.getAllReviews({
                 page: page + 1,
@@ -174,9 +165,9 @@ function AdminDashboard() {
                 max_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
                 search: searchTerm || undefined
             });
-            
+
             console.log('Reviews API response:', data);
-            
+
             if (Array.isArray(data)) {
                 // If API returns array directly
                 setReviews(data);
