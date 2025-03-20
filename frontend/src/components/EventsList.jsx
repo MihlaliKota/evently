@@ -380,7 +380,7 @@ function EventsList() {
                                 height="140"
                                 // Use uploaded image if available, otherwise use placeholder
                                 image={event.image_path ? 
-                                    `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${event.image_path}` :
+                                    `${import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app'}${event.image_path}` :
                                     `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`
                                 }
                                 alt={event.name}
