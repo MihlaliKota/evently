@@ -5,6 +5,7 @@ const path = require('path');
 const corsOptions = require('./config/cors');
 const { errorHandler } = require('./middleware/error');
 const uploadMiddleware = require('./middleware/upload');
+const cloudinary = require('cloudinary').v2;
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -60,6 +61,23 @@ app.listen(port, () => {
     }
   })();
 });
+
+// Test Cloudinary configuration on startup
+(async () => {
+  try {
+    console.log('Testing Cloudinary connectivity...');
+    console.log('Cloudinary Config:', {
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? '✓ Set' : '✗ Missing',
+      api_key: process.env.CLOUDINARY_API_KEY ? '✓ Set' : '✗ Missing',
+      api_secret: process.env.CLOUDINARY_API_SECRET ? '✓ Set' : '✗ Missing'
+    });
+    
+    const result = await cloudinary.api.ping();
+    console.log('✅ Cloudinary connection successful:', result);
+  } catch (error) {
+    console.error('❌ Cloudinary connection failed:', error);
+  }
+})();
 
 // Handle unhandled rejections
 process.on('unhandledRejection', (err) => {

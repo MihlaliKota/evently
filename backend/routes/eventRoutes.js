@@ -21,4 +21,30 @@ router.delete('/:eventId', authenticateJWT, authorizeRole(['admin']), eventContr
 router.get('/:eventId/reviews', eventController.getEventReviews);
 router.post('/:eventId/reviews', authenticateJWT, uploadMiddleware.uploadReview.single('image'), eventController.createReview);
 
+router.post('/test-upload', uploadMiddleware.uploadReview.single('image'), (req, res) => {
+    try {
+        console.log('Test upload received:', {
+            file: req.file ? {
+                fieldname: req.file.fieldname,
+                originalname: req.file.originalname,
+                path: req.file.path,
+                size: req.file.size
+            } : 'No file uploaded',
+            body: req.body
+        });
+
+        res.json({
+            success: true,
+            file: req.file ? {
+                path: req.file.path,
+                size: req.file.size
+            } : null,
+            body: req.body
+        });
+    } catch (error) {
+        console.error('Test upload error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

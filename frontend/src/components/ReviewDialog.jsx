@@ -171,6 +171,8 @@ const ReviewDialog = ({
     }, [open]);
 
     // Handle adding a new review
+    // In the handleAddReview function, modify it like this:
+
     const handleAddReview = useCallback(async () => {
         if (newReview.rating === 0) {
             setError('Please select a rating');
@@ -182,28 +184,37 @@ const ReviewDialog = ({
         setSuccessMessage(null);
 
         try {
-            // Create FormData object for multipart/form-data (required for file uploads)
+            // Try submitting without an image first
+            if (!selectedImage) {
+                console.log('Submitting review without image');
+                const formData = new FormData();
+                formData.append('rating', newReview.rating);
+                formData.append('review_text', newReview.review_text || '');
+
+                const data = await api.reviews.createReviewWithImage(eventId, formData);
+
+                setReviews(prev => [data, ...prev]);
+                setNewReview({ rating: 0, review_text: '' });
+                setShowAddReview(false);
+                setSuccessMessage('Review added successfully!');
+
+                setTimeout(() => setSuccessMessage(null), 3000);
+                return;
+            }
+
+            // With image - proceed carefully
+            console.log('Submitting review with image:', {
+                name: selectedImage.name,
+                type: selectedImage.type,
+                size: selectedImage.size
+            });
+
             const formData = new FormData();
             formData.append('rating', newReview.rating);
             formData.append('review_text', newReview.review_text || '');
-
-            // Only append image if one is selected
-            if (selectedImage) {
-                formData.append('image', selectedImage);
-            }
-
-            console.log('Submitting review:', {
-                rating: newReview.rating,
-                text: newReview.review_text,
-                hasImage: !!selectedImage
-            });
+            formData.append('image', selectedImage);
 
             const data = await api.reviews.createReviewWithImage(eventId, formData);
-
-            // Handle response and update UI
-            if (!data) {
-                throw new Error('Failed to add review: Invalid response');
-            }
 
             setReviews(prev => [data, ...prev]);
             setNewReview({ rating: 0, review_text: '' });
