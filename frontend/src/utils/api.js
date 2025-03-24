@@ -246,6 +246,11 @@ export const eventsAPI = {
 export const reviewsAPI = {
     getEventReviews: (eventId) => apiRequest(`/api/events/${eventId}/reviews`),
 
+    createReview: (eventId, reviewData) => apiRequest(`/api/events/${eventId}/reviews`, {
+        method: 'POST',
+        body: reviewData,
+    }),
+
     createReviewWithImage: (eventId, formData) => apiRequest(`/api/events/${eventId}/reviews`, {
         method: 'POST',
         body: formData,

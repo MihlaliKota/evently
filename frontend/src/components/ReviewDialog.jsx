@@ -7,18 +7,18 @@ import {
     Tabs, Tab
 } from '@mui/material';
 import {
-    Edit, Delete, Add, Sort, FilterList, 
+    Edit, Delete, Add, Sort, FilterList,
     Search, Refresh, Close, Check
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import api from '../utils/api';
 
-const ReviewDialog = ({ 
-    open, 
-    onClose, 
-    eventId, 
-    eventName, 
-    eventDate, 
+const ReviewDialog = ({
+    open,
+    onClose,
+    eventId,
+    eventName,
+    eventDate,
     eventLocation,
     initialRating,
     reviewCount
@@ -37,17 +37,17 @@ const ReviewDialog = ({
     const [currentTab, setCurrentTab] = useState(0);
     const [analytics, setAnalytics] = useState(null);
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-    
+
     const [sortBy, setSortBy] = useState('created_at');
     const [sortOrder, setSortOrder] = useState('desc');
     const [filterRating, setFilterRating] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
-    
+
     // Get current user ID from JWT
     const getCurrentUserId = useCallback(() => {
         const token = localStorage.getItem('authToken');
         if (!token) return null;
-        
+
         try {
             const payload = token.split('.')[1];
             const decodedPayload = JSON.parse(atob(payload));
@@ -57,7 +57,7 @@ const ReviewDialog = ({
             return null;
         }
     }, []);
-    
+
     const currentUserId = useMemo(() => getCurrentUserId(), [getCurrentUserId]);
 
     // Format date for display
@@ -75,32 +75,32 @@ const ReviewDialog = ({
     // Fetch reviews when dialog opens or filters change
     const fetchReviews = useCallback(async () => {
         if (!eventId || !open) return;
-        
+
         setLoading(true);
         setError(null);
-        
+
         try {
             // Use the centralized API service with proper error handling
             const reviews = await api.reviews.getEventReviews(eventId);
-            
+
             if (!reviews || !Array.isArray(reviews)) {
                 throw new Error("Invalid response format");
             }
-            
+
             // Apply client-side sorting and filtering
             let filteredReviews = [...reviews];
-            
+
             // Apply rating filter
             if (filterRating !== 'all') {
                 filteredReviews = filteredReviews.filter(
                     review => review.rating === parseInt(filterRating)
                 );
             }
-            
+
             // Apply sorting
             filteredReviews.sort((a, b) => {
                 let compareA, compareB;
-                
+
                 if (sortBy === 'rating') {
                     compareA = a.rating;
                     compareB = b.rating;
@@ -108,14 +108,14 @@ const ReviewDialog = ({
                     compareA = new Date(a.created_at);
                     compareB = new Date(b.created_at);
                 }
-                
+
                 if (sortOrder === 'asc') {
                     return compareA < compareB ? -1 : compareA > compareB ? 1 : 0;
                 } else {
                     return compareA > compareB ? -1 : compareA < compareB ? 1 : 0;
                 }
             });
-            
+
             setReviews(filteredReviews);
         } catch (error) {
             console.error('Error fetching reviews:', error);
@@ -125,13 +125,13 @@ const ReviewDialog = ({
             setLoading(false);
         }
     }, [eventId, open, sortBy, sortOrder, filterRating]);
-    
+
     // Fetch analytics for the event
     const fetchAnalytics = useCallback(async () => {
         if (!eventId || !open || currentTab !== 1) return;
-        
+
         setLoadingAnalytics(true);
-        
+
         try {
             const analyticsData = await api.reviews.getReviewAnalytics(eventId);
             setAnalytics(analyticsData);
@@ -151,7 +151,7 @@ const ReviewDialog = ({
             setEditingReview(null);
         }
     }, [open, fetchReviews]);
-    
+
     useEffect(() => {
         fetchAnalytics();
     }, [fetchAnalytics, reviews]);
@@ -169,61 +169,62 @@ const ReviewDialog = ({
 
     // Handle adding a new review
     const handleAddReview = useCallback(async () => {
-    if (newReview.rating === 0) {
-        setError('Please select a rating');
-        return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    setSuccessMessage(null);
-    
-    try {
-        const data = await api.reviews.createReview(eventId, {
-            rating: newReview.rating,
-            review_text: newReview.review_text
-        });
-        
-        // Validate response data
-        if (!data) {
-            throw new Error('Failed to add review: Invalid response');
+        if (newReview.rating === 0) {
+            setError('Please select a rating');
+            return;
         }
-        
-        setReviews(prev => [data, ...prev]);
-        setNewReview({ rating: 0, review_text: '' });
-        setShowAddReview(false);
-        setSuccessMessage('Review added successfully!');
-        
-        setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-        console.error('Error adding review:', error);
-        setError(typeof error === 'string' ? error : error.message || 'Failed to add review');
-    } finally {
-        setLoading(false);
-    }
-}, [eventId, newReview]);
+
+        setLoading(true);
+        setError(null);
+        setSuccessMessage(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('rating', newReview.rating);
+            formData.append('review_text', newReview.review_text);
+
+            const data = await api.reviews.createReviewWithImage(eventId, formData);
+
+            // Validate response data
+            if (!data) {
+                throw new Error('Failed to add review: Invalid response');
+            }
+
+            setReviews(prev => [data, ...prev]);
+            setNewReview({ rating: 0, review_text: '' });
+            setShowAddReview(false);
+            setSuccessMessage('Review added successfully!');
+
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (error) {
+            console.error('Error adding review:', error);
+            setError(typeof error === 'string' ? error : error.message || 'Failed to add review');
+        } finally {
+            setLoading(false);
+        }
+    }, [eventId, newReview]);
 
     // Handle updating a review
     const handleUpdateReview = useCallback(async () => {
         if (!editingReview) return;
-        
+
         setLoading(true);
         setError(null);
         setSuccessMessage(null);
-        
+
         try {
             const updatedReview = await api.reviews.updateReview(editingReview.review_id, {
                 rating: editingReview.rating,
                 review_text: editingReview.review_text
             });
-            
-            setReviews(reviews.map(review => 
+
+            setReviews(reviews.map(review =>
                 review.review_id === updatedReview.review_id ? updatedReview : review
             ));
-            
+
             setEditingReview(null);
             setSuccessMessage('Review updated successfully!');
-            
+
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error updating review:', error);
@@ -236,21 +237,21 @@ const ReviewDialog = ({
     // Handle deleting a review
     const handleDeleteReview = useCallback(async (reviewId) => {
         if (!reviewId) return;
-        
+
         if (!window.confirm('Are you sure you want to delete this review?')) {
             return;
         }
-        
+
         setLoading(true);
         setError(null);
         setSuccessMessage(null);
-        
+
         try {
             await api.reviews.deleteReview(reviewId);
-            
+
             setReviews(reviews.filter(review => review.review_id !== reviewId));
             setSuccessMessage('Review deleted successfully!');
-            
+
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
             console.error('Error deleting review:', error);
@@ -293,7 +294,7 @@ const ReviewDialog = ({
                         Add Review
                     </Button>
                     <Box>
-                        <IconButton 
+                        <IconButton
                             onClick={() => setShowFilters(!showFilters)}
                             color={showFilters ? "primary" : "default"}
                         >
@@ -304,7 +305,7 @@ const ReviewDialog = ({
                         </IconButton>
                     </Box>
                 </Box>
-                
+
                 {showFilters && (
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -324,7 +325,7 @@ const ReviewDialog = ({
                                     <MenuItem value="1">1 Star</MenuItem>
                                 </Select>
                             </FormControl>
-                            
+
                             <FormControl sx={{ minWidth: 120 }} size="small">
                                 <InputLabel id="sort-by-label">Sort By</InputLabel>
                                 <Select
@@ -337,7 +338,7 @@ const ReviewDialog = ({
                                     <MenuItem value="rating">Rating</MenuItem>
                                 </Select>
                             </FormControl>
-                            
+
                             <FormControl sx={{ minWidth: 120 }} size="small">
                                 <InputLabel id="sort-order-label">Order</InputLabel>
                                 <Select
@@ -353,7 +354,7 @@ const ReviewDialog = ({
                         </Box>
                     </Paper>
                 )}
-                
+
                 {showAddReview && (
                     <Paper sx={{ p: 2, mb: 3 }}>
                         <Typography variant="h6" gutterBottom>
@@ -363,8 +364,8 @@ const ReviewDialog = ({
                             <Typography variant="body2" gutterBottom>
                                 Rating
                             </Typography>
-                            <StarRating 
-                                value={newReview.rating} 
+                            <StarRating
+                                value={newReview.rating}
                                 onChange={(value) => handleNewReviewChange('rating', value)}
                                 size="large"
                                 precision={0.5}
@@ -386,7 +387,7 @@ const ReviewDialog = ({
                             sx={{ mb: 2 }}
                         />
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                            <Button 
+                            <Button
                                 onClick={() => {
                                     setShowAddReview(false);
                                     setNewReview({ rating: 0, review_text: '' });
@@ -394,8 +395,8 @@ const ReviewDialog = ({
                             >
                                 Cancel
                             </Button>
-                            <Button 
-                                variant="contained" 
+                            <Button
+                                variant="contained"
                                 color="primary"
                                 onClick={handleAddReview}
                                 disabled={loading || newReview.rating === 0}
@@ -405,19 +406,19 @@ const ReviewDialog = ({
                         </Box>
                     </Paper>
                 )}
-                
+
                 {successMessage && (
                     <Alert severity="success" sx={{ mb: 2 }}>
                         {successMessage}
                     </Alert>
                 )}
-                
+
                 {error && (
                     <Alert severity="error" sx={{ mb: 2 }}>
                         {error}
                     </Alert>
                 )}
-                
+
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                         <CircularProgress />
@@ -438,8 +439,8 @@ const ReviewDialog = ({
                                             <Typography variant="body2" gutterBottom>
                                                 Rating
                                             </Typography>
-                                            <StarRating 
-                                                value={editingReview.rating} 
+                                            <StarRating
+                                                value={editingReview.rating}
                                                 onChange={(value) => handleEditingReviewChange('rating', value)}
                                                 size="large"
                                                 precision={0.5}
@@ -457,13 +458,13 @@ const ReviewDialog = ({
                                             sx={{ mb: 2 }}
                                         />
                                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                            <Button 
+                                            <Button
                                                 onClick={() => setEditingReview(null)}
                                             >
                                                 Cancel
                                             </Button>
-                                            <Button 
-                                                variant="contained" 
+                                            <Button
+                                                variant="contained"
                                                 color="primary"
                                                 onClick={handleUpdateReview}
                                                 disabled={loading}
@@ -490,15 +491,15 @@ const ReviewDialog = ({
                                             </Box>
                                             {currentUserId && review.user_id === currentUserId && (
                                                 <Box>
-                                                    <IconButton 
-                                                        size="small" 
+                                                    <IconButton
+                                                        size="small"
                                                         onClick={() => setEditingReview(review)}
                                                         sx={{ ml: 1 }}
                                                     >
                                                         <Edit fontSize="small" />
                                                     </IconButton>
-                                                    <IconButton 
-                                                        size="small" 
+                                                    <IconButton
+                                                        size="small"
                                                         onClick={() => handleDeleteReview(review.review_id)}
                                                         sx={{ ml: 1 }}
                                                         color="error"
@@ -524,7 +525,7 @@ const ReviewDialog = ({
         );
     }, [
         loading, reviews, showAddReview, showFilters, filterRating, sortBy, sortOrder,
-        newReview, editingReview, successMessage, error, currentUserId, 
+        newReview, editingReview, successMessage, error, currentUserId,
         handleNewReviewChange, handleEditingReviewChange,
         handleAddReview, handleUpdateReview, handleDeleteReview,
         fetchReviews, formatDate
@@ -539,7 +540,7 @@ const ReviewDialog = ({
                 </Box>
             );
         }
-        
+
         if (!analytics) {
             return (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -549,9 +550,9 @@ const ReviewDialog = ({
                 </Box>
             );
         }
-        
+
         const { analytics: stats, recentReviews } = analytics;
-        
+
         const totalReviews = stats.total_reviews || 1;
         const ratings = [
             { stars: 5, count: stats.five_star, percent: (stats.five_star / totalReviews) * 100 },
@@ -560,7 +561,7 @@ const ReviewDialog = ({
             { stars: 2, count: stats.two_star, percent: (stats.two_star / totalReviews) * 100 },
             { stars: 1, count: stats.one_star, percent: (stats.one_star / totalReviews) * 100 }
         ];
-        
+
         return (
             <Box>
                 <Paper sx={{ p: 2, mb: 3 }}>
@@ -594,7 +595,7 @@ const ReviewDialog = ({
                         </Box>
                     </Box>
                 </Paper>
-                
+
                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Typography variant="h6" gutterBottom>
                         Rating Distribution
@@ -607,10 +608,10 @@ const ReviewDialog = ({
                                 </Typography>
                             </Box>
                             <Box sx={{ flexGrow: 1, mr: 2 }}>
-                                <Box 
-                                    sx={{ 
-                                        height: 12, 
-                                        bgcolor: 'grey.300', 
+                                <Box
+                                    sx={{
+                                        height: 12,
+                                        bgcolor: 'grey.300',
                                         borderRadius: 1,
                                         overflow: 'hidden'
                                     }}
@@ -619,8 +620,8 @@ const ReviewDialog = ({
                                         sx={{
                                             height: '100%',
                                             width: `${rating.percent}%`,
-                                            bgcolor: rating.stars >= 4 ? 'success.main' : 
-                                                    rating.stars === 3 ? 'warning.main' : 'error.main',
+                                            bgcolor: rating.stars >= 4 ? 'success.main' :
+                                                rating.stars === 3 ? 'warning.main' : 'error.main',
                                             transition: 'width 1s ease-in-out'
                                         }}
                                     />
@@ -632,7 +633,7 @@ const ReviewDialog = ({
                         </Box>
                     ))}
                 </Paper>
-                
+
                 <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>
                         Recent Reviews
@@ -696,9 +697,9 @@ const ReviewDialog = ({
                     {eventDate && formatDate(eventDate)} • {eventLocation || 'No location'}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                    <StarRating 
-                        value={initialRating || 0} 
-                        readOnly 
+                    <StarRating
+                        value={initialRating || 0}
+                        readOnly
                         size="small"
                     />
                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
@@ -706,24 +707,24 @@ const ReviewDialog = ({
                     </Typography>
                 </Box>
             </DialogTitle>
-            
+
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={currentTab} onChange={handleTabChange} aria-label="review tabs">
                     <Tab label="Reviews" />
                     <Tab label="Analytics" />
                 </Tabs>
             </Box>
-            
+
             <DialogContent dividers>
                 {renderTabContent()}
             </DialogContent>
-            
+
             <DialogActions>
                 <Button onClick={onClose} startIcon={<Close />}>Close</Button>
                 {currentTab === 0 && (
-                    <Button 
-                        variant="contained" 
-                        color="primary" 
+                    <Button
+                        variant="contained"
+                        color="primary"
                         startIcon={<Add />}
                         onClick={() => setShowAddReview(true)}
                         disabled={showAddReview}
