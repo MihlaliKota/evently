@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const corsOptions = require('./config/cors');
 const { errorHandler } = require('./middleware/error');
+const uploadMiddleware = require('./middleware/upload');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
