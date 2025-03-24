@@ -22,18 +22,17 @@ router.delete('/:eventId', authenticateJWT, authorizeRole(['admin']), eventContr
 router.get('/:eventId/reviews', eventController.getEventReviews);
 router.post('/:eventId/reviews', authenticateJWT, upload.single('image'), eventController.createReview);
 
-// Debug route for testing uploads
-router.post('/test-upload', upload.single('image'), (req, res) => {
-  console.log('Test upload received:', { file: req.file, body: req.body });
-  res.json({
-    success: true,
-    file: req.file ? {
-      path: req.file.path,
-      size: req.file.size,
-      mimetype: req.file.mimetype
-    } : null,
-    body: req.body
-  });
+router.post('/test-upload', uploadReview.single('image'), (req, res) => {
+    console.log('Test upload file:', req.file);
+    res.json({
+        success: true,
+        file: req.file ? {
+            path: req.file.path,
+            mimetype: req.file.mimetype,
+            size: req.file.size
+        } : null,
+        body: req.body
+    });
 });
 
 module.exports = router;
