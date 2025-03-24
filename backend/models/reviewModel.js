@@ -26,10 +26,15 @@ const reviewModel = {
 
   // Create a review
   async create(reviewData) {
-    const { event_id, user_id, review_text, rating } = reviewData;
+    const { event_id, user_id, review_text, rating, image_path } = reviewData;
     const connection = await pool.getConnection();
 
     try {
+      console.log('Review model creating review:', {
+        event_id, user_id, review_text,
+        rating, hasImage: !!image_path
+      });
+
       await connection.beginTransaction();
 
       // Check if event exists
@@ -54,10 +59,10 @@ const reviewModel = {
         return { error: 'You have already reviewed this event', status: 409 };
       }
 
-      // Create the review
+      // Create the review with explicit fields
       const [result] = await connection.query(
         'INSERT INTO reviews (event_id, user_id, review_text, rating, image_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
-        [event_id, user_id, review_text, rating, image_path || null]  // Ensure null if undefined
+        [event_id, user_id, review_text || '', Number(rating), image_path]
       );
 
       // Get the created review with username
@@ -74,6 +79,7 @@ const reviewModel = {
 
       return newReview[0];
     } catch (error) {
+      console.error('Database error in review creation:', error);
       await connection.rollback();
       throw error;
     } finally {

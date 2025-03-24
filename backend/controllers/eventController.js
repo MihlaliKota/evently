@@ -157,30 +157,44 @@ const eventController = {
 
   // Create review for event
   createReview: asyncHandler(async (req, res) => {
-    const eventId = req.params.eventId;
-    const userId = req.user.userId;
-    const { review_text, rating } = req.body;
-    
-    // Get the image path from the uploaded file, use null if no file
-    const image_path = req.file ? req.file.path : null;
-  
-    if (!rating || rating < 1 || rating > 5) {
-      throw new AppError('Rating must be between 1 and 5', 400);
+    try {
+      const eventId = req.params.eventId;
+      const userId = req.user.userId;
+      const { review_text, rating } = req.body;
+      
+      console.log('Creating review:', { 
+        eventId, 
+        userId, 
+        review_text, 
+        rating, 
+        file: req.file ? 'Present' : 'Not present' 
+      });
+      
+      if (!rating || rating < 1 || rating > 5) {
+        throw new AppError('Rating must be between 1 and 5', 400);
+      }
+      
+      // Get image path from file, with fallback
+      const image_path = req.file ? req.file.path : null;
+      
+      // Create review with all fields explicitly defined
+      const result = await reviewModel.create({
+        event_id: eventId,
+        user_id: userId,
+        review_text: review_text || '',
+        rating: Number(rating),
+        image_path
+      });
+      
+      if (result.error) {
+        throw new AppError(result.error, result.status);
+      }
+      
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Error in createReview:', error);
+      throw error instanceof AppError ? error : new AppError('Server error occurred', 500);
     }
-  
-    const result = await reviewModel.create({
-      event_id: eventId,
-      user_id: userId,
-      review_text,
-      rating,
-      image_path  // Pass this to the model
-    });
-  
-    if (result.error) {
-      throw new AppError(result.error, result.status);
-    }
-  
-    res.status(201).json(result);
   })
 };
 

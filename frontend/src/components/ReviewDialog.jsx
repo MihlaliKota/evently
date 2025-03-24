@@ -182,24 +182,33 @@ const ReviewDialog = ({
         setSuccessMessage(null);
 
         try {
+            // Create FormData object for multipart/form-data (required for file uploads)
             const formData = new FormData();
             formData.append('rating', newReview.rating);
-            formData.append('review_text', newReview.review_text);
+            formData.append('review_text', newReview.review_text || '');
 
-            // Add image if selected
+            // Only append image if one is selected
             if (selectedImage) {
                 formData.append('image', selectedImage);
             }
 
+            console.log('Submitting review:', {
+                rating: newReview.rating,
+                text: newReview.review_text,
+                hasImage: !!selectedImage
+            });
+
             const data = await api.reviews.createReviewWithImage(eventId, formData);
 
-            // Validate response data
+            // Handle response and update UI
             if (!data) {
                 throw new Error('Failed to add review: Invalid response');
             }
 
             setReviews(prev => [data, ...prev]);
             setNewReview({ rating: 0, review_text: '' });
+            setSelectedImage(null);
+            setImagePreview(null);
             setShowAddReview(false);
             setSuccessMessage('Review added successfully!');
 
