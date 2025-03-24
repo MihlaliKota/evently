@@ -246,9 +246,10 @@ export const eventsAPI = {
 export const reviewsAPI = {
     getEventReviews: (eventId) => apiRequest(`/api/events/${eventId}/reviews`),
 
-    createReview: (eventId, reviewData) => apiRequest(`/api/events/${eventId}/reviews`, {
+    createReviewWithImage: (eventId, formData) => apiRequest(`/api/events/${eventId}/reviews`, {
         method: 'POST',
-        body: JSON.stringify(reviewData),
+        body: formData,
+        skipStringify: true
     }),
 
     updateReview: (reviewId, reviewData) => apiRequest(`/api/reviews/${reviewId}`, {
@@ -275,9 +276,10 @@ export const reviewsAPI = {
 export const userAPI = {
     getProfile: () => apiRequest('/api/users/profile'),
 
-    updateProfile: (profileData) => apiRequest('/api/users/profile', {
+    updateProfileWithImage: (formData) => apiRequest('/api/users/profile', {
         method: 'PUT',
-        body: JSON.stringify(profileData),
+        body: formData,
+        skipStringify: true
     }),
 
     changePassword: (passwordData) => apiRequest('/api/users/password', {

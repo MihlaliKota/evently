@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/eventController');
 const { authenticateJWT, authorizeRole } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { upload, uploadReviewImage } = require('../middleware/upload');
 
 // Specialized routes - these must come BEFORE the /:eventId route to avoid conflicts
 router.get('/upcoming', eventController.getUpcomingEvents);
@@ -19,6 +19,6 @@ router.delete('/:eventId', authenticateJWT, authorizeRole(['admin']), eventContr
 
 // Event reviews
 router.get('/:eventId/reviews', eventController.getEventReviews);
-router.post('/:eventId/reviews', authenticateJWT, eventController.createReview);
+router.post('/:eventId/reviews', authenticateJWT, uploadReviewImage.single('image'), eventController.createReview);
 
 module.exports = router;

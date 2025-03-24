@@ -40,11 +40,11 @@ const eventController = {
   createEvent: asyncHandler(async (req, res) => {
     const userId = req.user.userId;
     const { name, description, event_date, location, event_type, category_id } = req.body;
-  
+
     if (!name || !category_id || !event_date) {
       throw new AppError('Name, category_id, and event_date are required', 400);
     }
-  
+
     // Handle image upload via Cloudinary
     const imagePath = req.file ? req.file.path : null;
 
@@ -72,12 +72,12 @@ const eventController = {
     const imagePath = req.file ? req.file.path : undefined;
 
     const updatedEvent = await eventModel.update(eventId, {
-      name, 
-      description, 
-      event_date, 
-      location, 
-      event_type, 
-      category_id, 
+      name,
+      description,
+      event_date,
+      location,
+      event_type,
+      category_id,
       image_path: imagePath
     });
 
@@ -161,6 +161,9 @@ const eventController = {
     const userId = req.user.userId;
     const { review_text, rating } = req.body;
 
+    // Get the image path from the uploaded file
+    const image_path = req.file ? req.file.path : null;
+
     if (!rating || rating < 1 || rating > 5) {
       throw new AppError('Rating must be between 1 and 5', 400);
     }
@@ -169,7 +172,8 @@ const eventController = {
       event_id: eventId,
       user_id: userId,
       review_text,
-      rating
+      rating,
+      image_path
     });
 
     if (result.error) {

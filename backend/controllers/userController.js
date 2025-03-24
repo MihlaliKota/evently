@@ -18,7 +18,8 @@ const userController = {
   // Update user profile
   updateProfile: asyncHandler(async (req, res) => {
     const userId = req.user.userId;
-    const { email, bio, profile_picture } = req.body;
+    const { email, bio } = req.body;
+    const profile_picture = req.file ? req.file.path : undefined;
     
     if (email && !email.includes('@')) {
       throw new AppError('Invalid email format', 400);

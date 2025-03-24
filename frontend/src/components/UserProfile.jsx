@@ -48,6 +48,8 @@ function UserProfile() {
         averageRating: 0,
         categoryPreferences: [],
     });
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
 
     // Extract user ID from JWT on component mount
     useEffect(() => {
@@ -178,7 +180,19 @@ function UserProfile() {
         setError(null);
 
         try {
-            const updatedProfile = await api.users.updateProfile(formData);
+            const formDataObj = new FormData();
+
+            // Add regular form fields
+            formDataObj.append('email', formData.email);
+            if (formData.bio) formDataObj.append('bio', formData.bio);
+
+            // Add profile picture if selected
+            if (selectedImage) {
+                formDataObj.append('profile_picture', selectedImage);
+            }
+
+            // Use the new API method
+            const updatedProfile = await api.users.updateProfileWithImage(formDataObj);
             setProfile(updatedProfile);
             setEditMode(false);
             setSuccessMessage('Profile updated successfully!');
@@ -191,7 +205,7 @@ function UserProfile() {
         } finally {
             setLoading(false);
         }
-    }, [formData]);
+    }, [formData, selectedImage]);
 
     const handlePasswordChange = useCallback(async (e) => {
         e.preventDefault();
@@ -230,6 +244,23 @@ function UserProfile() {
     const handleTabChange = useCallback((event, newValue) => {
         setTabValue(newValue);
     }, []);
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setSelectedImage(file);
+            const reader = new FileReader();
+            reader.onload = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+    };
 
     // Format date for display
     const formatDate = useCallback((dateString) => {
@@ -353,16 +384,50 @@ function UserProfile() {
                                         />
                                     </Grid>
                                     <Grid item xs={12}>
-                                        <TextField
-                                            label="Profile Picture URL"
-                                            name="profile_picture"
-                                            value={formData.profile_picture}
-                                            onChange={handleInputChange}
-                                            fullWidth
-                                            margin="normal"
-                                            placeholder="Enter a URL for your profile picture"
-                                            helperText="Leave empty to use initials"
-                                        />
+                                        <Box sx={{ border: '1px dashed #ccc', p: 2, borderRadius: 1 }}>
+                                            <Typography variant="subtitle1" gutterBottom>Profile Picture</Typography>
+                                            {imagePreview ? (
+                                                <Box sx={{ position: 'relative', mt: 2, mb: 2 }}>
+                                                    <img
+                                                        src={imagePreview}
+                                                        alt="Profile preview"
+                                                        style={{
+                                                            width: '100%',
+                                                            maxHeight: '200px',
+                                                            objectFit: 'contain'
+                                                        }}
+                                                    />
+                                                    <IconButton
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            right: 0,
+                                                            backgroundColor: 'rgba(0,0,0,0.5)',
+                                                            color: 'white',
+                                                        }}
+                                                        onClick={handleRemoveImage}
+                                                    >
+                                                        <Delete />
+                                                    </IconButton>
+                                                </Box>
+                                            ) : (
+                                                <Button
+                                                    component="label"
+                                                    variant="outlined"
+                                                    startIcon={<CloudUpload />}
+                                                    sx={{ mt: 2 }}
+                                                    fullWidth
+                                                >
+                                                    Upload Image
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        hidden
+                                                        onChange={handleImageChange}
+                                                    />
+                                                </Button>
+                                            )}
+                                        </Box>
                                     </Grid>
                                     <Grid item xs={12}>
                                         <TextField
