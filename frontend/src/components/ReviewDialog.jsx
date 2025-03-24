@@ -12,7 +12,7 @@ import {
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import api from '../utils/api';
-import { AddPhotoAlternate, Delete } from '@mui/icons-material';
+import { AddPhotoAlternate } from '@mui/icons-material';
 
 const ReviewDialog = ({
     open,
