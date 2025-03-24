@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import StarRating from './StarRating';
 import api from '../utils/api';
+import { AddPhotoAlternate, Delete } from '@mui/icons-material';
 
 const ReviewDialog = ({
     open,
@@ -37,6 +38,8 @@ const ReviewDialog = ({
     const [currentTab, setCurrentTab] = useState(0);
     const [analytics, setAnalytics] = useState(null);
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
 
     const [sortBy, setSortBy] = useState('created_at');
     const [sortOrder, setSortOrder] = useState('desc');
@@ -183,6 +186,11 @@ const ReviewDialog = ({
             formData.append('rating', newReview.rating);
             formData.append('review_text', newReview.review_text);
 
+            // Add image if selected
+            if (selectedImage) {
+                formData.append('image', selectedImage);
+            }
+
             const data = await api.reviews.createReviewWithImage(eventId, formData);
 
             // Validate response data
@@ -202,7 +210,7 @@ const ReviewDialog = ({
         } finally {
             setLoading(false);
         }
-    }, [eventId, newReview]);
+    }, [eventId, newReview, selectedImage]);
 
     // Handle updating a review
     const handleUpdateReview = useCallback(async () => {
@@ -279,6 +287,24 @@ const ReviewDialog = ({
     const handleTabChange = useCallback((event, newValue) => {
         setCurrentTab(newValue);
     }, []);
+
+    // Image upload handlers
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setSelectedImage(file);
+            const reader = new FileReader();
+            reader.onload = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+    };
 
     // Tab content rendering functions
     const renderReviewsTab = useCallback(() => {
@@ -403,6 +429,55 @@ const ReviewDialog = ({
                             >
                                 Submit Review
                             </Button>
+                        </Box>
+                        {/* Image upload section */}
+                        <Box sx={{ mt: 2, mb: 2 }}>
+                            <Typography variant="body2" gutterBottom>
+                                Add Image (Optional)
+                            </Typography>
+                            {imagePreview ? (
+                                <Box sx={{ position: 'relative', mt: 1 }}>
+                                    <img
+                                        src={imagePreview}
+                                        alt="Review preview"
+                                        style={{
+                                            width: '100%',
+                                            maxHeight: '200px',
+                                            objectFit: 'contain',
+                                            borderRadius: '4px'
+                                        }}
+                                    />
+                                    <IconButton
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 5,
+                                            right: 5,
+                                            backgroundColor: 'rgba(0,0,0,0.5)',
+                                            color: 'white',
+                                            '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
+                                        }}
+                                        onClick={handleRemoveImage}
+                                    >
+                                        <Delete />
+                                    </IconButton>
+                                </Box>
+                            ) : (
+                                <Button
+                                    component="label"
+                                    variant="outlined"
+                                    startIcon={<AddPhotoAlternate />}
+                                    size="small"
+                                    fullWidth
+                                >
+                                    Upload Image
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        hidden
+                                        onChange={handleImageChange}
+                                    />
+                                </Button>
+                            )}
                         </Box>
                     </Paper>
                 )}

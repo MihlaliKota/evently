@@ -57,7 +57,7 @@ const reviewModel = {
       // Create the review
       const [result] = await connection.query(
         'INSERT INTO reviews (event_id, user_id, review_text, rating, image_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
-        [event_id, user_id, review_text, rating, image_path]
+        [event_id, user_id, review_text, rating, image_path || null]  // Ensure null if undefined
       );
 
       // Get the created review with username

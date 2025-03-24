@@ -160,26 +160,26 @@ const eventController = {
     const eventId = req.params.eventId;
     const userId = req.user.userId;
     const { review_text, rating } = req.body;
-
-    // Get the image path from the uploaded file
+    
+    // Get the image path from the uploaded file, use null if no file
     const image_path = req.file ? req.file.path : null;
-
+  
     if (!rating || rating < 1 || rating > 5) {
       throw new AppError('Rating must be between 1 and 5', 400);
     }
-
+  
     const result = await reviewModel.create({
       event_id: eventId,
       user_id: userId,
       review_text,
       rating,
-      image_path
+      image_path  // Pass this to the model
     });
-
+  
     if (result.error) {
       throw new AppError(result.error, result.status);
     }
-
+  
     res.status(201).json(result);
   })
 };
