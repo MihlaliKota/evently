@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticateJWT, authorizeRole } = require('../middleware/auth');
-const uploadMiddleware = require('../middleware/upload');
+const { profileUpload } = require('../middleware/upload');
 
 router.get('/profile', authenticateJWT, userController.getProfile);
-router.put('/profile', authenticateJWT, uploadMiddleware.uploadProfile.single('profile_picture'), userController.updateProfile);
+router.put('/profile', authenticateJWT, profileUpload.single('profile_picture'), userController.updateProfile);
 router.put('/password', authenticateJWT, userController.changePassword);
 router.get('/activities', authenticateJWT, userController.getUserActivities);
 

@@ -160,29 +160,24 @@ const eventController = {
     try {
       const eventId = req.params.eventId;
       const userId = req.user.userId;
-
-      // Debug logging
-      console.log('Review submission received:', {
-        body: req.body,
-        file: req.file ? {
-          fieldname: req.file.fieldname,
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
-          path: req.file.path || 'no path'
-        } : 'No file uploaded'
-      });
-
       const { review_text, rating } = req.body;
 
-      // Get the image path from the uploaded file, use null if no file
-      const image_path = req.file ? req.file.path : null;
+      console.log('Review submission:', {
+        eventId,
+        hasFile: !!req.file,
+        rating
+      });
 
       if (!rating || rating < 1 || rating > 5) {
         throw new AppError('Rating must be between 1 and 5', 400);
       }
 
-      // Create review with explicit parameters
+      // Get image URL from Cloudinary
+      const image_path = req.file ? req.file.path : null;
+
+      console.log('Submitting review with image_path:', image_path);
+
+      // Create review with all fields explicitly defined
       const result = await reviewModel.create({
         event_id: eventId,
         user_id: userId,
@@ -191,15 +186,16 @@ const eventController = {
         image_path
       });
 
-      if (result.error) {
-        throw new AppError(result.error, result.status);
-      }
-
       res.status(201).json(result);
     } catch (error) {
-      console.error('ERROR in createReview:', error);
-      res.status(500).json({
-        error: 'Server error occurred',
+      console.error('Review creation error:', error);
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+
+      return res.status(500).json({
+        error: 'Failed to create review',
         details: error.message
       });
     }
