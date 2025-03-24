@@ -10,7 +10,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Image file filter
+// Shared file filter for images
 const imageFileFilter = (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -20,43 +20,57 @@ const imageFileFilter = (req, file, cb) => {
     }
 };
 
-// Create storage configurations for different uploads
-const createCloudinaryStorage = (folder, dimensions) => {
-    return new CloudinaryStorage({
-        cloudinary,
-        params: {
-            folder,
-            allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'],
-            transformation: [dimensions],
-            public_id: (req, file) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                return `${folder}-${uniqueSuffix}`;
-            }
-        }
-    });
-};
+// Event image storage
+const eventStorage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder: 'event-images',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'],
+        transformation: [{ width: 1200, height: 600, crop: 'limit' }]
+    }
+});
 
-// Create multer instances for each type
-const uploadEvent = multer({
-    storage: createCloudinaryStorage('event-images', { width: 1200, height: 600, crop: 'limit' }),
+// Profile image storage
+const profileStorage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder: 'profile-images',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'],
+        transformation: [{ width: 500, height: 500, crop: 'limit' }]
+    }
+});
+
+// Review image storage
+const reviewStorage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder: 'review-images',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'],
+        transformation: [{ width: 800, height: 600, crop: 'limit' }]
+    }
+});
+
+// Create upload instances
+const upload = multer({
+    storage: eventStorage,
     fileFilter: imageFileFilter,
     limits: { fileSize: 5 * 1024 * 1024 }
 });
 
-const uploadProfile = multer({
-    storage: createCloudinaryStorage('profile-images', { width: 500, height: 500, crop: 'limit' }),
+const profileUpload = multer({
+    storage: profileStorage,
     fileFilter: imageFileFilter,
     limits: { fileSize: 2 * 1024 * 1024 }
 });
 
-const uploadReview = multer({
-    storage: createCloudinaryStorage('review-images', { width: 800, height: 600, crop: 'limit' }),
+const reviewUpload = multer({
+    storage: reviewStorage,
     fileFilter: imageFileFilter,
     limits: { fileSize: 3 * 1024 * 1024 }
 });
 
 module.exports = {
-    uploadEvent,
-    uploadProfile,
-    uploadReview
+    upload,
+    profileUpload,
+    reviewUpload
 };
