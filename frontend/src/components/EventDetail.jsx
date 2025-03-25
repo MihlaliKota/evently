@@ -16,7 +16,7 @@ import ReviewDialog from './ReviewDialog';
 const EventDetail = () => {
     const { eventId } = useParams();
     const navigate = useNavigate();
-    
+
     const [event, setEvent] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -24,12 +24,12 @@ const EventDetail = () => {
     const [loadingReviews, setLoadingReviews] = useState(false);
     const [openReviewDialog, setOpenReviewDialog] = useState(false);
     const [similarEvents, setSimilarEvents] = useState([]);
-    
+
     // Get JWT token from localStorage
     const getToken = () => {
         return localStorage.getItem('authToken');
     };
-    
+
     // Format date for display
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -42,24 +42,24 @@ const EventDetail = () => {
             minute: 'numeric'
         }).format(date);
     };
-    
+
     // Check if event date is in the past
     const isEventPast = (dateString) => {
         const eventDate = new Date(dateString);
         return eventDate < new Date();
     };
-    
+
     // Fetch event data
     useEffect(() => {
         const fetchEventData = async () => {
             setLoading(true);
             setError(null);
-            
+
             try {
                 // Use the centralized API service
                 const eventData = await api.events.getEvent(eventId);
                 setEvent(eventData);
-                
+
                 // Fetch event reviews
                 setLoadingReviews(true);
                 try {
@@ -70,7 +70,7 @@ const EventDetail = () => {
                 } finally {
                     setLoadingReviews(false);
                 }
-                
+
                 // Fetch similar events (same category)
                 try {
                     if (eventData.category_id) {
@@ -78,7 +78,7 @@ const EventDetail = () => {
                             category_id: eventData.category_id,
                             limit: 3
                         });
-                        
+
                         // Filter out the current event
                         setSimilarEvents(
                             similarEventsData.filter(e => e.event_id !== parseInt(eventId))
@@ -94,41 +94,41 @@ const EventDetail = () => {
                 setLoading(false);
             }
         };
-        
+
         if (eventId) {
             fetchEventData();
         }
     }, [eventId]);
-    
+
     // Calculate average rating
     const getAverageRating = () => {
         if (!reviews || reviews.length === 0) return 0;
-        
+
         const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
         return totalRating / reviews.length;
     };
-    
+
     // Add to calendar
     const addToCalendar = () => {
         if (!event) return;
-        
+
         const { name, description, location, event_date } = event;
         const eventStart = new Date(event_date);
         // Default duration 2 hours
         const eventEnd = new Date(eventStart.getTime() + 2 * 60 * 60 * 1000);
-        
+
         // Format dates for Google Calendar
         const formatGoogleDate = (date) => {
             return date.toISOString().replace(/-|:|\.\d\d\d/g, '');
         };
-        
+
         // Create Google Calendar URL
         const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(name)}&dates=${formatGoogleDate(eventStart)}/${formatGoogleDate(eventEnd)}&details=${encodeURIComponent(description || '')}&location=${encodeURIComponent(location || '')}&sf=true&output=xml`;
-        
+
         // Open in new window
         window.open(googleCalendarUrl, '_blank');
     };
-    
+
     // Share event
     const shareEvent = () => {
         if (navigator.share) {
@@ -143,7 +143,7 @@ const EventDetail = () => {
             alert('Link copied to clipboard!');
         }
     };
-    
+
     // Loading state
     if (loading) {
         return (
@@ -152,15 +152,15 @@ const EventDetail = () => {
             </Box>
         );
     }
-    
+
     // Error state
     if (error) {
         return (
             <Box sx={{ maxWidth: 'md', mx: 'auto', mt: 4 }}>
                 <Alert severity="error">{error}</Alert>
-                <Button 
-                    variant="contained" 
-                    sx={{ mt: 2 }} 
+                <Button
+                    variant="contained"
+                    sx={{ mt: 2 }}
                     onClick={() => navigate(-1)}
                     startIcon={<ArrowBack />}
                 >
@@ -169,15 +169,15 @@ const EventDetail = () => {
             </Box>
         );
     }
-    
+
     // If event not found
     if (!event) {
         return (
             <Box sx={{ maxWidth: 'md', mx: 'auto', mt: 4 }}>
                 <Alert severity="warning">Event not found</Alert>
-                <Button 
-                    variant="contained" 
-                    sx={{ mt: 2 }} 
+                <Button
+                    variant="contained"
+                    sx={{ mt: 2 }}
                     onClick={() => navigate('/events')}
                     startIcon={<ArrowBack />}
                 >
@@ -186,31 +186,31 @@ const EventDetail = () => {
             </Box>
         );
     }
-    
+
     const avgRating = getAverageRating();
     const isPast = isEventPast(event.event_date);
-    
+
     return (
         <Box sx={{ maxWidth: 'lg', mx: 'auto' }}>
             {/* Back button */}
-            <Button 
-                variant="text" 
-                startIcon={<ArrowBack />} 
+            <Button
+                variant="text"
+                startIcon={<ArrowBack />}
                 onClick={() => navigate(-1)}
                 sx={{ mb: 2 }}
             >
                 Back
             </Button>
-            
+
             {/* Main content */}
             <Grid container spacing={3}>
                 {/* Event details */}
                 <Grid item xs={12} md={8}>
                     <Card sx={{ mb: 3 }}>
-                        <Box 
-                            sx={{ 
+                        <Box
+                            sx={{
                                 height: 250,  // Increased height for better image display
-                                bgcolor: 'primary.main', 
+                                bgcolor: 'primary.main',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -221,8 +221,8 @@ const EventDetail = () => {
                         >
                             {/* Display uploaded image or fallback to background color */}
                             {event.image_path && (
-                                <img 
-                                    src={`${import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app'}${event.image_path}`}
+                                <img
+                                    src={event.image_path || "https://placeholder.com/400x140"}
                                     alt={event.name}
                                     style={{
                                         width: '100%',
@@ -233,12 +233,15 @@ const EventDetail = () => {
                                         left: 0
                                     }}
                                     onError={(e) => {
-                                        console.error('Image failed to load:', event.image_path);
-                                        e.target.src = `https://source.unsplash.com/random/1200x600/?event&sig=${event.event_id}`;
+                                        // Prevent infinite error loop with a flag
+                                        if (!e.target.dataset.tried) {
+                                            e.target.dataset.tried = 'true';
+                                            e.target.src = `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`;
+                                        }
                                     }}
                                 />
                             )}
-                            
+
                             {/* Add an overlay to ensure text is readable over the image */}
                             <Box
                                 sx={{
@@ -251,24 +254,24 @@ const EventDetail = () => {
                                     zIndex: 1
                                 }}
                             />
-                            
+
                             <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', zIndex: 2 }}>
                                 {event.name}
                             </Typography>
-                            
+
                             {/* Status badge */}
                             <Chip
                                 label={isPast ? 'Past Event' : 'Upcoming'}
                                 color={isPast ? 'default' : 'success'}
-                                sx={{ 
-                                    position: 'absolute', 
-                                    top: 16, 
+                                sx={{
+                                    position: 'absolute',
+                                    top: 16,
                                     right: 16,
                                     zIndex: 2
                                 }}
                             />
                         </Box>
-                        
+
                         <CardContent>
                             {/* Event details */}
                             <Grid container spacing={2}>
@@ -280,7 +283,7 @@ const EventDetail = () => {
                                         </Typography>
                                     </Box>
                                 </Grid>
-                                
+
                                 <Grid item xs={12} sm={6}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                                         <LocationOn color="primary" sx={{ mr: 1 }} />
@@ -289,7 +292,7 @@ const EventDetail = () => {
                                         </Typography>
                                     </Box>
                                 </Grid>
-                                
+
                                 {event.category_name && (
                                     <Grid item xs={12} sm={6}>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -300,7 +303,7 @@ const EventDetail = () => {
                                         </Box>
                                     </Grid>
                                 )}
-                                
+
                                 {event.attendees > 0 && (
                                     <Grid item xs={12} sm={6}>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -312,9 +315,9 @@ const EventDetail = () => {
                                     </Grid>
                                 )}
                             </Grid>
-                            
+
                             <Divider sx={{ my: 2 }} />
-                            
+
                             {/* Event description */}
                             <Typography variant="h6" gutterBottom>
                                 About this event
@@ -322,16 +325,16 @@ const EventDetail = () => {
                             <Typography variant="body1" paragraph>
                                 {event.description || 'No description provided for this event.'}
                             </Typography>
-                            
+
                             {/* Event rating summary */}
                             <Box sx={{ mt: 3 }}>
                                 <Typography variant="h6" gutterBottom>
                                     Event Rating
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                    <StarRating 
-                                        value={avgRating} 
-                                        readOnly 
+                                    <StarRating
+                                        value={avgRating}
+                                        readOnly
                                         size="large"
                                         showValue
                                     />
@@ -340,26 +343,26 @@ const EventDetail = () => {
                                     </Typography>
                                 </Box>
                             </Box>
-                            
+
                             {/* Action buttons */}
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
-                                <Button 
+                                <Button
                                     variant="outlined"
                                     startIcon={<Share />}
                                     onClick={shareEvent}
                                 >
                                     Share
                                 </Button>
-                                
-                                <Button 
+
+                                <Button
                                     variant="outlined"
                                     startIcon={<CalendarToday />}
                                     onClick={addToCalendar}
                                 >
                                     Add to Calendar
                                 </Button>
-                                
-                                <Button 
+
+                                <Button
                                     variant="contained"
                                     startIcon={isPast ? <Comment /> : <EventAvailable />}
                                     onClick={() => {
@@ -376,7 +379,7 @@ const EventDetail = () => {
                             </Box>
                         </CardContent>
                     </Card>
-                    
+
                     {/* Recent reviews */}
                     <Card>
                         <CardContent>
@@ -384,17 +387,17 @@ const EventDetail = () => {
                                 <Typography variant="h6">
                                     Recent Reviews
                                 </Typography>
-                                <Button 
-                                    variant="text" 
+                                <Button
+                                    variant="text"
                                     endIcon={<Add />}
                                     onClick={() => setOpenReviewDialog(true)}
                                 >
                                     {reviews.length > 0 ? 'See All Reviews' : 'Add Review'}
                                 </Button>
                             </Box>
-                            
+
                             <Divider sx={{ mb: 2 }} />
-                            
+
                             {loadingReviews ? (
                                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
                                     <CircularProgress size={30} />
@@ -438,9 +441,9 @@ const EventDetail = () => {
                                     <Typography variant="body1" color="text.secondary">
                                         No reviews yet for this event.
                                     </Typography>
-                                    <Button 
-                                        variant="outlined" 
-                                        startIcon={<Add />} 
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<Add />}
                                         sx={{ mt: 2 }}
                                         onClick={() => setOpenReviewDialog(true)}
                                     >
@@ -451,7 +454,7 @@ const EventDetail = () => {
                         </CardContent>
                     </Card>
                 </Grid>
-                
+
                 {/* Sidebar */}
                 <Grid item xs={12} md={4}>
                     {/* Event organizer */}
@@ -460,7 +463,7 @@ const EventDetail = () => {
                             <Typography variant="h6" gutterBottom>
                                 Event Organizer
                             </Typography>
-                            
+
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <Avatar sx={{ mr: 2 }}>
                                     {event.organizer_name ? event.organizer_name.charAt(0).toUpperCase() : 'O'}
@@ -476,22 +479,22 @@ const EventDetail = () => {
                             </Box>
                         </CardContent>
                     </Card>
-                    
+
                     {/* Similar events */}
                     <Card>
                         <CardContent>
                             <Typography variant="h6" gutterBottom>
                                 Similar Events
                             </Typography>
-                            
+
                             {similarEvents.length > 0 ? (
                                 <Stack spacing={2}>
                                     {similarEvents.map((similarEvent) => (
-                                        <Paper 
-                                            key={similarEvent.event_id} 
-                                            elevation={0} 
-                                            sx={{ 
-                                                p: 2, 
+                                        <Paper
+                                            key={similarEvent.event_id}
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
                                                 bgcolor: 'background.default',
                                                 cursor: 'pointer',
                                                 '&:hover': {
@@ -527,7 +530,7 @@ const EventDetail = () => {
                     </Card>
                 </Grid>
             </Grid>
-            
+
             {/* Review Dialog */}
             <ReviewDialog
                 open={openReviewDialog}
