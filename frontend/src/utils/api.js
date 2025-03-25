@@ -62,7 +62,7 @@ const apiRequest = async (endpoint, options = {}) => {
                 if (value instanceof File) {
                     console.log(`  ${key}: File (${value.name}, ${value.type}, ${(value.size / 1024).toFixed(2)}KB)`);
                 } else {
-                    console.log(`  ${key}: ${value}`);
+                    console.log(`  ${key}: ${typeof value === 'string' ? value : 'Complex value'}`);
                 }
             }
         }
@@ -76,7 +76,7 @@ const apiRequest = async (endpoint, options = {}) => {
                 errorMessage = errorData.error || errorData.message || `HTTP Error: ${response.status}`;
 
                 // Add specific error messaging for image uploads
-                if (options.body instanceof FormData && options.body.has('image')) {
+                if (options.body instanceof FormData && options.body.has('image') || options.body instanceof FormData && options.body.has('profile_picture')) {
                     if (response.status === 413) {
                         errorMessage = 'Image upload failed: File size is too large. Please try a smaller image.';
                     } else if (response.status === 415) {
@@ -92,7 +92,7 @@ const apiRequest = async (endpoint, options = {}) => {
                 errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
 
                 // Special handling for image upload errors that don't return JSON
-                if (options.body instanceof FormData && options.body.has('image')) {
+                if (options.body instanceof FormData && (options.body.has('image') || options.body.has('profile_picture'))) {
                     errorMessage = `Image upload failed: ${errorMessage}`;
                 }
             }
@@ -204,8 +204,31 @@ const authAPI = {
 // Events-related API calls
 export const eventsAPI = {
     getAllEvents: (params = {}) => {
-        const queryParams = new URLSearchParams(params).toString();
-        return apiRequest(`/api/events${queryParams ? `?${queryParams}` : ''}`);
+        const queryParams = new URLSearchParams();
+
+        // Add all parameters to query string
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                queryParams.append(key, value);
+            }
+        });
+
+        const queryString = queryParams.toString();
+        return apiRequest(`/api/events${queryString ? `?${queryString}` : ''}`, {
+            extractHeaders: ['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page'],
+            processResponse: (response, data) => {
+                // Process the response to match expected frontend format
+                return {
+                    events: data, // The actual array of events
+                    pagination: {
+                        total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
+                        page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
+                    }
+                };
+            }
+        });
     },
 
     getEvent: (eventId) => apiRequest(`/api/events/${eventId}`),
@@ -334,8 +357,31 @@ export const reviewsAPI = {
     }),
 
     getAllReviews: (params = {}) => {
-        const queryParams = new URLSearchParams(params).toString();
-        return apiRequest(`/api/reviews${queryParams ? `?${queryParams}` : ''}`);
+        const queryParams = new URLSearchParams();
+
+        // Add all parameters to query string
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                queryParams.append(key, value);
+            }
+        });
+
+        const queryString = queryParams.toString();
+        return apiRequest(`/api/reviews${queryString ? `?${queryString}` : ''}`, {
+            extractHeaders: ['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page'],
+            processResponse: (response, data) => {
+                // Process the response to match expected frontend format
+                return {
+                    reviews: data, // The actual array of reviews
+                    pagination: {
+                        total: parseInt(response.headers.get('X-Total-Count') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
+                        page: parseInt(response.headers.get('X-Current-Page') || '1'),
+                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
+                    }
+                };
+            }
+        });
     },
 
     getReviewAnalytics: (eventId) => {

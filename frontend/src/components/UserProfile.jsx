@@ -10,7 +10,7 @@ import {
 import {
     Edit, Save, Cancel, Event, Star,
     CalendarToday, Email, AccountCircle,
-    Visibility, VisibilityOff, Person, Comment
+    Visibility, VisibilityOff, Person, Comment, CloudUpload, Delete
 } from '@mui/icons-material';
 import api from '../utils/api';
 
@@ -168,6 +168,19 @@ function UserProfile() {
                 bio: profile?.bio || '',
                 profile_picture: profile?.profile_picture || ''
             });
+            setSelectedImage(null);
+            setImagePreview(null);
+        } else {
+            // Start editing - initialize with current values
+            setFormData({
+                email: profile?.email || '',
+                bio: profile?.bio || '',
+                profile_picture: profile?.profile_picture || ''
+            });
+            // If profile has an image, set the preview
+            if (profile?.profile_picture) {
+                setImagePreview(profile.profile_picture);
+            }
         }
         setEditMode(prev => !prev);
         setSuccessMessage(null);
@@ -248,12 +261,35 @@ function UserProfile() {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                setError('Please select a valid image file (JPEG, JPG, PNG, GIF, or WebP)');
+                return;
+            }
+
+            // Validate file size (max 2MB)
+            const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+            if (file.size > maxSize) {
+                setError(`Image size exceeds 2MB. Please select a smaller image.`);
+                return;
+            }
+
             setSelectedImage(file);
+            setError(null); // Clear any previous errors
+
+            // Create image preview
             const reader = new FileReader();
             reader.onload = () => {
                 setImagePreview(reader.result);
             };
             reader.readAsDataURL(file);
+
+            console.log('Image selected:', {
+                name: file.name,
+                type: file.type,
+                size: `${(file.size / 1024 / 1024).toFixed(2)}MB`
+            });
         }
     };
 
@@ -363,7 +399,23 @@ function UserProfile() {
                 {/* Profile Information Tab */}
                 {tabValue === 0 && (
                     <Box sx={{ p: 3 }}>
-                        {editMode ? (
+                        {error && (
+                            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                                {error}
+                            </Alert>
+                        )}
+
+                        {successMessage && (
+                            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage(null)}>
+                                {successMessage}
+                            </Alert>
+                        )}
+
+                        {loading && !profile ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : editMode ? (
                             <form onSubmit={handleSubmit}>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12}>
@@ -443,16 +495,26 @@ function UserProfile() {
                                         />
                                     </Grid>
                                     <Grid item xs={12}>
-                                        <Button
-                                            type="submit"
-                                            variant="contained"
-                                            color="primary"
-                                            startIcon={<Save />}
-                                            disabled={loading}
-                                            sx={{ mt: 2 }}
-                                        >
-                                            {loading ? 'Saving...' : 'Save Changes'}
-                                        </Button>
+                                        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                                            <Button
+                                                type="button"
+                                                variant="outlined"
+                                                color="inherit"
+                                                onClick={handleEditToggle}
+                                                startIcon={<Cancel />}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                variant="contained"
+                                                color="primary"
+                                                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Save />}
+                                                disabled={loading}
+                                            >
+                                                {loading ? 'Saving...' : 'Save Changes'}
+                                            </Button>
+                                        </Box>
                                     </Grid>
                                 </Grid>
                             </form>

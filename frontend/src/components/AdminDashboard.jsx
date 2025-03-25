@@ -113,25 +113,27 @@ function AdminDashboard() {
         setError(null);
 
         try {
-            // Use the centralized API service with simplified parameters
-            const data = await api.events.getAllEvents({
+            // Use the centralized API service
+            const result = await api.events.getAllEvents({
                 page: page + 1,
                 limit: rowsPerPage,
                 category_id: filters.eventCategory !== 'all' ? filters.eventCategory : undefined,
                 search: searchTerm || undefined
             });
 
-            if (Array.isArray(data)) {
-                // If API returns array directly
-                setEvents(data);
-            } else if (data && data.events && Array.isArray(data.events)) {
-                // If API returns object with events array
-                setEvents(data.events);
-            } else if (data && typeof data === 'object') {
-                // If API returns object that's not in expected format, try to use it
-                setEvents(Object.values(data));
+            // Check if the response has the expected structure
+            if (result && result.events) {
+                setEvents(result.events);
+
+                // If pagination information exists, update the state
+                if (result.pagination) {
+                    // You might need to add state for handling pagination if not already present
+                }
+            } else if (Array.isArray(result)) {
+                // Handle case where API returns array directly
+                setEvents(result);
             } else {
-                console.error('Unexpected API response format:', data);
+                console.error('Unexpected API response format:', result);
                 setError('Invalid response format from API');
                 setEvents([]);
             }
@@ -149,16 +151,8 @@ function AdminDashboard() {
         setError(null);
 
         try {
-            console.log('Fetching reviews with filters:', {
-                page: page + 1,
-                limit: rowsPerPage,
-                min_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
-                max_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
-                search: searchTerm || undefined
-            });
-
             // Use the centralized API service
-            const data = await api.reviews.getAllReviews({
+            const result = await api.reviews.getAllReviews({
                 page: page + 1,
                 limit: rowsPerPage,
                 min_rating: filters.reviewRating !== 'all' ? filters.reviewRating : undefined,
@@ -166,19 +160,19 @@ function AdminDashboard() {
                 search: searchTerm || undefined
             });
 
-            console.log('Reviews API response:', data);
+            // Check if the response has the expected structure
+            if (result && result.reviews) {
+                setReviews(result.reviews);
 
-            if (Array.isArray(data)) {
-                // If API returns array directly
-                setReviews(data);
-            } else if (data && data.reviews && Array.isArray(data.reviews)) {
-                // If API returns object with reviews array
-                setReviews(data.reviews);
-            } else if (data && typeof data === 'object') {
-                // If API returns object that's not in expected format, try to use it
-                setReviews(Object.values(data));
+                // If pagination information exists, update the state
+                if (result.pagination) {
+                    // You might need to add state for handling pagination if not already present
+                }
+            } else if (Array.isArray(result)) {
+                // Handle case where API returns array directly
+                setReviews(result);
             } else {
-                console.error('Unexpected API response format:', data);
+                console.error('Unexpected API response format:', result);
                 setError('Invalid response format from API');
                 setReviews([]);
             }

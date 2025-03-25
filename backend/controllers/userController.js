@@ -17,27 +17,44 @@ const userController = {
 
   // Update user profile
   updateProfile: asyncHandler(async (req, res) => {
-    const userId = req.user.userId;
-    const { email, bio } = req.body;
+    try {
+      const userId = req.user.userId;
+      const { email, bio } = req.body;
 
-    // Get profile picture from uploaded file
-    const profile_picture = req.file ? req.file.path : undefined;
+      console.log("Profile update request received:", {
+        userId,
+        hasFile: !!req.file,
+        email,
+        bioLength: bio?.length
+      });
 
-    if (email && !email.includes('@')) {
-      throw new AppError('Invalid email format', 400);
+      // Get profile picture from uploaded file
+      const profile_picture = req.file ? req.file.path : undefined;
+
+      if (email && !email.includes('@')) {
+        throw new AppError('Invalid email format', 400);
+      }
+
+      const result = await userModel.updateProfile(userId, { email, bio, profile_picture });
+
+      if (!result) {
+        throw new AppError('User not found', 404);
+      }
+
+      if (result.error) {
+        throw new AppError(result.error, result.status);
+      }
+
+      console.log("Profile updated successfully:", {
+        userId,
+        hasImage: !!profile_picture
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw new AppError(error.message || 'Failed to update profile', error.statusCode || 500);
     }
-
-    const result = await userModel.updateProfile(userId, { email, bio, profile_picture });
-
-    if (!result) {
-      throw new AppError('User not found', 404);
-    }
-
-    if (result.error) {
-      throw new AppError(result.error, result.status);
-    }
-
-    res.status(200).json(result);
   }),
 
   // Change user password

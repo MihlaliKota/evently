@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reviewController = require('../controllers/reviewController');
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateJWT, authorizeRole } = require('../middleware/auth');
 
 router.get('/', authenticateJWT, reviewController.getAllReviews);
 router.put('/:reviewId', authenticateJWT, reviewController.updateReview);
