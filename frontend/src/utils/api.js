@@ -54,6 +54,19 @@ const apiRequest = async (endpoint, options = {}) => {
 
     try {
         console.log(`🌐 API Request to: ${API_BASE_URL}${endpoint}`);
+
+        // Log FormData content for debugging (development only)
+        if (config.body instanceof FormData && (import.meta.env.DEV || import.meta.env.MODE === 'development')) {
+            console.log('FormData contents:');
+            for (let [key, value] of config.body.entries()) {
+                if (value instanceof File) {
+                    console.log(`  ${key}: File (${value.name}, ${value.type}, ${(value.size / 1024).toFixed(2)}KB)`);
+                } else {
+                    console.log(`  ${key}: ${value}`);
+                }
+            }
+        }
+
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
         if (!response.ok) {
@@ -61,9 +74,27 @@ const apiRequest = async (endpoint, options = {}) => {
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorData.message || `HTTP Error: ${response.status}`;
+
+                // Add specific error messaging for image uploads
+                if (options.body instanceof FormData && options.body.has('image')) {
+                    if (response.status === 413) {
+                        errorMessage = 'Image upload failed: File size is too large. Please try a smaller image.';
+                    } else if (response.status === 415) {
+                        errorMessage = 'Image upload failed: Unsupported file type. Please use JPEG, PNG, or WebP.';
+                    } else if (response.status === 400 && errorMessage.includes('file')) {
+                        errorMessage = `Image upload failed: ${errorMessage}`;
+                    } else if (!response.ok) {
+                        errorMessage = `Image upload failed: ${errorMessage}`;
+                    }
+                }
             } catch (e) {
                 // If we can't parse the error as JSON, use status text
                 errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+
+                // Special handling for image upload errors that don't return JSON
+                if (options.body instanceof FormData && options.body.has('image')) {
+                    errorMessage = `Image upload failed: ${errorMessage}`;
+                }
             }
             throw new Error(errorMessage);
         }
@@ -110,6 +141,14 @@ const apiRequest = async (endpoint, options = {}) => {
         }
     } catch (error) {
         console.error('API Request Error:', error);
+
+        // Add specific handling for network errors during uploads
+        if (options.body instanceof FormData && error.message === 'Failed to fetch') {
+            error.message = 'Network error during file upload. Please check your connection and try again.';
+        } else if (options.body instanceof FormData && error.name === 'AbortError') {
+            error.message = 'File upload was aborted. The file might be too large or the connection was interrupted.';
+        }
+
         if (handleTokenExpiration(error)) {
             return null; // Return null when token expires
         }
@@ -134,6 +173,19 @@ const apiCache = {
             return null;
         }
         return item.value;
+    },
+    clear: (pattern) => {
+        if (pattern) {
+            // Clear cache entries that match the pattern
+            Object.keys(apiCache.data).forEach(key => {
+                if (key.includes(pattern)) {
+                    delete apiCache.data[key];
+                }
+            });
+        } else {
+            // Clear all cache
+            apiCache.data = {};
+        }
     }
 };
 
@@ -141,11 +193,11 @@ const apiCache = {
 const authAPI = {
     login: (credentials) => apiRequest('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify(credentials),
+        body: credentials,
     }),
     register: (userData) => apiRequest('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify(userData),
+        body: userData,
     }),
 };
 
@@ -160,12 +212,12 @@ export const eventsAPI = {
 
     createEvent: (eventData) => apiRequest('/api/events', {
         method: 'POST',
-        body: JSON.stringify(eventData),
+        body: eventData,
     }),
 
     updateEvent: (eventId, eventData) => apiRequest(`/api/events/${eventId}`, {
         method: 'PUT',
-        body: JSON.stringify(eventData),
+        body: eventData,
     }),
 
     deleteEvent: (eventId) => apiRequest(`/api/events/${eventId}`, {
@@ -176,8 +228,9 @@ export const eventsAPI = {
         return apiRequest('/api/events', {
             method: 'POST',
             body: formData,
-            // Skip both content-type header and body stringification for FormData
-            skipStringify: true
+            skipStringify: true,
+            skipCache: true, // Always skip cache for image uploads
+            timeout: 30000 // Extended timeout for image uploads (30 seconds)
         });
     },
 
@@ -185,7 +238,9 @@ export const eventsAPI = {
         return apiRequest(`/api/events/${eventId}`, {
             method: 'PUT',
             body: formData,
-            skipStringify: true
+            skipStringify: true,
+            skipCache: true,
+            timeout: 30000
         });
     },
 
@@ -239,6 +294,16 @@ export const eventsAPI = {
                 };
             }
         });
+    },
+
+    // Test Cloudinary upload functionality
+    testImageUpload: (formData) => {
+        return apiRequest('/api/test/cloudinary', {
+            method: 'POST',
+            body: formData,
+            skipStringify: true,
+            skipCache: true
+        });
     }
 };
 
@@ -254,12 +319,14 @@ export const reviewsAPI = {
     createReviewWithImage: (eventId, formData) => apiRequest(`/api/events/${eventId}/reviews`, {
         method: 'POST',
         body: formData,
-        skipStringify: true
+        skipStringify: true,
+        skipCache: true,
+        timeout: 30000
     }),
 
     updateReview: (reviewId, reviewData) => apiRequest(`/api/reviews/${reviewId}`, {
         method: 'PUT',
-        body: JSON.stringify(reviewData),
+        body: reviewData,
     }),
 
     deleteReview: (reviewId) => apiRequest(`/api/reviews/${reviewId}`, {
@@ -281,15 +348,22 @@ export const reviewsAPI = {
 export const userAPI = {
     getProfile: () => apiRequest('/api/users/profile'),
 
+    updateProfile: (userData) => apiRequest('/api/users/profile', {
+        method: 'PUT',
+        body: userData,
+    }),
+
     updateProfileWithImage: (formData) => apiRequest('/api/users/profile', {
         method: 'PUT',
         body: formData,
-        skipStringify: true
+        skipStringify: true,
+        skipCache: true,
+        timeout: 30000
     }),
 
     changePassword: (passwordData) => apiRequest('/api/users/password', {
         method: 'PUT',
-        body: JSON.stringify(passwordData),
+        body: passwordData,
     }),
 
     getUserActivities: () => apiRequest('/api/users/activities'),
@@ -331,6 +405,43 @@ export const calendarAPI = {
     },
 };
 
+// Utility functions for image handling
+export const imageUtils = {
+    // Check if a Cloudinary URL is valid
+    isValidCloudinaryUrl: (url) => {
+        if (!url) return false;
+        return url.includes('cloudinary.com') || url.includes('res.cloudinary.com');
+    },
+
+    // Format image URL (handle Cloudinary URLs properly)
+    formatImageUrl: (imagePath) => {
+        if (!imagePath) return null;
+
+        // If it's already a full URL, return it as is
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+
+        // If it's a Cloudinary path, return it as is (backend returns full URL)
+        if (imagePath.includes('cloudinary.com') || imagePath.includes('res.cloudinary.com')) {
+            return imagePath;
+        }
+
+        // Otherwise, prepend the API base URL
+        return `${API_BASE_URL}${imagePath}`;
+    },
+
+    // Get placeholder image for events
+    getEventPlaceholder: (eventId) => {
+        return `https://source.unsplash.com/random/400x140/?event&sig=${eventId || Math.random()}`;
+    },
+
+    // Get placeholder image for users
+    getUserPlaceholder: (username) => {
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'User')}&background=random`;
+    }
+};
+
 // Legacy support for components that use the old fetchApi function
 export const fetchApi = async (endpoint, options = {}) => {
     console.warn('fetchApi is deprecated. Please use the new API service methods.');
@@ -345,4 +456,5 @@ export default {
     categories: categoriesAPI,
     dashboard: dashboardAPI,
     calendar: calendarAPI,
+    imageUtils
 };

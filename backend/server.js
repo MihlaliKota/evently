@@ -25,6 +25,38 @@ app.use(cors(corsOptions));
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Test Cloudinary upload endpoint for debugging
+if (process.env.NODE_ENV !== 'production') {
+  const { upload } = require('./middleware/upload');
+
+  app.post('/api/test/cloudinary', upload.single('image'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      console.log('Cloudinary test successful:', {
+        originalname: req.file.originalname,
+        size: req.file.size,
+        path: req.file.path,
+      });
+
+      res.json({
+        message: 'File uploaded successfully to Cloudinary',
+        fileDetails: {
+          name: req.file.originalname,
+          type: req.file.mimetype,
+          size: req.file.size,
+          url: req.file.path
+        }
+      });
+    } catch (error) {
+      console.error('Cloudinary test failed:', error);
+      res.status(500).json({ error: error.message || 'File upload failed' });
+    }
+  });
+}
+
 // Register routes
 app.use('/api/auth', authRoutes);  // For login/register
 app.use('/api/events', eventRoutes);
@@ -45,7 +77,7 @@ app.use(errorHandler);
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
-  
+
   // Test database connection on startup
   (async () => {
     const pool = require('./config/database');
@@ -61,23 +93,6 @@ app.listen(port, () => {
     }
   })();
 });
-
-// Test Cloudinary configuration on startup
-(async () => {
-  try {
-    console.log('Testing Cloudinary connectivity...');
-    console.log('Cloudinary Config:', {
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? '✓ Set' : '✗ Missing',
-      api_key: process.env.CLOUDINARY_API_KEY ? '✓ Set' : '✗ Missing',
-      api_secret: process.env.CLOUDINARY_API_SECRET ? '✓ Set' : '✗ Missing'
-    });
-    
-    const result = await cloudinary.api.ping();
-    console.log('✅ Cloudinary connection successful:', result);
-  } catch (error) {
-    console.error('❌ Cloudinary connection failed:', error);
-  }
-})();
 
 // Handle unhandled rejections
 process.on('unhandledRejection', (err) => {

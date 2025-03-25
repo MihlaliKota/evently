@@ -220,9 +220,9 @@ const EventDetail = () => {
                             }}
                         >
                             {/* Display uploaded image or fallback to background color */}
-                            {event.image_path && (
+                            {event.image_path ? (
                                 <img
-                                    src={event.image_path || "https://placeholder.com/400x140"}
+                                    src={event.image_path}  // Use Cloudinary URL directly
                                     alt={event.name}
                                     style={{
                                         width: '100%',
@@ -240,20 +240,19 @@ const EventDetail = () => {
                                         }
                                     }}
                                 />
-                            )}
-
-                            {/* Add an overlay to ensure text is readable over the image */}
-                            <Box
-                                sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
+                            ) : (
+                                /* Fallback when no image */
+                                <Box sx={{
                                     width: '100%',
                                     height: '100%',
-                                    background: 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6))',
-                                    zIndex: 1
-                                }}
-                            />
+                                    bgcolor: 'primary.main',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Event sx={{ fontSize: 60, opacity: 0.3 }} />
+                                </Box>
+                            )}
 
                             <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', zIndex: 2 }}>
                                 {event.name}

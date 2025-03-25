@@ -101,19 +101,22 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Check if file is an image
-            if (!file.type.startsWith('image/')) {
-                setError('Please select an image file');
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                setError('Please select a valid image file (JPEG, JPG, PNG, GIF, or WebP)');
                 return;
             }
 
-            // Check file size (limit to 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                setError('Image size should be less than 5MB');
+            // Validate file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                setError(`Image size exceeds 5MB. Please select a smaller image.`);
                 return;
             }
 
             setSelectedImage(file);
+            setError(null); // Clear any previous errors
 
             // Create image preview
             const reader = new FileReader();
@@ -121,6 +124,12 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
                 setImagePreview(reader.result);
             };
             reader.readAsDataURL(file);
+
+            console.log('Image selected:', {
+                name: file.name,
+                type: file.type,
+                size: `${(file.size / 1024 / 1024).toFixed(2)}MB`
+            });
         }
     };
 
@@ -183,7 +192,11 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             // Add image file if selected
             if (selectedImage) {
                 formDataObj.append('image', selectedImage);
-                console.log('Image added to form data:', selectedImage.name, selectedImage.type, selectedImage.size);
+                console.log('Image added to form data:', {
+                    name: selectedImage.name,
+                    type: selectedImage.type,
+                    size: `${(selectedImage.size / 1024 / 1024).toFixed(2)}MB`
+                });
             }
             
             // Use the API service to handle the request
@@ -213,7 +226,12 @@ const CreateEventForm = ({ open, onClose, onEventCreated }) => {
             
         } catch (error) {
             console.error('Error creating event:', error);
-            setError(error.message || 'Failed to create event. Please try again.');
+            // Provide more specific error for image uploads
+            if (selectedImage && error.message?.includes('upload')) {
+                setError('Image upload failed: ' + (error.message || 'Please try a smaller image or different format'));
+            } else {
+                setError(error.message || 'Failed to create event. Please try again.');
+            }
         } finally {
             setLoading(false);
         }

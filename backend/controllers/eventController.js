@@ -45,8 +45,17 @@ const eventController = {
       throw new AppError('Name, category_id, and event_date are required', 400);
     }
 
-    // Handle image upload via Cloudinary
+    // Use secure_url from Cloudinary if available
     const imagePath = req.file ? req.file.path : null;
+    
+    // Log the image path for debugging
+    if (imagePath) {
+      console.log('Cloudinary image upload successful:', {
+        originalname: req.file.originalname,
+        size: req.file.size,
+        path: imagePath
+      });
+    }
 
     const eventData = {
       user_id: userId,
@@ -61,7 +70,7 @@ const eventController = {
 
     const newEvent = await eventModel.create(eventData);
     res.status(201).json(newEvent);
-  }),
+}),
 
   // Update event
   updateEvent: asyncHandler(async (req, res) => {

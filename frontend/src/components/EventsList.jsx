@@ -7,8 +7,8 @@ import {
     TextField, InputAdornment
 } from '@mui/material';
 import {
-    LocationOn, CalendarToday, FavoriteBorder, Favorite, 
-    History, Star, Event, Comment, Add, Edit, 
+    LocationOn, CalendarToday, FavoriteBorder, Favorite,
+    History, Star, Event, Comment, Add, Edit,
     Person, MoreVert, Delete, Search
 } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
@@ -35,7 +35,7 @@ function EventsList() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
     const [selectedActionEvent, setSelectedActionEvent] = useState(null);
-    
+
     // Pagination states
     const [upcomingPagination, setUpcomingPagination] = useState({
         page: 1,
@@ -67,46 +67,46 @@ function EventsList() {
     // Fetch upcoming events with pagination
     const fetchUpcomingEvents = useCallback(async () => {
         if (activeTab !== 0) return; // Only fetch when on upcoming tab
-        
+
         setLoading(true);
         setError(null);
-        
+
         try {
-          const result = await api.events.getUpcomingEvents({
-            page: upcomingPagination.page,
-            limit: upcomingPagination.limit,
-            sort_by: 'event_date',
-            sort_order: 'asc'
-          });
-          
-          if (!result || !result.events) {
-            throw new Error("Invalid response format");
-          }
-          
-          setEvents(prev => ({
-            ...prev,
-            upcoming: result.events
-          }));
-          
-          // Update pagination state if available
-          if (result.pagination) {
-            setUpcomingPagination(result.pagination);
-          }
+            const result = await api.events.getUpcomingEvents({
+                page: upcomingPagination.page,
+                limit: upcomingPagination.limit,
+                sort_by: 'event_date',
+                sort_order: 'asc'
+            });
+
+            if (!result || !result.events) {
+                throw new Error("Invalid response format");
+            }
+
+            setEvents(prev => ({
+                ...prev,
+                upcoming: result.events
+            }));
+
+            // Update pagination state if available
+            if (result.pagination) {
+                setUpcomingPagination(result.pagination);
+            }
         } catch (error) {
-          console.error("Error fetching upcoming events:", error);
-          setError(typeof error === 'string' ? error : error.message || "Failed to load upcoming events");
+            console.error("Error fetching upcoming events:", error);
+            setError(typeof error === 'string' ? error : error.message || "Failed to load upcoming events");
         } finally {
-          setLoading(false);
+            setLoading(false);
         }
-      }, [activeTab, upcomingPagination.page, upcomingPagination.limit]);
+    }, [activeTab, upcomingPagination.page, upcomingPagination.limit]);
 
     // Fetch past events with pagination
     const fetchPastEvents = useCallback(async () => {
         if (activeTab !== 1) return; // Only fetch when on past events tab
-        
+
         setLoading(true);
         setError(null);
-        
+
         try {
             const result = await api.events.getPastEvents({
                 page: pastPagination.page,
@@ -114,12 +114,12 @@ function EventsList() {
                 sort_by: 'event_date',
                 sort_order: 'desc'
             });
-            
+
             setEvents(prev => ({
                 ...prev,
                 past: result.events || []
             }));
-            
+
             // Update pagination state
             setPastPagination(result.pagination || pastPagination);
         } catch (error) {
@@ -173,7 +173,7 @@ function EventsList() {
     const handleCloseReviewDialog = useCallback(() => {
         setSelectedEvent(null);
         setReviewDialogOpen(false);
-        
+
         // Refresh events after potential review changes
         if (activeTab === 0) {
             fetchUpcomingEvents();
@@ -208,7 +208,7 @@ function EventsList() {
             try {
                 setLoading(true);
                 await api.events.deleteEvent(selectedActionEvent.event_id);
-                
+
                 // Refresh events based on current tab
                 if (activeTab === 0) {
                     fetchUpcomingEvents();
@@ -253,7 +253,7 @@ function EventsList() {
     const isCreatedByUser = useCallback((event) => {
         return !!currentUserId && event.user_id === currentUserId;
     }, [currentUserId]);
-    
+
     const canManageEvent = useCallback((event) => {
         return userRole === 'admin' || isCreatedByUser(event);
     }, [userRole, isCreatedByUser]);
@@ -280,10 +280,10 @@ function EventsList() {
     // Filter events based on search term
     const filterEvents = useCallback((events) => {
         if (!searchTerm.trim()) return events;
-        
+
         const search = searchTerm.toLowerCase();
-        return events.filter(event => 
-            (event.name && event.name.toLowerCase().includes(search)) || 
+        return events.filter(event =>
+            (event.name && event.name.toLowerCase().includes(search)) ||
             (event.location && event.location.toLowerCase().includes(search)) ||
             (event.description && event.description.toLowerCase().includes(search))
         );
@@ -292,7 +292,7 @@ function EventsList() {
     // Render pagination controls
     const renderPagination = useCallback(() => {
         const pagination = activeTab === 0 ? upcomingPagination : pastPagination;
-        
+
         return (
             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
                 <Button
@@ -301,11 +301,11 @@ function EventsList() {
                 >
                     Previous
                 </Button>
-                
+
                 <Typography sx={{ mx: 2, display: 'flex', alignItems: 'center' }}>
                     Page {pagination.page} of {pagination.pages || 1}
                 </Typography>
-                
+
                 <Button
                     disabled={pagination.page >= pagination.pages}
                     onClick={() => handleChangePage(pagination.page + 1)}
@@ -320,26 +320,26 @@ function EventsList() {
     const renderEventsList = useCallback((displayEvents, isPast = false) => {
         // Apply search filter
         const filteredEvents = filterEvents(displayEvents);
-        
+
         if (filteredEvents.length === 0 && !loading) {
             return (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="h5" color="text.secondary" gutterBottom>
-                        {searchTerm ? 
-                            'No events match your search' : 
+                        {searchTerm ?
+                            'No events match your search' :
                             `No ${isPast ? 'past' : 'upcoming'} events found`}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                        {searchTerm ? 
-                            'Try different search terms' : 
-                            (isPast ? 
-                                'Events that have passed will appear here' : 
+                        {searchTerm ?
+                            'Try different search terms' :
+                            (isPast ?
+                                'Events that have passed will appear here' :
                                 'Check back later for upcoming events')}
                     </Typography>
                     {userRole === 'admin' && !isPast && (
-                        <Button 
-                            variant="contained" 
-                            color="primary" 
+                        <Button
+                            variant="contained"
+                            color="primary"
                             startIcon={<Add />}
                             sx={{ mt: 2 }}
                             onClick={handleOpenCreateEvent}
@@ -364,7 +364,7 @@ function EventsList() {
                                 '&:hover': {
                                     transform: 'translateY(-4px) scale(1.05)',
                                     boxShadow: 6,
-                                    zIndex: 1, 
+                                    zIndex: 1,
                                 },
                                 position: 'relative',
                                 cursor: 'pointer',
@@ -378,23 +378,23 @@ function EventsList() {
                             <CardMedia
                                 component="img"
                                 height="140"
-                                // Use uploaded image if available, otherwise use placeholder
-                                image={event.image_path ? 
-                                    `${import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app'}${event.image_path}` :
-                                    `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`
-                                }
+                                // Use Cloudinary URL directly without prepending API_BASE_URL
+                                image={event.image_path || `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`}
                                 alt={event.name}
                                 onError={(e) => {
                                     console.error('Image failed to load:', event.image_path);
                                     // Fall back to placeholder on error
-                                    e.target.src = `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`;
+                                    if (!e.target.dataset.tried) {
+                                        e.target.dataset.tried = 'true';
+                                        e.target.src = `https://source.unsplash.com/random/400x140/?event&sig=${event.event_id}`;
+                                    }
                                 }}
                             />
                             <CardContent sx={{ flexGrow: 1 }}>
-                                <Box sx={{ 
-                                    position: 'absolute', 
-                                    top: 12, 
-                                    right: 12, 
+                                <Box sx={{
+                                    position: 'absolute',
+                                    top: 12,
+                                    right: 12,
                                     zIndex: 1,
                                     display: 'flex',
                                     gap: 1
@@ -428,21 +428,21 @@ function EventsList() {
                                         </IconButton>
                                     )}
                                 </Box>
-                                
+
                                 {isCreatedByUser(event) && (
-                                    <Chip 
-                                        label="Your Event" 
-                                        size="small" 
+                                    <Chip
+                                        label="Your Event"
+                                        size="small"
                                         color="primary"
-                                        sx={{ 
-                                            position: 'absolute', 
-                                            top: 148, 
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 148,
                                             left: 8,
                                             fontSize: '0.7rem'
                                         }}
                                     />
                                 )}
-                                
+
                                 <Typography
                                     variant="h6"
                                     component="h2"
@@ -452,20 +452,20 @@ function EventsList() {
                                     {event.name}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                    <CalendarToday 
-                                        fontSize="small" 
-                                        color={isPast ? "action" : "primary"} 
-                                        sx={{ mr: 1 }} 
+                                    <CalendarToday
+                                        fontSize="small"
+                                        color={isPast ? "action" : "primary"}
+                                        sx={{ mr: 1 }}
                                     />
                                     <Typography variant="body2" color="text.secondary">
                                         {formatDate(event.event_date)}
                                     </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                    <LocationOn 
-                                        fontSize="small" 
-                                        color={isPast ? "action" : "primary"} 
-                                        sx={{ mr: 1 }} 
+                                    <LocationOn
+                                        fontSize="small"
+                                        color={isPast ? "action" : "primary"}
+                                        sx={{ mr: 1 }}
                                     />
                                     <Typography variant="body2" color="text.secondary">
                                         {event.location || 'No location specified'}
@@ -487,8 +487,8 @@ function EventsList() {
                                 )}
 
                                 <Divider sx={{ my: 1.5 }} />
-                                <Typography 
-                                    variant="body2" 
+                                <Typography
+                                    variant="body2"
                                     color="text.secondary"
                                     sx={{
                                         display: '-webkit-box',
@@ -520,15 +520,15 @@ function EventsList() {
         );
     }, [
         loading, userRole, favorites, searchTerm, filterEvents,
-        handleOpenCreateEvent, handleViewEvent, 
+        handleOpenCreateEvent, handleViewEvent,
         toggleFavorite, handleOpenActionMenu,
         isCreatedByUser, canManageEvent, formatDate, formatRating
     ]);
 
     // Memoized active events list based on selected tab
     const activeEventsList = useMemo(() => {
-        return activeTab === 0 
-            ? renderEventsList(events.upcoming || [], false) 
+        return activeTab === 0
+            ? renderEventsList(events.upcoming || [], false)
             : renderEventsList(events.past || [], true);
     }, [activeTab, events, renderEventsList]);
 
@@ -646,7 +646,7 @@ function EventsList() {
                 onClose={handleCloseCreateEvent}
                 onEventCreated={handleEventCreated}
             />
-            
+
             {selectedEvent && (
                 <ReviewDialog
                     open={reviewDialogOpen}
