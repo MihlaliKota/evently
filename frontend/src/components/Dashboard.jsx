@@ -16,7 +16,7 @@ import ReviewDialog from './ReviewDialog';
 import { format, differenceInDays } from 'date-fns';
 import api from '../utils/api';
 
-function Dashboard({ username }) {
+function Dashboard({ username, profilePicture }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     
@@ -66,7 +66,15 @@ function Dashboard({ username }) {
                 api.events.getAllEvents()
             ]);
             
-            setStats(statsData);
+            setStats(statsData || {
+                totalEvents: 0,
+                upcomingEvents: 0,
+                completedEvents: 0
+            });
+            
+            // Ensure eventsData has the expected structure
+            const events = Array.isArray(eventsData) ? eventsData :
+                          (eventsData && Array.isArray(eventsData.events) ? eventsData.events : []);
             
             // Process events into upcoming and past
             const today = new Date();
@@ -75,26 +83,36 @@ function Dashboard({ username }) {
             const upcoming = [];
             const past = [];
             
-            eventsData.forEach(event => {
-                try {
-                    const eventDate = new Date(event.event_date);
-                    if (eventDate >= today) {
-                        upcoming.push(event);
-                    } else {
-                        past.push({
-                            ...event,
-                            review_count: event.review_count || 0,
-                            avg_rating: event.avg_rating || 0
-                        });
+            // Ensure we have valid events before processing
+            if (Array.isArray(events)) {
+                events.forEach(event => {
+                    if (!event || !event.event_date) return;
+                    
+                    try {
+                        const eventDate = new Date(event.event_date);
+                        if (eventDate >= today) {
+                            upcoming.push(event);
+                        } else {
+                            past.push({
+                                ...event,
+                                review_count: event.review_count || 0,
+                                avg_rating: event.avg_rating || 0
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Date parsing error:', error);
                     }
-                } catch (error) {
-                    console.error('Date parsing error:', error);
-                }
-            });
+                });
+            }
             
             // Sort events for better UX
-            upcoming.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-            past.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+            if (upcoming.length > 0) {
+                upcoming.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+            }
+            
+            if (past.length > 0) {
+                past.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+            }
             
             setUpcomingEvents(upcoming);
             setPastEvents(past);
@@ -113,22 +131,28 @@ function Dashboard({ username }) {
     
     // Generate insights from event data
     const generateInsights = useCallback((pastEvents) => {
+        // Ensure pastEvents is an array before processing
+        const eventsArray = Array.isArray(pastEvents) ? pastEvents : [];
+        
         // Calculate user engagement metrics
         const mockUserEngagement = {
-            eventsAttended: pastEvents.length,
-            reviewsSubmitted: pastEvents.reduce((sum, event) => sum + (event.review_count || 0), 0),
+            eventsAttended: eventsArray.length,
+            reviewsSubmitted: eventsArray.reduce((sum, event) => sum + (event.review_count || 0), 0),
             averageRating: 4.2,
-            categoryPreferences: generateCategoryPreferences(pastEvents),
-            recentActivity: generateRecentActivity(pastEvents.slice(0, 3)),
-            achievements: generateAchievements(pastEvents.length, stats)
+            categoryPreferences: generateCategoryPreferences(eventsArray),
+            recentActivity: generateRecentActivity(eventsArray.slice(0, 3)),
+            achievements: generateAchievements(eventsArray.length, stats)
         };
         
         setUserEngagement(mockUserEngagement);
-        setCommunityActivity(generateCommunityActivity(pastEvents));
+        setCommunityActivity(generateCommunityActivity(eventsArray));
     }, [stats]);
     
     // Helper functions for generating insights
     const generateCategoryPreferences = (pastEvents) => {
+        // Ensure pastEvents is an array
+        if (!Array.isArray(pastEvents)) return [];
+        
         const categories = {};
         pastEvents.forEach(event => {
             const categoryId = event.category_id;
@@ -144,6 +168,9 @@ function Dashboard({ username }) {
     };
     
     const generateRecentActivity = (recentEvents) => {
+        // Ensure recentEvents is an array
+        if (!Array.isArray(recentEvents)) return [];
+        
         return recentEvents.map(event => ({
             type: 'event_attendance',
             event_id: event.event_id,
@@ -212,7 +239,8 @@ function Dashboard({ username }) {
         setLoadingReviews(true);
         try {
             const reviews = await api.reviews.getEventReviews(eventId);
-            setEventReviews(reviews);
+            // Ensure reviews is an array
+            setEventReviews(Array.isArray(reviews) ? reviews : []);
         } catch (error) {
             console.error('Error fetching event reviews:', error);
             setEventReviews([]);
@@ -353,7 +381,7 @@ function Dashboard({ username }) {
                 Category Preferences
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {userEngagement.categoryPreferences.map((category) => (
+                {Array.isArray(userEngagement.categoryPreferences) && userEngagement.categoryPreferences.map((category) => (
                     <Chip 
                         key={category.id}
                         label={`${category.name} (${category.count})`}
@@ -435,7 +463,8 @@ function Dashboard({ username }) {
                                                 </Typography>
                                             </Box>
                                             <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                                {stats.totalEvents || (upcomingEvents.length + pastEvents.length)}
+                                                {stats.totalEvents || (Array.isArray(upcomingEvents) && Array.isArray(pastEvents) ? 
+                                                 upcomingEvents.length + pastEvents.length : 0)}
                                             </Typography>
                                         </>
                                     )}
@@ -475,7 +504,7 @@ function Dashboard({ username }) {
                                                 </Typography>
                                             </Box>
                                             <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                                {stats.upcomingEvents || upcomingEvents.length}
+                                                {stats.upcomingEvents || (Array.isArray(upcomingEvents) ? upcomingEvents.length : 0)}
                                             </Typography>
                                         </>
                                     )}
@@ -515,7 +544,7 @@ function Dashboard({ username }) {
                                                 </Typography>
                                             </Box>
                                             <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                                {stats.completedEvents || pastEvents.length}
+                                                {stats.completedEvents || (Array.isArray(pastEvents) ? pastEvents.length : 0)}
                                             </Typography>
                                         </>
                                     )}
@@ -551,12 +580,14 @@ function Dashboard({ username }) {
                                     <Box sx={{ p: 3 }}>
                                         <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
                                     </Box>
-                                ) : upcomingEvents.length > 0 ? (
+                                ) : Array.isArray(upcomingEvents) && upcomingEvents.length > 0 ? (
                                     <List disablePadding>
                                         {upcomingEvents.map((event, index) => {
+                                            if (!event || !event.event_date) return null;
+                                            
                                             const daysRemaining = getDaysRemaining(event.event_date);
                                             return (
-                                                <React.Fragment key={event.event_id}>
+                                                <React.Fragment key={event.event_id || index}>
                                                     <ListItem 
                                                         sx={{ 
                                                             px: 3, 
@@ -615,10 +646,10 @@ function Dashboard({ username }) {
                                     <Box sx={{ p: 3 }}>
                                         <CircularProgress size={30} sx={{ display: 'block', mx: 'auto' }} />
                                     </Box>
-                                ) : pastEvents.length > 0 ? (
+                                ) : Array.isArray(pastEvents) && pastEvents.length > 0 ? (
                                     <List disablePadding>
                                         {pastEvents.map((event, index) => (
-                                            <React.Fragment key={event.event_id}>
+                                            <React.Fragment key={event.event_id || index}>
                                                 <ListItem
                                                     sx={{ 
                                                         px: 3, 
@@ -703,7 +734,7 @@ function Dashboard({ username }) {
                         Community Highlights
                     </Typography>
                     <List>
-                        {communityActivity.map((item, index) => (
+                        {Array.isArray(communityActivity) && communityActivity.map((item, index) => (
                             <React.Fragment key={`community-${index}`}>
                                 <ListItem alignItems="flex-start">
                                     <ListItemIcon>
