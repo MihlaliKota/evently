@@ -218,14 +218,33 @@ export const eventsAPI = {
         return apiRequest(`/api/events${queryString ? `?${queryString}` : ''}`, {
             extractHeaders: ['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page'],
             processResponse: (response, data) => {
+                // Ensure we have proper data structure with defensive checks
+                if (!data) {
+                    console.warn('Events API returned empty data');
+                    return { events: [], pagination: { total: 0, pages: 0, page: 1, limit: 10 } };
+                }
+
+                // If data is already an array, wrap it in the expected structure
+                if (Array.isArray(data)) {
+                    return {
+                        events: data,
+                        pagination: {
+                            total: data.length,
+                            pages: 1,
+                            page: 1,
+                            limit: data.length
+                        }
+                    };
+                }
+
                 // Process the response to match expected frontend format
                 return {
-                    events: data, // The actual array of events
+                    events: Array.isArray(data) ? data : [], // Ensure events is always an array
                     pagination: {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
                         pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
                         page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
+                        limit: parseInt(response.headers.get('X-Per-Page') || '10')
                     }
                 };
             }
@@ -280,14 +299,35 @@ export const eventsAPI = {
         const queryString = queryParams.toString();
         return apiRequest(`/api/events/upcoming${queryString ? `?${queryString}` : ''}`, {
             processResponse: (response, data) => {
+                // Handle case when data is not in expected format
+                if (!data) {
+                    return {
+                        events: [],
+                        pagination: { total: 0, pages: 0, page: 1, limit: 10 }
+                    };
+                }
+
+                // If data is already an array, wrap it in the expected structure
+                if (Array.isArray(data)) {
+                    return {
+                        events: data,
+                        pagination: {
+                            total: data.length,
+                            pages: 1,
+                            page: 1,
+                            limit: data.length
+                        }
+                    };
+                }
+
                 // Extract pagination metadata from headers
                 return {
-                    events: data,
+                    events: Array.isArray(data) ? data : [],
                     pagination: {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
-                        pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
                         page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
+                        limit: parseInt(response.headers.get('X-Per-Page') || '10')
                     }
                 };
             }
@@ -306,14 +346,35 @@ export const eventsAPI = {
         const queryString = queryParams.toString();
         return apiRequest(`/api/events/past${queryString ? `?${queryString}` : ''}`, {
             processResponse: (response, data) => {
+                // Handle case when data is not in expected format
+                if (!data) {
+                    return {
+                        events: [],
+                        pagination: { total: 0, pages: 0, page: 1, limit: 10 }
+                    };
+                }
+
+                // If data is already an array, wrap it in the expected structure
+                if (Array.isArray(data)) {
+                    return {
+                        events: data,
+                        pagination: {
+                            total: data.length,
+                            pages: 1,
+                            page: 1,
+                            limit: data.length
+                        }
+                    };
+                }
+
                 // Extract pagination metadata from headers
                 return {
-                    events: data,
+                    events: Array.isArray(data) ? data : [],
                     pagination: {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
-                        pages: parseInt(response.headers.get('X-Total-Pages') || '0'),
+                        pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
                         page: parseInt(response.headers.get('X-Current-Page') || '1'),
-                        limit: parseInt(response.headers.get('X-Per-Page') || '3')
+                        limit: parseInt(response.headers.get('X-Per-Page') || '10')
                     }
                 };
             }
