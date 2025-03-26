@@ -14,7 +14,7 @@ import {
 } from '@mui/icons-material';
 import api from '../utils/api';
 
-function UserProfile() {
+function UserProfile({ onProfileUpdate }) {
     // State management
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -75,6 +75,12 @@ function UserProfile() {
                 bio: data.bio || '',
                 profile_picture: data.profile_picture || ''
             });
+            
+            // Set image preview if profile picture exists
+            if (data.profile_picture) {
+                setImagePreview(data.profile_picture);
+            }
+            
             setError(null);
         } catch (err) {
             console.error('Error fetching profile:', err);
@@ -170,6 +176,11 @@ function UserProfile() {
             });
             setSelectedImage(null);
             setImagePreview(null);
+            
+            // If profile has an image, set the preview
+            if (profile?.profile_picture) {
+                setImagePreview(profile.profile_picture);
+            }
         } else {
             // Start editing - initialize with current values
             setFormData({
@@ -197,7 +208,7 @@ function UserProfile() {
 
             // Add regular form fields
             formDataObj.append('email', formData.email);
-            if (formData.bio) formDataObj.append('bio', formData.bio);
+            if (formData.bio !== undefined) formDataObj.append('bio', formData.bio);
 
             // Add profile picture if selected
             if (selectedImage) {
@@ -208,7 +219,18 @@ function UserProfile() {
             const updatedProfile = await api.users.updateProfileWithImage(formDataObj);
             setProfile(updatedProfile);
             setEditMode(false);
+            
+            // Update localStorage with new profile picture
+            if (updatedProfile.profile_picture) {
+                localStorage.setItem('profilePicture', updatedProfile.profile_picture);
+            }
+            
             setSuccessMessage('Profile updated successfully!');
+
+            // Notify parent component to update global profile picture state
+            if (onProfileUpdate) {
+                onProfileUpdate();
+            }
 
             // Auto-dismiss success message after 3 seconds
             setTimeout(() => setSuccessMessage(null), 3000);
@@ -218,7 +240,7 @@ function UserProfile() {
         } finally {
             setLoading(false);
         }
-    }, [formData, selectedImage]);
+    }, [formData, selectedImage, onProfileUpdate]);
 
     const handlePasswordChange = useCallback(async (e) => {
         e.preventDefault();

@@ -3,6 +3,39 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://evently-production-cd21.up.railway.app';
 console.log('API base URL:', API_BASE_URL);
 
+// API cache utility - MOVED TO TOP to prevent TDZ error
+const apiCache = {
+    data: {},
+    set: (key, value, ttl = 60000) => {
+        apiCache.data[key] = {
+            value,
+            expiry: Date.now() + ttl
+        };
+    },
+    get: (key) => {
+        const item = apiCache.data[key];
+        if (!item) return null;
+        if (Date.now() > item.expiry) {
+            delete apiCache.data[key];
+            return null;
+        }
+        return item.value;
+    },
+    clear: (pattern) => {
+        if (pattern) {
+            // Clear cache entries that match the pattern
+            Object.keys(apiCache.data).forEach(key => {
+                if (key.includes(pattern)) {
+                    delete apiCache.data[key];
+                }
+            });
+        } else {
+            // Clear all cache
+            apiCache.data = {};
+        }
+    }
+};
+
 // Handle token expiration
 const handleTokenExpiration = (error) => {
     if (error.message && error.message.includes('Invalid or expired token')) {
@@ -10,6 +43,7 @@ const handleTokenExpiration = (error) => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('username');
         localStorage.removeItem('userRole');
+        localStorage.removeItem('profilePicture'); // Also clear profile picture
 
         // Reload the page to reset app state
         window.location.reload();
@@ -21,38 +55,38 @@ const handleTokenExpiration = (error) => {
 
 // Helper function for making API requests
 const apiRequest = async (endpoint, options = {}) => {
-    const token = localStorage.getItem('authToken');
-    const cacheKey = `${endpoint}-${options.method || 'GET'}-${options.body || ''}`;
-
-    const headers = { ...options.headers };
-
-    // Handle authentication with proper token attachment
-    if (token && !headers['Authorization']) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    // Only set Content-Type for non-FormData requests
-    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-    }
-
-    const config = {
-        ...options,
-        headers,
-    };
-
-    // Stringify body for JSON requests (not FormData)
-    if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData) && !options.skipStringify) {
-        config.body = JSON.stringify(config.body);
-    }
-
-    // Check cache for GET requests
-    if (!options.method || options.method === 'GET') {
-        const cachedData = apiCache.get(cacheKey);
-        if (cachedData && !options.skipCache) return cachedData;
-    }
-
     try {
+        const token = localStorage.getItem('authToken');
+        const cacheKey = `${endpoint}-${options.method || 'GET'}-${options.body || ''}`;
+
+        const headers = { ...options.headers };
+
+        // Handle authentication with proper token attachment
+        if (token && !headers['Authorization']) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Only set Content-Type for non-FormData requests
+        if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        const config = {
+            ...options,
+            headers,
+        };
+
+        // Stringify body for JSON requests (not FormData)
+        if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData) && !options.skipStringify) {
+            config.body = JSON.stringify(config.body);
+        }
+
+        // Check cache for GET requests
+        if (!options.method || options.method === 'GET') {
+            const cachedData = apiCache.get(cacheKey);
+            if (cachedData && !options.skipCache) return cachedData;
+        }
+
         console.log(`🌐 API Request to: ${API_BASE_URL}${endpoint}`);
 
         // Log FormData content for debugging (development only)
@@ -105,11 +139,11 @@ const apiRequest = async (endpoint, options = {}) => {
         }
 
         // Process response headers for pagination if needed
-        let headers = {};
+        let responseHeaders = {}; // Changed from 'headers' to 'responseHeaders' to avoid conflict
         if (options.extractHeaders) {
             const headersList = options.extractHeaders;
             headersList.forEach(header => {
-                headers[header] = response.headers.get(header);
+                responseHeaders[header] = response.headers.get(header);
             });
         }
 
@@ -130,7 +164,7 @@ const apiRequest = async (endpoint, options = {}) => {
 
             // Include headers in response if requested
             if (options.extractHeaders) {
-                return { data, headers };
+                return { data, headers: responseHeaders }; // Using responseHeaders here too
             }
 
             return data;
@@ -153,39 +187,6 @@ const apiRequest = async (endpoint, options = {}) => {
             return null; // Return null when token expires
         }
         throw error;
-    }
-};
-
-// API cache utility
-const apiCache = {
-    data: {},
-    set: (key, value, ttl = 60000) => {
-        apiCache.data[key] = {
-            value,
-            expiry: Date.now() + ttl
-        };
-    },
-    get: (key) => {
-        const item = apiCache.data[key];
-        if (!item) return null;
-        if (Date.now() > item.expiry) {
-            delete apiCache.data[key];
-            return null;
-        }
-        return item.value;
-    },
-    clear: (pattern) => {
-        if (pattern) {
-            // Clear cache entries that match the pattern
-            Object.keys(apiCache.data).forEach(key => {
-                if (key.includes(pattern)) {
-                    delete apiCache.data[key];
-                }
-            });
-        } else {
-            // Clear all cache
-            apiCache.data = {};
-        }
     }
 };
 

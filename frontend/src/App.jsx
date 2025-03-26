@@ -8,13 +8,58 @@ import AdminDashboard from './components/AdminDashboard';
 import {
     Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline,
     useTheme, ThemeProvider, createTheme, Avatar, Button, Drawer, List,
-    ListItem, ListItemIcon, ListItemText, Divider
+    ListItem, ListItemIcon, ListItemText, Divider, Alert
 } from '@mui/material';
 import {
     Brightness4, Brightness7, Dashboard as DashboardIcon,
     EventNote, AccountCircle, Menu as MenuIcon, CalendarMonth,
     AdminPanelSettings
 } from '@mui/icons-material';
+import api from './utils/api';
+
+// Add ErrorBoundary to prevent blank screen on errors
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("React Error Boundary caught an error:", error, errorInfo);
+        this.setState({ error, errorInfo });
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <Box sx={{ m: 4, p: 4, border: '1px solid #f44336', borderRadius: 2 }}>
+                    <Typography variant="h5" color="error" gutterBottom>
+                        Something went wrong
+                    </Typography>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {this.state.error && this.state.error.toString()}
+                    </Alert>
+                    <Typography variant="body1" gutterBottom>
+                        Please try refreshing the page or contact support if the issue persists.
+                    </Typography>
+                    <Button 
+                        variant="contained" 
+                        color="primary" 
+                        sx={{ mt: 2 }}
+                        onClick={() => window.location.reload()}
+                    >
+                        Refresh Page
+                    </Button>
+                </Box>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -25,12 +70,25 @@ function App() {
     const [activePage, setActivePage] = useState(() => {
         return localStorage.getItem('activePage') || 'dashboard';
     });
+    
+    // Add state for profile picture
+    const [profilePicture, setProfilePicture] = useState(() => {
+        return localStorage.getItem('profilePicture') || null;
+    });
+    
+    // Add error state for API issues
+    const [apiError, setApiError] = useState(null);
 
     // Load auth state on mount - only runs once
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const storedUsername = localStorage.getItem('username');
         const storedRole = localStorage.getItem('userRole');
+        const storedProfilePicture = localStorage.getItem('profilePicture');
+
+        if (storedProfilePicture) {
+            setProfilePicture(storedProfilePicture);
+        }
 
         if (token) {
             try {
@@ -50,31 +108,91 @@ function App() {
                 }
             } catch (error) {
                 // Token is invalid, clear auth data
+                console.error("Error parsing JWT token:", error);
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('username');
                 localStorage.removeItem('userRole');
+                localStorage.removeItem('profilePicture');
                 setIsLoggedIn(false);
+                setProfilePicture(null);
+                setApiError("Authentication error. Please log in again.");
             }
         }
     }, []);
 
-    // Handle navigation events
+    // Fetch profile data including profile picture when logged in
     useEffect(() => {
-        const savedPage = localStorage.getItem('activePage');
-        if (savedPage) {
-            setActivePage(savedPage);
+        if (isLoggedIn) {
+            fetchUserProfile();
         }
+    }, [isLoggedIn]);
 
-        const handleNavigation = (event) => {
-            if (event.detail && typeof event.detail === 'string') {
-                setActivePage(event.detail);
-                localStorage.setItem('activePage', event.detail); // Add this line
+    // Function to fetch user profile data
+    const fetchUserProfile = useCallback(async () => {
+        try {
+            setApiError(null);
+            const profileData = await api.users.getProfile();
+            
+            if (profileData && profileData.profile_picture) {
+                // Store profile picture in state and localStorage
+                setProfilePicture(profileData.profile_picture);
+                localStorage.setItem('profilePicture', profileData.profile_picture);
+                console.log("Profile picture updated:", profileData.profile_picture);
             }
-        };
-
-        window.addEventListener('navigate', handleNavigation);
-        return () => window.removeEventListener('navigate', handleNavigation);
+        } catch (error) {
+            console.error('Error fetching profile data:', error);
+            // Don't set apiError here to prevent blocking the UI
+        }
     }, []);
+
+    // Memoize handlers to prevent recreation on each render
+    const handleLoginSuccess = useCallback((loggedInUsername, role = 'user') => {
+        setIsLoggedIn(true);
+        setUsername(loggedInUsername);
+        setUserRole(role);
+        localStorage.setItem('username', loggedInUsername);
+        localStorage.setItem('userRole', role);
+        
+        // Fetch profile data after successful login
+        setTimeout(() => {
+            fetchUserProfile();
+        }, 500); // Small delay to ensure token is properly set
+    }, [fetchUserProfile]);
+
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('profilePicture');
+        setIsLoggedIn(false);
+        setUsername(null);
+        setUserRole(null);
+        setProfilePicture(null);
+        setActivePage('dashboard');
+    }, []);
+
+    const toggleDrawer = useCallback(() => {
+        setDrawerOpen(prev => !prev);
+    }, []);
+
+    const navigateTo = useCallback((page) => {
+        setActivePage(page);
+        localStorage.setItem('activePage', page);
+        setDrawerOpen(false);
+    }, []);
+
+    const toggleDarkMode = useCallback(() => {
+        setDarkMode(prev => {
+            const newMode = !prev;
+            localStorage.setItem('darkMode', newMode.toString());
+            return newMode;
+        });
+    }, []);
+
+    // Handle profile picture update from UserProfile component
+    const handleProfileUpdate = useCallback(() => {
+        fetchUserProfile();
+    }, [fetchUserProfile]);
 
     // Memoize theme to prevent unnecessary re-renders
     const theme = useMemo(() => createTheme({
@@ -119,43 +237,6 @@ function App() {
         },
     }), [darkMode]);
 
-    // Memoize handlers to prevent recreation on each render
-    const handleLoginSuccess = useCallback((loggedInUsername, role = 'user') => {
-        setIsLoggedIn(true);
-        setUsername(loggedInUsername);
-        setUserRole(role);
-        localStorage.setItem('username', loggedInUsername);
-        localStorage.setItem('userRole', role);
-    }, []);
-
-    const handleLogout = useCallback(() => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('username');
-        localStorage.removeItem('userRole');
-        setIsLoggedIn(false);
-        setUsername(null);
-        setUserRole(null);
-        setActivePage('dashboard');
-    }, []);
-
-    const toggleDrawer = useCallback(() => {
-        setDrawerOpen(prev => !prev);
-    }, []);
-
-    const navigateTo = useCallback((page) => {
-        setActivePage(page);
-        localStorage.setItem('activePage', page);
-        setDrawerOpen(false);
-    }, []);
-
-    const toggleDarkMode = useCallback(() => {
-        setDarkMode(prev => {
-            const newMode = !prev;
-            localStorage.setItem('darkMode', newMode.toString());
-            return newMode;
-        });
-    }, []);
-
     // Memoize sidebar items to prevent recreation on each render
     const sidebarItems = useMemo(() => [
         { text: 'Dashboard', icon: <DashboardIcon />, page: 'dashboard' },
@@ -196,120 +277,138 @@ function App() {
 
         switch (activePage) {
             case 'events':
-                return <EventsList />;
+                return <EventsList profilePicture={profilePicture} />;
             case 'calendar':
                 return <SimpleEventCalendar />;
             case 'profile':
-                return <UserProfile />;
+                return <UserProfile onProfileUpdate={handleProfileUpdate} />;
             case 'admin-dashboard':
-                return userRole === 'admin' ? <AdminDashboard /> : <Dashboard username={username} />;
+                return userRole === 'admin' ? 
+                    <AdminDashboard profilePicture={profilePicture} /> : 
+                    <Dashboard username={username} profilePicture={profilePicture} />;
             case 'dashboard':
             default:
                 return (
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                        <Dashboard username={username} />
+                        <Dashboard username={username} profilePicture={profilePicture} />
                     </Box>
                 );
         }
-    }, [isLoggedIn, activePage, username, userRole, handleLoginSuccess]);
+    }, [isLoggedIn, activePage, username, userRole, profilePicture, handleLoginSuccess, handleProfileUpdate]);
 
     return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {isLoggedIn && (
-                <>
-                    <AppBar position="static" color="primary" elevation={0}>
-                        <Toolbar sx={{ justifyContent: 'space-between' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <IconButton
-                                    edge="start"
-                                    color="inherit"
-                                    aria-label="menu"
-                                    onClick={toggleDrawer}
-                                    sx={{ mr: 2 }}
-                                >
-                                    <MenuIcon />
-                                </IconButton>
-                                <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-                                    Evently
-                                </Typography>
-                            </Box>
-                            <Box>
-                                <IconButton onClick={toggleDarkMode} color="inherit">
-                                    {darkMode ? <Brightness7 /> : <Brightness4 />}
-                                </IconButton>
-                                <Button
-                                    color="inherit"
-                                    onClick={() => navigateTo('profile')}
-                                    startIcon={
-                                        <Avatar
-                                            sx={{ width: 24, height: 24, bgcolor: 'primary.contrastText' }}
-                                        >
-                                            {username ? username[0].toUpperCase() : 'U'}
-                                        </Avatar>
-                                    }
-                                >
-                                    {username || 'User'}
-                                </Button>
-                            </Box>
-                        </Toolbar>
-                    </AppBar>
-
-                    <Drawer
-                        anchor="left"
-                        open={drawerOpen}
-                        onClose={toggleDrawer}
+        <ErrorBoundary>
+            <ThemeProvider theme={theme}>
+                <CssBaseline />
+                {apiError && (
+                    <Alert 
+                        severity="error" 
+                        sx={{ mb: 0 }}
+                        onClose={() => setApiError(null)}
                     >
-                        <Box sx={{ width: 250 }} role="presentation">
-                            <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-                                    Evently
-                                </Typography>
-                            </Box>
-                            <Divider />
-                            <List>
-                                {sidebarItems.map((item) => (
-                                    <ListItem
-                                        button
-                                        key={item.text}
-                                        onClick={() => navigateTo(item.page)}
-                                        selected={activePage === item.page}
+                        {apiError}
+                    </Alert>
+                )}
+                {isLoggedIn && (
+                    <>
+                        <AppBar position="static" color="primary" elevation={0}>
+                            <Toolbar sx={{ justifyContent: 'space-between' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <IconButton
+                                        edge="start"
+                                        color="inherit"
+                                        aria-label="menu"
+                                        onClick={toggleDrawer}
+                                        sx={{ mr: 2 }}
                                     >
-                                        <ListItemIcon>{item.icon}</ListItemIcon>
-                                        <ListItemText primary={item.text} />
-                                    </ListItem>
-                                ))}
-                            </List>
-                            <Divider />
-                            <Box sx={{ p: 2 }}>
-                                <Button
-                                    variant="outlined"
-                                    color="error"
-                                    fullWidth
-                                    onClick={handleLogout}
-                                >
-                                    Logout
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Drawer>
-                </>
-            )}
+                                        <MenuIcon />
+                                    </IconButton>
+                                    <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
+                                        Evently
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <IconButton onClick={toggleDarkMode} color="inherit">
+                                        {darkMode ? <Brightness7 /> : <Brightness4 />}
+                                    </IconButton>
+                                    <Button
+                                        color="inherit"
+                                        onClick={() => navigateTo('profile')}
+                                        startIcon={
+                                            <Avatar
+                                                src={profilePicture || ''}
+                                                sx={{ 
+                                                    width: 24, 
+                                                    height: 24, 
+                                                    bgcolor: 'primary.contrastText' 
+                                                }}
+                                            >
+                                                {username ? username[0].toUpperCase() : 'U'}
+                                            </Avatar>
+                                        }
+                                    >
+                                        {username || 'User'}
+                                    </Button>
+                                </Box>
+                            </Toolbar>
+                        </AppBar>
 
-            <Container
-                maxWidth={false}
-                sx={{
-                    mt: 4,
-                    mb: 8,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    width: '100%',
-                    px: { xs: 2, sm: 3 }
-                }}
-            >
-                {appContent}
-            </Container>
-        </ThemeProvider>
+                        <Drawer
+                            anchor="left"
+                            open={drawerOpen}
+                            onClose={toggleDrawer}
+                        >
+                            <Box sx={{ width: 250 }} role="presentation">
+                                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
+                                        Evently
+                                    </Typography>
+                                </Box>
+                                <Divider />
+                                <List>
+                                    {sidebarItems.map((item) => (
+                                        <ListItem
+                                            button
+                                            key={item.text}
+                                            onClick={() => navigateTo(item.page)}
+                                            selected={activePage === item.page}
+                                        >
+                                            <ListItemIcon>{item.icon}</ListItemIcon>
+                                            <ListItemText primary={item.text} />
+                                        </ListItem>
+                                    ))}
+                                </List>
+                                <Divider />
+                                <Box sx={{ p: 2 }}>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        fullWidth
+                                        onClick={handleLogout}
+                                    >
+                                        Logout
+                                    </Button>
+                                </Box>
+                            </Box>
+                        </Drawer>
+                    </>
+                )}
+
+                <Container
+                    maxWidth={false}
+                    sx={{
+                        mt: 4,
+                        mb: 8,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        width: '100%',
+                        px: { xs: 2, sm: 3 }
+                    }}
+                >
+                    {appContent}
+                </Container>
+            </ThemeProvider>
+        </ErrorBoundary>
     );
 }
 
