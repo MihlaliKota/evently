@@ -9,7 +9,7 @@ import {
 import {
     LocationOn, CalendarToday, FavoriteBorder, Favorite,
     History, Star, Event, Comment, Add, Edit,
-    Person, MoreVert, Delete, Search
+    Person, MoreVert, Delete, Search, NavigateBefore, NavigateNext
 } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
 import ReviewDialog from './ReviewDialog';
@@ -74,6 +74,11 @@ function EventsList() {
         setError(null);
 
         try {
+            console.log('Fetching upcoming events with params:', {
+                page: upcomingPagination.page,
+                limit: upcomingPagination.limit
+            });
+
             const result = await api.events.getUpcomingEvents({
                 page: upcomingPagination.page,
                 limit: upcomingPagination.limit,
@@ -81,22 +86,47 @@ function EventsList() {
                 sort_order: 'asc'
             });
 
-            if (!result || !result.events) {
+            console.log('Upcoming events API response:', result);
+
+            if (!result) {
+                throw new Error("Failed to fetch upcoming events");
+            }
+
+            // Handle different response structures
+            let eventsData = [];
+            let paginationData = upcomingPagination;
+
+            if (Array.isArray(result)) {
+                // Handle array response
+                eventsData = result;
+                console.log(`Received ${eventsData.length} upcoming events as array`);
+            } else if (result.events) {
+                // Handle object with events property
+                eventsData = result.events;
+                if (result.pagination) {
+                    paginationData = result.pagination;
+                }
+                console.log(`Received ${eventsData.length} upcoming events with pagination`);
+            } else {
+                console.error('Unexpected response format:', result);
                 throw new Error("Invalid response format");
             }
 
             setEvents(prev => ({
                 ...prev,
-                upcoming: result.events
+                upcoming: eventsData
             }));
 
-            // Update pagination state if available
-            if (result.pagination) {
-                setUpcomingPagination(result.pagination);
-            }
+            // Update pagination state
+            setUpcomingPagination(paginationData);
         } catch (error) {
             console.error("Error fetching upcoming events:", error);
             setError(typeof error === 'string' ? error : error.message || "Failed to load upcoming events");
+            // Set empty array to avoid undefined errors
+            setEvents(prev => ({
+                ...prev,
+                upcoming: []
+            }));
         } finally {
             setLoading(false);
         }
@@ -110,6 +140,11 @@ function EventsList() {
         setError(null);
 
         try {
+            console.log('Fetching past events with params:', {
+                page: pastPagination.page,
+                limit: pastPagination.limit
+            });
+
             const result = await api.events.getPastEvents({
                 page: pastPagination.page,
                 limit: pastPagination.limit,
@@ -117,16 +152,47 @@ function EventsList() {
                 sort_order: 'desc'
             });
 
+            console.log('Past events API response:', result);
+
+            if (!result) {
+                throw new Error("Failed to fetch past events");
+            }
+
+            // Handle different response structures
+            let eventsData = [];
+            let paginationData = pastPagination;
+
+            if (Array.isArray(result)) {
+                // Handle array response
+                eventsData = result;
+                console.log(`Received ${eventsData.length} past events as array`);
+            } else if (result.events) {
+                // Handle object with events property
+                eventsData = result.events;
+                if (result.pagination) {
+                    paginationData = result.pagination;
+                }
+                console.log(`Received ${eventsData.length} past events with pagination`);
+            } else {
+                console.error('Unexpected response format:', result);
+                throw new Error("Invalid response format");
+            }
+
             setEvents(prev => ({
                 ...prev,
-                past: result.events || []
+                past: eventsData
             }));
 
             // Update pagination state
-            setPastPagination(result.pagination || pastPagination);
+            setPastPagination(paginationData);
         } catch (error) {
             console.error("Error fetching past events:", error);
             setError(error.message || "Failed to load past events");
+            // Set empty array to avoid undefined errors
+            setEvents(prev => ({
+                ...prev,
+                past: []
+            }));
         } finally {
             setLoading(false);
         }
@@ -134,6 +200,7 @@ function EventsList() {
 
     // Effect to load events based on active tab
     useEffect(() => {
+        console.log('Active tab changed to:', activeTab);
         if (activeTab === 0) {
             fetchUpcomingEvents();
         } else {
@@ -305,11 +372,21 @@ function EventsList() {
     const renderPagination = useCallback(() => {
         const pagination = activeTab === 0 ? upcomingPagination : pastPagination;
 
+        console.log('Rendering pagination with:', pagination);
+
+        // Safety check for invalid pagination data
+        if (!pagination || typeof pagination.pages !== 'number') {
+            console.error('Invalid pagination data:', pagination);
+            return null;
+        }
+
         return (
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <Button
+                    variant="outlined"
                     disabled={pagination.page <= 1}
                     onClick={() => handleChangePage(pagination.page - 1)}
+                    startIcon={<NavigateBefore />}
                 >
                     Previous
                 </Button>
@@ -319,8 +396,10 @@ function EventsList() {
                 </Typography>
 
                 <Button
+                    variant="outlined"
                     disabled={pagination.page >= pagination.pages}
                     onClick={() => handleChangePage(pagination.page + 1)}
+                    endIcon={<NavigateNext />}
                 >
                     Next
                 </Button>

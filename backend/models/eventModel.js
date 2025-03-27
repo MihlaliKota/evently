@@ -187,33 +187,33 @@ const eventModel = {
   async getUpcomingPaginated(options = {}) {
     const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'asc' } = options;
     const offset = (page - 1) * limit;
-
-    // Build base query
+  
+    // Build base query - FIXED: Using CURDATE() may cause timezone issues, use NOW() instead
     const baseQuery = `
       FROM events 
-      WHERE event_date >= CURDATE()
+      WHERE event_date >= NOW()
     `;
-
+  
     // Get total count
     const [countResult] = await pool.query(
       `SELECT COUNT(*) AS total_count ${baseQuery}`
     );
     const totalCount = countResult[0].total_count;
-
+  
     // Validate sort parameters for security
     let orderByClause = 'ORDER BY event_date ASC';
     if (sortBy && ['name', 'event_date', 'created_at'].includes(sortBy)) {
       const sqlSortOrder = sortOrder?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       orderByClause = `ORDER BY ${sortBy} ${sqlSortOrder}`;
     }
-
+  
     // Get paginated data
     const [rows] = await pool.query(`
       SELECT * ${baseQuery}
       ${orderByClause}
       LIMIT ? OFFSET ?
     `, [parseInt(limit), offset]);
-
+  
     return {
       events: rows,
       pagination: {
@@ -229,33 +229,33 @@ const eventModel = {
   async getPastPaginated(options = {}) {
     const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'desc' } = options;
     const offset = (page - 1) * limit;
-
-    // Build base query
+  
+    // Build base query - FIXED: Using CURDATE() may cause timezone issues, use NOW() instead
     const baseQuery = `
       FROM events 
-      WHERE event_date < CURDATE()
+      WHERE event_date < NOW()
     `;
-
+  
     // Get total count
     const [countResult] = await pool.query(
       `SELECT COUNT(*) AS total_count ${baseQuery}`
     );
     const totalCount = countResult[0].total_count;
-
+  
     // Validate sort parameters
     let orderByClause = 'ORDER BY event_date DESC';
     if (sortBy && ['name', 'event_date', 'created_at'].includes(sortBy)) {
       const sqlSortOrder = sortOrder?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       orderByClause = `ORDER BY ${sortBy} ${sqlSortOrder}`;
     }
-
+  
     // Get paginated data
     const [rows] = await pool.query(`
       SELECT * ${baseQuery}
       ${orderByClause}
       LIMIT ? OFFSET ?
     `, [parseInt(limit), offset]);
-
+  
     return {
       events: rows,
       pagination: {
@@ -270,7 +270,7 @@ const eventModel = {
   // Get upcoming events (no pagination)
   async getUpcoming() {
     const [rows] = await pool.query(
-      'SELECT * FROM events WHERE event_date >= CURDATE() ORDER BY event_date ASC'
+      'SELECT * FROM events WHERE event_date >= NOW() ORDER BY event_date ASC'
     );
     return rows;
   },
@@ -278,7 +278,7 @@ const eventModel = {
   // Get past events (no pagination)
   async getPast() {
     const [rows] = await pool.query(
-      'SELECT * FROM events WHERE event_date < CURDATE() ORDER BY event_date DESC'
+      'SELECT * FROM events WHERE event_date < NOW() ORDER BY event_date DESC'
     );
     return rows;
   }

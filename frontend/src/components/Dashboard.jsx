@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent,
-    Divider, CircularProgress, Paper, List, ListItem, 
+    Divider, CircularProgress, Paper, List, ListItem,
     ListItemText, ListItemIcon, ListItemSecondaryAction,
-    Chip, Tabs, Tab, Avatar, Button, Alert, useTheme, 
+    Chip, Tabs, Tab, Avatar, Button, Alert, useTheme,
     useMediaQuery, Badge, Tooltip, LinearProgress
 } from '@mui/material';
 import {
-    EventAvailable, CalendarToday, Check, Event, 
-    History, Star, TrendingUp, Person, Refresh, 
+    EventAvailable, CalendarToday, Check, Event,
+    History, Star, TrendingUp, Person, Refresh,
     Comment
 } from '@mui/icons-material';
 import StarRating from './StarRating';
@@ -19,13 +19,13 @@ import api from '../utils/api';
 function Dashboard({ username, profilePicture }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    
+
     const [stats, setStats] = useState({
         totalEvents: 0,
         upcomingEvents: 0,
         completedEvents: 0
     });
-    
+
     const [loading, setLoading] = useState(true);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
     const [pastEvents, setPastEvents] = useState([]);
@@ -37,7 +37,7 @@ function Dashboard({ username, profilePicture }) {
     const [loadingReviews, setLoadingReviews] = useState(false);
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
-    
+
     // Memoized user engagement data
     const [userEngagement, setUserEngagement] = useState({
         eventsAttended: 0,
@@ -47,14 +47,14 @@ function Dashboard({ username, profilePicture }) {
         recentActivity: [],
         achievements: []
     });
-    
+
     const [communityActivity, setCommunityActivity] = useState([]);
 
     // Fetch dashboard data (optimized to use our API service)
     const fetchDashboardData = useCallback(async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Parallel API calls for better performance
             const [statsData, eventsData] = await Promise.all([
@@ -65,32 +65,44 @@ function Dashboard({ username, profilePicture }) {
                 })),
                 api.events.getAllEvents()
             ]);
-            
+
             setStats(statsData || {
                 totalEvents: 0,
                 upcomingEvents: 0,
                 completedEvents: 0
             });
-            
+
             // Ensure eventsData has the expected structure
-            const events = Array.isArray(eventsData) ? eventsData :
-                          (eventsData && Array.isArray(eventsData.events) ? eventsData.events : []);
-            
+            let events = [];
+            if (Array.isArray(eventsData)) {
+                events = eventsData;
+            } else if (eventsData && Array.isArray(eventsData.events)) {
+                events = eventsData.events;
+            } else {
+                console.warn('Unexpected events data format:', eventsData);
+                events = [];
+            }
+
+            console.log('Dashboard received events:', events.length);
+
             // Process events into upcoming and past
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
             const upcoming = [];
             const past = [];
-            
+
             // Ensure we have valid events before processing
             if (Array.isArray(events)) {
                 events.forEach(event => {
-                    if (!event || !event.event_date) return;
-                    
+                    if (!event || !event.event_date) {
+                        console.warn('Event missing date:', event);
+                        return;
+                    }
+
                     try {
                         const eventDate = new Date(event.event_date);
-                        if (eventDate >= today) {
+                        if (eventDate >= now) {
                             upcoming.push(event);
                         } else {
                             past.push({
@@ -100,26 +112,28 @@ function Dashboard({ username, profilePicture }) {
                             });
                         }
                     } catch (error) {
-                        console.error('Date parsing error:', error);
+                        console.error('Date parsing error for event:', event, error);
                     }
                 });
             }
-            
+
+            console.log('Events processed - upcoming:', upcoming.length, 'past:', past.length);
+
             // Sort events for better UX
             if (upcoming.length > 0) {
                 upcoming.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
             }
-            
+
             if (past.length > 0) {
                 past.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
             }
-            
+
             setUpcomingEvents(upcoming);
             setPastEvents(past);
-            
+
             // Generate insights from event data
             generateInsights(past);
-            
+
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
             setError(error.message || 'Failed to load dashboard data');
@@ -128,12 +142,35 @@ function Dashboard({ username, profilePicture }) {
             setRefreshing(false);
         }
     }, []);
-    
+
+    const fetchUpcomingEventsDirectly = useCallback(async () => {
+        if (upcomingEvents.length === 0) {
+            try {
+                console.log('Fetching upcoming events directly as fallback');
+                const result = await api.events.getUpcomingEvents({ limit: 5 });
+
+                let upcomingData = [];
+                if (Array.isArray(result)) {
+                    upcomingData = result;
+                } else if (result && Array.isArray(result.events)) {
+                    upcomingData = result.events;
+                }
+
+                if (upcomingData.length > 0) {
+                    console.log('Fallback retrieved upcoming events:', upcomingData.length);
+                    setUpcomingEvents(upcomingData);
+                }
+            } catch (error) {
+                console.error('Error in fallback upcoming events fetch:', error);
+            }
+        }
+    }, [upcomingEvents.length]);
+
     // Generate insights from event data
     const generateInsights = useCallback((pastEvents) => {
         // Ensure pastEvents is an array before processing
         const eventsArray = Array.isArray(pastEvents) ? pastEvents : [];
-        
+
         // Calculate user engagement metrics
         const mockUserEngagement = {
             eventsAttended: eventsArray.length,
@@ -143,16 +180,16 @@ function Dashboard({ username, profilePicture }) {
             recentActivity: generateRecentActivity(eventsArray.slice(0, 3)),
             achievements: generateAchievements(eventsArray.length, stats)
         };
-        
+
         setUserEngagement(mockUserEngagement);
         setCommunityActivity(generateCommunityActivity(eventsArray));
     }, [stats]);
-    
+
     // Helper functions for generating insights
     const generateCategoryPreferences = (pastEvents) => {
         // Ensure pastEvents is an array
         if (!Array.isArray(pastEvents)) return [];
-        
+
         const categories = {};
         pastEvents.forEach(event => {
             const categoryId = event.category_id;
@@ -160,17 +197,17 @@ function Dashboard({ username, profilePicture }) {
                 categories[categoryId] = (categories[categoryId] || 0) + 1;
             }
         });
-        
+
         return Object.entries(categories)
             .map(([id, count]) => ({ id, count, name: `Category ${id}` }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 3);
     };
-    
+
     const generateRecentActivity = (recentEvents) => {
         // Ensure recentEvents is an array
         if (!Array.isArray(recentEvents)) return [];
-        
+
         return recentEvents.map(event => ({
             type: 'event_attendance',
             event_id: event.event_id,
@@ -179,7 +216,7 @@ function Dashboard({ username, profilePicture }) {
             hasReview: event.review_count > 0
         }));
     };
-    
+
     const generateAchievements = (pastEventsCount, stats) => {
         return [
             {
@@ -208,7 +245,7 @@ function Dashboard({ username, profilePicture }) {
             }
         ];
     };
-    
+
     const generateCommunityActivity = (pastEvents) => {
         return [
             {
@@ -235,7 +272,7 @@ function Dashboard({ username, profilePicture }) {
     // Fetch event reviews when an event is selected
     const fetchEventReviews = useCallback(async (eventId) => {
         if (!eventId) return;
-        
+
         setLoadingReviews(true);
         try {
             const reviews = await api.reviews.getEventReviews(eventId);
@@ -253,7 +290,14 @@ function Dashboard({ username, profilePicture }) {
     useEffect(() => {
         fetchDashboardData();
     }, [fetchDashboardData]);
-    
+
+
+    useEffect(() => {
+        if (!loading && upcomingEvents.length === 0) {
+          fetchUpcomingEventsDirectly();
+        }
+      }, [loading, upcomingEvents.length, fetchUpcomingEventsDirectly]);
+
     // Load tab-specific data
     useEffect(() => {
         if (dashboardTab === 1) {
@@ -282,7 +326,7 @@ function Dashboard({ username, profilePicture }) {
     const handleTabChange = useCallback((event, newValue) => {
         setEventTab(newValue);
     }, []);
-    
+
     const handleDashboardTabChange = useCallback((event, newValue) => {
         setDashboardTab(newValue);
     }, []);
@@ -325,9 +369,9 @@ function Dashboard({ username, profilePicture }) {
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
                                     {achievement.description}
                                 </Typography>
-                                <LinearProgress 
-                                    variant="determinate" 
-                                    value={achievement.progress * 100} 
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={achievement.progress * 100}
                                     sx={{ height: 8, borderRadius: 5, mt: 1 }}
                                     color={achievement.completed ? "success" : "primary"}
                                 />
@@ -338,7 +382,7 @@ function Dashboard({ username, profilePicture }) {
             </Grid>
         </Paper>
     ), [userEngagement.achievements]);
-    
+
     const renderEngagementMetrics = useMemo(() => (
         <Paper sx={{ p: 2, borderRadius: 2, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -374,15 +418,15 @@ function Dashboard({ username, profilePicture }) {
                     </Box>
                 </Grid>
             </Grid>
-            
+
             <Divider sx={{ my: 2 }} />
-            
+
             <Typography variant="subtitle1" gutterBottom>
                 Category Preferences
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {Array.isArray(userEngagement.categoryPreferences) && userEngagement.categoryPreferences.map((category) => (
-                    <Chip 
+                    <Chip
                         key={category.id}
                         label={`${category.name} (${category.count})`}
                         color="primary"
@@ -404,8 +448,8 @@ function Dashboard({ username, profilePicture }) {
                         Here's an overview of your events and activities
                     </Typography>
                 </Box>
-                <Button 
-                    variant="outlined" 
+                <Button
+                    variant="outlined"
                     onClick={handleRefresh}
                     disabled={refreshing}
                     startIcon={refreshing ? <CircularProgress size={20} /> : <Refresh />}
@@ -463,8 +507,8 @@ function Dashboard({ username, profilePicture }) {
                                                 </Typography>
                                             </Box>
                                             <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                                                {stats.totalEvents || (Array.isArray(upcomingEvents) && Array.isArray(pastEvents) ? 
-                                                 upcomingEvents.length + pastEvents.length : 0)}
+                                                {stats.totalEvents || (Array.isArray(upcomingEvents) && Array.isArray(pastEvents) ?
+                                                    upcomingEvents.length + pastEvents.length : 0)}
                                             </Typography>
                                         </>
                                     )}
@@ -584,13 +628,13 @@ function Dashboard({ username, profilePicture }) {
                                     <List disablePadding>
                                         {upcomingEvents.map((event, index) => {
                                             if (!event || !event.event_date) return null;
-                                            
+
                                             const daysRemaining = getDaysRemaining(event.event_date);
                                             return (
                                                 <React.Fragment key={event.event_id || index}>
-                                                    <ListItem 
-                                                        sx={{ 
-                                                            px: 3, 
+                                                    <ListItem
+                                                        sx={{
+                                                            px: 3,
                                                             py: 2,
                                                             transition: 'background-color 0.2s',
                                                             '&:hover': {
@@ -651,8 +695,8 @@ function Dashboard({ username, profilePicture }) {
                                         {pastEvents.map((event, index) => (
                                             <React.Fragment key={event.event_id || index}>
                                                 <ListItem
-                                                    sx={{ 
-                                                        px: 3, 
+                                                    sx={{
+                                                        px: 3,
                                                         py: 2,
                                                         transition: 'background-color 0.2s',
                                                         '&:hover': {
@@ -678,10 +722,10 @@ function Dashboard({ username, profilePicture }) {
                                                                 </Typography>
                                                                 {event.review_count > 0 && (
                                                                     <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                                                        <StarRating 
-                                                                            value={parseFloat(event.avg_rating) || 0} 
-                                                                            readOnly 
-                                                                            size="small" 
+                                                                        <StarRating
+                                                                            value={parseFloat(event.avg_rating) || 0}
+                                                                            readOnly
+                                                                            size="small"
                                                                         />
                                                                         <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                                                                             {formatRating(event.avg_rating)} ({event.review_count} reviews)

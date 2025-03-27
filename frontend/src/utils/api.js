@@ -298,9 +298,11 @@ export const eventsAPI = {
 
         const queryString = queryParams.toString();
         return apiRequest(`/api/events/upcoming${queryString ? `?${queryString}` : ''}`, {
+            extractHeaders: ['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page'],
             processResponse: (response, data) => {
                 // Handle case when data is not in expected format
                 if (!data) {
+                    console.error('Empty response from upcoming events API');
                     return {
                         events: [],
                         pagination: { total: 0, pages: 0, page: 1, limit: 10 }
@@ -309,6 +311,7 @@ export const eventsAPI = {
 
                 // If data is already an array, wrap it in the expected structure
                 if (Array.isArray(data)) {
+                    console.log('Upcoming events received:', data.length);
                     return {
                         events: data,
                         pagination: {
@@ -321,8 +324,18 @@ export const eventsAPI = {
                 }
 
                 // Extract pagination metadata from headers
+                console.log('Upcoming events with pagination received:',
+                    data,
+                    'Headers:', {
+                    total: response.headers.get('X-Total-Count'),
+                    pages: response.headers.get('X-Total-Pages'),
+                    page: response.headers.get('X-Current-Page'),
+                    limit: response.headers.get('X-Per-Page')
+                }
+                );
+
                 return {
-                    events: Array.isArray(data) ? data : [],
+                    events: Array.isArray(data) ? data : (data && Array.isArray(data.events) ? data.events : []),
                     pagination: {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
                         pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
@@ -330,7 +343,8 @@ export const eventsAPI = {
                         limit: parseInt(response.headers.get('X-Per-Page') || '10')
                     }
                 };
-            }
+            },
+            cacheTTL: 30000  // Shorter cache time for frequently changing data (30 seconds)
         });
     },
 
@@ -345,9 +359,11 @@ export const eventsAPI = {
 
         const queryString = queryParams.toString();
         return apiRequest(`/api/events/past${queryString ? `?${queryString}` : ''}`, {
+            extractHeaders: ['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page'],
             processResponse: (response, data) => {
                 // Handle case when data is not in expected format
                 if (!data) {
+                    console.error('Empty response from past events API');
                     return {
                         events: [],
                         pagination: { total: 0, pages: 0, page: 1, limit: 10 }
@@ -356,6 +372,7 @@ export const eventsAPI = {
 
                 // If data is already an array, wrap it in the expected structure
                 if (Array.isArray(data)) {
+                    console.log('Past events received:', data.length);
                     return {
                         events: data,
                         pagination: {
@@ -368,8 +385,18 @@ export const eventsAPI = {
                 }
 
                 // Extract pagination metadata from headers
+                console.log('Past events with pagination received:',
+                    data,
+                    'Headers:', {
+                    total: response.headers.get('X-Total-Count'),
+                    pages: response.headers.get('X-Total-Pages'),
+                    page: response.headers.get('X-Current-Page'),
+                    limit: response.headers.get('X-Per-Page')
+                }
+                );
+
                 return {
-                    events: Array.isArray(data) ? data : [],
+                    events: Array.isArray(data) ? data : (data && Array.isArray(data.events) ? data.events : []),
                     pagination: {
                         total: parseInt(response.headers.get('X-Total-Count') || '0'),
                         pages: parseInt(response.headers.get('X-Total-Pages') || '1'),
@@ -377,7 +404,8 @@ export const eventsAPI = {
                         limit: parseInt(response.headers.get('X-Per-Page') || '10')
                     }
                 };
-            }
+            },
+            cacheTTL: 30000  // Shorter cache time for frequently changing data (30 seconds)
         });
     },
 

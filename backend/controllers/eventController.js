@@ -6,20 +6,35 @@ const asyncHandler = require('../utils/asyncHandler');
 const eventController = {
   // Get all events
   getAllEvents: asyncHandler(async (req, res) => {
+    const { page, limit, sort_by, sort_order, category_id } = req.query;
+
+    // Log the incoming parameters
+    console.log('getAllEvents params:', { page, limit, sort_by, sort_order, category_id });
+
     const events = await eventModel.getAll({
-      page: req.query.page,
-      limit: req.query.limit,
-      sortBy: req.query.sort_by,
-      sortOrder: req.query.sort_order,
-      category_id: req.query.category_id
+      page: page ? parseInt(page) : undefined,
+      limit: limit ? parseInt(limit) : undefined,
+      sortBy: sort_by,
+      sortOrder: sort_order,
+      category_id: category_id ? parseInt(category_id) : undefined
     });
+
+    // Log the response structure
+    console.log(`Returning ${events.events.length} events with pagination:`, events.pagination);
 
     // Set pagination headers
     if (events.pagination) {
-      res.set('X-Total-Count', events.pagination.total);
-      res.set('X-Total-Pages', events.pagination.pages);
-      res.set('X-Current-Page', events.pagination.page);
-      res.set('X-Per-Page', events.pagination.limit);
+      res.set('X-Total-Count', events.pagination.total.toString());
+      res.set('X-Total-Pages', events.pagination.pages.toString());
+      res.set('X-Current-Page', events.pagination.page.toString());
+      res.set('X-Per-Page', events.pagination.limit.toString());
+
+      // Set Access-Control-Expose-Headers to ensure CORS allows these headers to be read
+      const existingExposeHeaders = res.get('Access-Control-Expose-Headers') || '';
+      const headersToExpose = 'X-Total-Count, X-Total-Pages, X-Current-Page, X-Per-Page';
+      res.set('Access-Control-Expose-Headers',
+        existingExposeHeaders ? `${existingExposeHeaders}, ${headersToExpose}` : headersToExpose
+      );
     }
 
     res.status(200).json(events.events);
@@ -47,7 +62,7 @@ const eventController = {
 
     // Use secure_url from Cloudinary if available
     const imagePath = req.file ? req.file.path : null;
-    
+
     // Log the image path for debugging
     if (imagePath) {
       console.log('Cloudinary image upload successful:', {
@@ -70,7 +85,7 @@ const eventController = {
 
     const newEvent = await eventModel.create(eventData);
     res.status(201).json(newEvent);
-}),
+  }),
 
   // Update event
   updateEvent: asyncHandler(async (req, res) => {
@@ -117,6 +132,9 @@ const eventController = {
   getUpcomingEvents: asyncHandler(async (req, res) => {
     const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'asc' } = req.query;
 
+    // Log the incoming parameters
+    console.log('getUpcomingEvents params:', { page, limit, sortBy, sortOrder });
+
     const events = await eventModel.getUpcomingPaginated({
       page: parseInt(page),
       limit: parseInt(limit),
@@ -124,12 +142,22 @@ const eventController = {
       sortOrder
     });
 
+    // Log the response structure
+    console.log(`Returning ${events.events.length} upcoming events with pagination:`, events.pagination);
+
     // Set pagination headers
     if (events.pagination) {
-      res.set('X-Total-Count', events.pagination.total);
-      res.set('X-Total-Pages', events.pagination.pages);
-      res.set('X-Current-Page', events.pagination.page);
-      res.set('X-Per-Page', events.pagination.limit);
+      res.set('X-Total-Count', events.pagination.total.toString());
+      res.set('X-Total-Pages', events.pagination.pages.toString());
+      res.set('X-Current-Page', events.pagination.page.toString());
+      res.set('X-Per-Page', events.pagination.limit.toString());
+
+      // Set Access-Control-Expose-Headers to ensure CORS allows these headers to be read
+      const existingExposeHeaders = res.get('Access-Control-Expose-Headers') || '';
+      const headersToExpose = 'X-Total-Count, X-Total-Pages, X-Current-Page, X-Per-Page';
+      res.set('Access-Control-Expose-Headers',
+        existingExposeHeaders ? `${existingExposeHeaders}, ${headersToExpose}` : headersToExpose
+      );
     }
 
     res.status(200).json(events.events);
@@ -139,6 +167,9 @@ const eventController = {
   getPastEvents: asyncHandler(async (req, res) => {
     const { page = 1, limit = 3, sortBy = 'event_date', sortOrder = 'desc' } = req.query;
 
+    // Log the incoming parameters
+    console.log('getPastEvents params:', { page, limit, sortBy, sortOrder });
+
     const events = await eventModel.getPastPaginated({
       page: parseInt(page),
       limit: parseInt(limit),
@@ -146,12 +177,22 @@ const eventController = {
       sortOrder
     });
 
+    // Log the response structure
+    console.log(`Returning ${events.events.length} past events with pagination:`, events.pagination);
+
     // Set pagination headers
     if (events.pagination) {
-      res.set('X-Total-Count', events.pagination.total);
-      res.set('X-Total-Pages', events.pagination.pages);
-      res.set('X-Current-Page', events.pagination.page);
-      res.set('X-Per-Page', events.pagination.limit);
+      res.set('X-Total-Count', events.pagination.total.toString());
+      res.set('X-Total-Pages', events.pagination.pages.toString());
+      res.set('X-Current-Page', events.pagination.page.toString());
+      res.set('X-Per-Page', events.pagination.limit.toString());
+
+      // Set Access-Control-Expose-Headers to ensure CORS allows these headers to be read
+      const existingExposeHeaders = res.get('Access-Control-Expose-Headers') || '';
+      const headersToExpose = 'X-Total-Count, X-Total-Pages, X-Current-Page, X-Per-Page';
+      res.set('Access-Control-Expose-Headers',
+        existingExposeHeaders ? `${existingExposeHeaders}, ${headersToExpose}` : headersToExpose
+      );
     }
 
     res.status(200).json(events.events);
