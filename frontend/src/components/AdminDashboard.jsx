@@ -13,6 +13,7 @@ import {
     MoreVert, Event, Star, Person, CalendarMonth, Info, Check, Close
 } from '@mui/icons-material';
 import api from '../utils/api';
+import EditRoleDialog from './EditRoleDialog';
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState(0);
@@ -43,23 +44,86 @@ function AdminDashboard() {
     const [detailType, setDetailType] = useState('');
     const [successMessage, setSuccessMessage] = useState(null);
 
-    const handleApproveReview = (reviewId) => {
-        setReviews(prev => prev.map(review =>
-            review.review_id === reviewId
-                ? { ...review, moderation_status: 'approved' }
-                : review
-        ));
-        setSuccessMessage('Review approved successfully');
-        setTimeout(() => setSuccessMessage(null), 3000);
+    // Edit role dialog states
+    const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
+    const [selectedUserForRole, setSelectedUserForRole] = useState(null);
+
+    const handleApproveReview = async (reviewId) => {
+        try {
+            setLoading(true);
+            await api.reviews.approveReview(reviewId);
+
+            // Update the UI
+            setReviews(prev => prev.map(review =>
+                review.review_id === reviewId
+                    ? { ...review, moderation_status: 'approved' }
+                    : review
+            ));
+
+            setSuccessMessage('Review approved successfully');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (error) {
+            console.error('Error approving review:', error);
+            setError(error.message || 'Failed to approve review');
+            setTimeout(() => setError(null), 3000);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleRejectReview = (reviewId) => {
-        setReviews(prev => prev.map(review =>
-            review.review_id === reviewId
-                ? { ...review, moderation_status: 'rejected' }
-                : review
+    const handleRejectReview = async (reviewId) => {
+        try {
+            setLoading(true);
+            await api.reviews.rejectReview(reviewId);
+
+            // Update the UI
+            setReviews(prev => prev.map(review =>
+                review.review_id === reviewId
+                    ? { ...review, moderation_status: 'rejected' }
+                    : review
+            ));
+
+            setSuccessMessage('Review rejected successfully');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteReview = async (reviewId) => {
+        if (!window.confirm('Are you sure you want to permanently delete this review? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await api.reviews.deleteReview(reviewId);
+
+            // Update the UI by removing the deleted review
+            setReviews(prev => prev.filter(review => review.review_id !== reviewId));
+
+            setSuccessMessage('Review deleted successfully');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (error) {
+            console.error('Error deleting review:', error);
+            setError(error.message || 'Failed to delete review');
+            setTimeout(() => setError(null), 3000);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEditRole = (user) => {
+        setSelectedUserForRole(user);
+        setEditRoleDialogOpen(true);
+    };
+
+    const handleRoleUpdated = (updatedUser) => {
+        // Update the users list with the updated user
+        setUsers(users.map(user =>
+            user.user_id === updatedUser.user_id ? { ...user, role: updatedUser.role } : user
         ));
-        setSuccessMessage('Review rejected successfully');
+        setSuccessMessage('User role updated successfully');
         setTimeout(() => setSuccessMessage(null), 3000);
     };
 
@@ -420,6 +484,7 @@ function AdminDashboard() {
                                                     <IconButton
                                                         color="primary"
                                                         size="small"
+                                                        onClick={() => handleEditRole(user)}
                                                     >
                                                         <Edit fontSize="small" />
                                                     </IconButton>
@@ -805,6 +870,15 @@ function AdminDashboard() {
                                                         <Close fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
+                                                <Tooltip title="Delete Permanently">
+                                                    <IconButton
+                                                        color="error"
+                                                        size="small"
+                                                        onClick={() => handleDeleteReview(review.review_id)}
+                                                    >
+                                                        <Delete fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -1081,6 +1155,16 @@ function AdminDashboard() {
                     )}
                 </DialogActions>
             </Dialog>
+
+            {/* Edit Role Dialog */}
+            {selectedUserForRole && (
+                <EditRoleDialog
+                    open={editRoleDialogOpen}
+                    onClose={() => setEditRoleDialogOpen(false)}
+                    user={selectedUserForRole}
+                    onRoleUpdated={handleRoleUpdated}
+                />
+            )}
         </Box>
     );
 }

@@ -450,6 +450,16 @@ export const reviewsAPI = {
         const queryParams = eventId ? `?event_id=${eventId}` : '';
         return apiRequest(`/api/reviews/analytics${queryParams}`);
     },
+
+    approveReview: (reviewId) => apiRequest(`/api/reviews/${reviewId}/approve`, {
+        method: 'PUT',
+        skipCache: true
+    }),
+
+    rejectReview: (reviewId) => apiRequest(`/api/reviews/${reviewId}/reject`, {
+        method: 'PUT',
+        skipCache: true
+    }),
 };
 
 // User-related API calls
@@ -459,6 +469,12 @@ export const userAPI = {
     updateProfile: (userData) => apiRequest('/api/users/profile', {
         method: 'PUT',
         body: userData,
+    }),
+
+    updateUserRole: (userId, roleData) => apiRequest(`/api/users/${userId}/role`, {
+        method: 'PUT',
+        body: roleData,
+        skipCache: true
     }),
 
     updateProfileWithImage: (formData) => apiRequest('/api/users/profile', {
@@ -493,6 +509,34 @@ export const userAPI = {
             }
         });
     },
+
+    getNotifications: (params = {}) => {
+        const queryParams = new URLSearchParams();
+
+        if (params.limit) queryParams.append('limit', params.limit);
+        if (params.offset) queryParams.append('offset', params.offset);
+        if (params.includeRead !== undefined) queryParams.append('includeRead', params.includeRead);
+
+        const queryString = queryParams.toString();
+        return apiRequest(`/api/users/notifications${queryString ? `?${queryString}` : ''}`, {
+            skipCache: true // Don't cache notifications
+        });
+    },
+
+    markNotificationAsRead: (notificationId) => apiRequest(`/api/users/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        skipCache: true
+    }),
+
+    markAllNotificationsAsRead: () => apiRequest('/api/users/notifications/read-all', {
+        method: 'PUT',
+        skipCache: true
+    }),
+
+    deleteNotification: (notificationId) => apiRequest(`/api/users/notifications/${notificationId}`, {
+        method: 'DELETE',
+        skipCache: true
+    }),
 };
 
 // Categories-related API calls

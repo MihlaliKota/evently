@@ -57,6 +57,60 @@ const userController = {
     }
   }),
 
+  // Update user role (admin only)
+  updateUserRole: asyncHandler(async (req, res) => {
+    // Ensure the user is an admin
+    if (req.user.role !== 'admin') {
+      throw new AppError('Only administrators can update user roles', 403);
+    }
+
+    const userId = req.params.userId;
+    const { role } = req.body;
+
+    if (!role) {
+      throw new AppError('Role is required', 400);
+    }
+
+    // Prevent self-demotion for safety
+    if (parseInt(userId) === req.user.userId && role !== 'admin') {
+      throw new AppError('Administrators cannot demote themselves', 403);
+    }
+
+    const result = await userModel.updateUserRole(userId, role);
+
+    if (result.error) {
+      throw new AppError(result.error, result.status);
+    }
+
+    res.status(200).json(result);
+  }),// Update user role (admin only)
+  updateUserRole: asyncHandler(async (req, res) => {
+    // Ensure the user is an admin
+    if (req.user.role !== 'admin') {
+      throw new AppError('Only administrators can update user roles', 403);
+    }
+
+    const userId = req.params.userId;
+    const { role } = req.body;
+
+    if (!role) {
+      throw new AppError('Role is required', 400);
+    }
+
+    // Prevent self-demotion for safety
+    if (parseInt(userId) === req.user.userId && role !== 'admin') {
+      throw new AppError('Administrators cannot demote themselves', 403);
+    }
+
+    const result = await userModel.updateUserRole(userId, role);
+
+    if (result.error) {
+      throw new AppError(result.error, result.status);
+    }
+
+    res.status(200).json(result);
+  }),
+
   // Change user password
   changePassword: asyncHandler(async (req, res) => {
     const userId = req.user.userId;

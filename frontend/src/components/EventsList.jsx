@@ -13,6 +13,7 @@ import {
 } from '@mui/icons-material';
 import CreateEventForm from './CreateEventForm';
 import ReviewDialog from './ReviewDialog';
+import EditEventForm from './EditEventForm';
 import { Fab } from '@mui/material';
 import api from '../utils/api';
 
@@ -35,6 +36,7 @@ function EventsList() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
     const [selectedActionEvent, setSelectedActionEvent] = useState(null);
+    const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
 
     // Pagination states
     const [upcomingPagination, setUpcomingPagination] = useState({
@@ -195,10 +197,20 @@ function EventsList() {
 
     const handleEditEvent = useCallback(() => {
         handleCloseActionMenu();
-        // Implement edit event functionality
-        console.log("Edit event:", selectedActionEvent);
-        alert("Edit functionality will be implemented soon!");
+        if (!selectedActionEvent) return;
+
+        setEditEventDialogOpen(true);
     }, [handleCloseActionMenu, selectedActionEvent]);
+
+    const handleEventUpdated = useCallback((updatedEvent) => {
+        // Refresh events based on current tab
+        if (activeTab === 0) {
+            fetchUpcomingEvents();
+        } else {
+            fetchPastEvents();
+        }
+        setEditEventDialogOpen(false);
+    }, [activeTab, fetchUpcomingEvents, fetchPastEvents]);
 
     const handleDeleteEvent = useCallback(async () => {
         handleCloseActionMenu();
@@ -657,6 +669,15 @@ function EventsList() {
                     eventLocation={selectedEvent.location}
                     initialRating={selectedEvent.avg_rating}
                     reviewCount={selectedEvent.review_count}
+                />
+            )}
+
+            {selectedActionEvent && (
+                <EditEventForm
+                    open={editEventDialogOpen}
+                    onClose={() => setEditEventDialogOpen(false)}
+                    onEventUpdated={handleEventUpdated}
+                    eventData={selectedActionEvent}
                 />
             )}
 

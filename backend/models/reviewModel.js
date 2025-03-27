@@ -245,6 +245,41 @@ const reviewModel = {
     };
   },
 
+  // Update review moderation status
+  async updateStatus(reviewId, status) {
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return { error: 'Invalid status', status: 400 };
+    }
+
+    // First get the review to find event_id for cache invalidation
+    const [reviews] = await pool.query(
+      'SELECT * FROM reviews WHERE review_id = ?',
+      [reviewId]
+    );
+
+    if (reviews.length === 0) {
+      return false;
+    }
+
+    const eventId = reviews[0].event_id;
+
+    // Update the status
+    const [result] = await pool.query(
+      'UPDATE reviews SET moderation_status = ?, updated_at = NOW() WHERE review_id = ?',
+      [status, reviewId]
+    );
+
+    if (result.affectedRows === 0) {
+      return false;
+    }
+
+    // Invalidate caches
+    cache.del(`event:${eventId}:reviews`);
+    cache.invalidateByPrefix('reviews:*');
+
+    return true;
+  },
+
   // Get review analytics
   async getAnalytics(eventId) {
     const cacheKey = eventId ? `reviews:analytics:${eventId}` : 'reviews:analytics';

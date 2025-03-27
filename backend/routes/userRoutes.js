@@ -12,4 +12,6 @@ router.get('/activities', authenticateJWT, userController.getUserActivities);
 // Admin routes
 router.get('/', authenticateJWT, authorizeRole(['admin']), userController.getAllUsers);
 
+router.put('/:userId/role', authenticateJWT, authorizeRole(['admin']), userController.updateUserRole);router.put('/:userId/role', authenticateJWT, authorizeRole(['admin']), userController.updateUserRole);
+
 module.exports = router;

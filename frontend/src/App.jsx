@@ -5,6 +5,7 @@ import EventsList from './components/EventsList';
 import UserProfile from './components/UserProfile';
 import SimpleEventCalendar from './components/SimpleEventCalendar';
 import AdminDashboard from './components/AdminDashboard';
+import NotificationsMenu from './components/NotificationsMenu';
 import {
     Container, Typography, Box, AppBar, Toolbar, IconButton, CssBaseline,
     useTheme, ThemeProvider, createTheme, Avatar, Button, Drawer, List,
@@ -46,9 +47,9 @@ class ErrorBoundary extends React.Component {
                     <Typography variant="body1" gutterBottom>
                         Please try refreshing the page or contact support if the issue persists.
                     </Typography>
-                    <Button 
-                        variant="contained" 
-                        color="primary" 
+                    <Button
+                        variant="contained"
+                        color="primary"
                         sx={{ mt: 2 }}
                         onClick={() => window.location.reload()}
                     >
@@ -70,12 +71,12 @@ function App() {
     const [activePage, setActivePage] = useState(() => {
         return localStorage.getItem('activePage') || 'dashboard';
     });
-    
+
     // Add state for profile picture
     const [profilePicture, setProfilePicture] = useState(() => {
         return localStorage.getItem('profilePicture') || null;
     });
-    
+
     // Add error state for API issues
     const [apiError, setApiError] = useState(null);
 
@@ -132,7 +133,7 @@ function App() {
         try {
             setApiError(null);
             const profileData = await api.users.getProfile();
-            
+
             if (profileData && profileData.profile_picture) {
                 // Store profile picture in state and localStorage
                 setProfilePicture(profileData.profile_picture);
@@ -152,7 +153,7 @@ function App() {
         setUserRole(role);
         localStorage.setItem('username', loggedInUsername);
         localStorage.setItem('userRole', role);
-        
+
         // Fetch profile data after successful login
         setTimeout(() => {
             fetchUserProfile();
@@ -283,8 +284,8 @@ function App() {
             case 'profile':
                 return <UserProfile onProfileUpdate={handleProfileUpdate} />;
             case 'admin-dashboard':
-                return userRole === 'admin' ? 
-                    <AdminDashboard profilePicture={profilePicture} /> : 
+                return userRole === 'admin' ?
+                    <AdminDashboard profilePicture={profilePicture} /> :
                     <Dashboard username={username} profilePicture={profilePicture} />;
             case 'dashboard':
             default:
@@ -301,8 +302,8 @@ function App() {
             <ThemeProvider theme={theme}>
                 <CssBaseline />
                 {apiError && (
-                    <Alert 
-                        severity="error" 
+                    <Alert
+                        severity="error"
                         sx={{ mb: 0 }}
                         onClose={() => setApiError(null)}
                     >
@@ -327,20 +328,23 @@ function App() {
                                         Evently
                                     </Typography>
                                 </Box>
-                                <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <IconButton onClick={toggleDarkMode} color="inherit">
                                         {darkMode ? <Brightness7 /> : <Brightness4 />}
                                     </IconButton>
+
+                                    {isLoggedIn && <NotificationsMenu />}
+
                                     <Button
                                         color="inherit"
                                         onClick={() => navigateTo('profile')}
                                         startIcon={
                                             <Avatar
                                                 src={profilePicture || ''}
-                                                sx={{ 
-                                                    width: 24, 
-                                                    height: 24, 
-                                                    bgcolor: 'primary.contrastText' 
+                                                sx={{
+                                                    width: 24,
+                                                    height: 24,
+                                                    bgcolor: 'primary.contrastText'
                                                 }}
                                             >
                                                 {username ? username[0].toUpperCase() : 'U'}
