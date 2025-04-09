@@ -1,4 +1,3 @@
-// LandingPage.jsx
 import React, { useState, useCallback } from 'react';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
