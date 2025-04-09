@@ -1,374 +1,763 @@
-import React, { useState } from 'react';
-import { Camera, Calendar, Users, PieChart, Lock, Mail, MapPin, ChevronRight } from 'lucide-react';
+// LandingPage.jsx
+import React, { useState, useCallback } from 'react';
+import RegisterForm from './RegisterForm';
+import LoginForm from './LoginForm';
+import {
+    Box, Typography, Paper, Grid, Container,
+    Card, CardContent, Button, Stack, Divider,
+    Tabs, Tab, useTheme, AppBar, Toolbar, 
+    Link, Avatar, AvatarGroup, Chip, TextField,
+    InputAdornment, Checkbox, FormControlLabel
+} from '@mui/material';
+import {
+    EventAvailable, Security, People, BarChart,
+    CalendarMonth, KeyboardArrowRight, Mail, Lock,
+    Place, ArrowForward, Check, Facebook, 
+    Twitter, LinkedIn
+} from '@mui/icons-material';
 
-const LandingPage = () => {
-  const [authTab, setAuthTab] = useState(0);
-  
-  const features = [
-    {
-      icon: <Calendar className="text-white" size={24} />,
-      title: "Event Management",
-      description: "Create and manage events with ease. Set dates, locations, and reminders all in one place."
-    },
-    {
-      icon: <Users className="text-white" size={24} />,
-      title: "Attendee Tracking",
-      description: "Track RSVPs, send invitations, and manage your guest list effortlessly."
-    },
-    {
-      icon: <Calendar className="text-white" size={24} />,
-      title: "Calendar Integration",
-      description: "Sync with your favorite calendar apps to keep all your events organized."
-    },
-    {
-      icon: <PieChart className="text-white" size={24} />,
-      title: "Insightful Analytics",
-      description: "Get detailed analytics on attendance, engagement, and event performance."
-    },
-  ];
+const FeatureCard = ({ icon, title, description }) => {
+    const theme = useTheme();
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white text-gray-800">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center">
-            <Calendar className="text-white" size={20} />
-          </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">Evently</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="text-gray-600 hover:text-gray-900 font-medium">Login</button>
-          <button className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-2 rounded-full font-medium hover:shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-1">Sign Up</button>
-        </div>
-      </nav>
+    return (
+        <Card sx={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'all 0.3s',
+            borderRadius: 4,
+            border: '1px solid',
+            borderColor: 'divider',
+            '&:hover': {
+                transform: 'translateY(-12px)',
+                boxShadow: 6,
+                borderColor: 'primary.main',
+            },
+        }}>
+            <CardContent sx={{ 
+                flexGrow: 1, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                p: 4 
+            }}>
+                <Box sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                    color: 'white',
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    {icon}
+                </Box>
+                <Typography variant="h5" component="h3" gutterBottom align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
+                    {title}
+                </Typography>
+                <Typography variant="body1" color="text.secondary" align="center">
+                    {description}
+                </Typography>
+            </CardContent>
+        </Card>
+    );
+};
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-          <div className="absolute top-40 -left-20 w-72 h-72 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-0 right-40 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28 flex flex-col md:flex-row items-center gap-12 relative z-10">
-          <div className="md:w-1/2 space-y-6">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
-              <span className="block">Plan, Manage, and</span>
-              <span className="block bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">Host Amazing Events</span>
-            </h1>
-            <p className="text-lg md:text-xl text-gray-600 max-w-lg">
-              Evently simplifies event planning with powerful tools for organizers and a seamless experience for attendees.
-            </p>
-            <div className="pt-4 flex flex-col sm:flex-row gap-4">
-              <button className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-8 py-4 rounded-xl font-medium text-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 flex items-center justify-center">
-                Get Started <ChevronRight className="ml-2" size={20} />
-              </button>
-              <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-medium text-lg hover:border-gray-400 transition duration-300 ease-in-out flex items-center justify-center">
-                See how it works
-              </button>
-            </div>
-            <div className="flex items-center gap-2 pt-4">
-              <div className="flex -space-x-2">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">JD</div>
-                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs">KL</div>
-                <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs">MN</div>
-                <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white text-xs">AB</div>
-              </div>
-              <span className="text-sm text-gray-600">Join 10,000+ event planners</span>
-            </div>
-          </div>
-          
-          <div className="md:w-1/2 relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-20 rounded-3xl transform rotate-2"></div>
-            <img 
-              src="/api/placeholder/600/400" 
-              alt="Event dashboard preview" 
-              className="relative rounded-2xl shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-700 ease-in-out"
-            />
-            <div className="absolute -right-4 -bottom-4 bg-white p-4 rounded-xl shadow-lg">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium">500+ Active Events</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-20 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">Why Choose</span> Evently
-            </h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to create successful events, all in one platform
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="bg-white rounded-2xl shadow-lg hover:shadow-xl p-6 transition duration-300 ease-in-out transform hover:-translate-y-2 border border-gray-100">
-                <div className="h-14 w-14 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center mb-6">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-20 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl overflow-hidden shadow-xl">
-            <div className="p-10 md:p-16 grid md:grid-cols-2 gap-10 items-center">
-              <div>
-                <h3 className="text-3xl font-bold text-white mb-4">Ready to plan your next event?</h3>
-                <p className="text-blue-100 mb-8">Join thousands of event planners using Evently to create unforgettable experiences.</p>
-                <button className="bg-white text-indigo-700 px-8 py-4 rounded-xl font-medium text-lg hover:shadow-xl transition duration-300 ease-in-out">
-                  Get Started Free
-                </button>
-              </div>
-              <div className="relative">
-                <div className="bg-white/10 p-6 rounded-2xl backdrop-blur-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-blue-500 h-10 w-10 rounded-full flex items-center justify-center">
-                      <MapPin className="text-white" size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-white font-medium">Tech Conference 2025</h4>
-                      <p className="text-blue-100 text-sm">April 15-17, San Francisco</p>
-                    </div>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3 mb-3">
-                    <div className="flex justify-between">
-                      <span className="text-white text-sm">Total Registrations</span>
-                      <span className="text-white font-medium">349/500</span>
-                    </div>
-                    <div className="w-full bg-white/20 h-2 rounded-full mt-2">
-                      <div className="bg-white h-2 rounded-full" style={{width: '70%'}}></div>
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-white">
-                    <span>Last registration: 5 minutes ago</span>
-                    <span>70% full</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Auth Section */}
-      <section id="auth-section" className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-md mx-auto">
-            <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
-              <div className="flex">
-                <button 
-                  className={`flex-1 py-4 text-center font-medium ${authTab === 0 ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'text-gray-600'}`}
-                  onClick={() => setAuthTab(0)}
-                >
-                  Login
-                </button>
-                <button 
-                  className={`flex-1 py-4 text-center font-medium ${authTab === 1 ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'text-gray-600'}`}
-                  onClick={() => setAuthTab(1)}
-                >
-                  Create Account
-                </button>
-              </div>
-              
-              <div className="p-6">
-                {authTab === 0 ? (
-                  <form className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail size={18} className="text-gray-400" />
-                        </div>
-                        <input 
-                          type="email" 
-                          className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                          placeholder="you@example.com"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock size={18} className="text-gray-400" />
-                        </div>
-                        <input 
-                          type="password" 
-                          className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                          placeholder="••••••••"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <input id="remember-me" type="checkbox" className="h-4 w-4 text-blue-600 border-gray-300 rounded"/>
-                        <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">Remember me</label>
-                      </div>
-                      <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-800">Forgot password?</a>
-                    </div>
-                    <button 
-                      type="submit" 
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 rounded-xl font-medium hover:shadow-lg transition duration-300"
+const NavBar = () => {
+    const theme = useTheme();
+    
+    return (
+        <AppBar position="sticky" elevation={0} color="default" sx={{ bgcolor: 'background.paper' }}>
+            <Toolbar sx={{ justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: 2, 
+                        background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mr: 1
+                    }}>
+                        <CalendarMonth sx={{ color: 'white' }} />
+                    </Box>
+                    <Typography 
+                        variant="h6" 
+                        component="div" 
+                        sx={{ 
+                            fontWeight: 'bold',
+                            background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                            backgroundClip: 'text',
+                            textFillColor: 'transparent',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                        }}
                     >
-                      Sign in
-                    </button>
-                  </form>
-                ) : (
-                  <form className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                          placeholder="John"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                          placeholder="Doe"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail size={18} className="text-gray-400" />
-                        </div>
-                        <input 
-                          type="email" 
-                          className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                          placeholder="you@example.com"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock size={18} className="text-gray-400" />
-                        </div>
-                        <input 
-                          type="password" 
-                          className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                          placeholder="••••••••"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <input id="agree-terms" type="checkbox" className="h-4 w-4 text-blue-600 border-gray-300 rounded"/>
-                      <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-700">
-                        I agree to the <a href="#" className="text-blue-600 hover:text-blue-800">Terms</a> and <a href="#" className="text-blue-600 hover:text-blue-800">Privacy Policy</a>
-                      </label>
-                    </div>
-                    <button 
-                      type="submit" 
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 rounded-xl font-medium hover:shadow-lg transition duration-300"
+                        Evently
+                    </Typography>
+                </Box>
+                <Box>
+                    <Button color="inherit" sx={{ mr: 2 }}>Login</Button>
+                    <Button 
+                        variant="contained" 
+                        disableElevation 
+                        sx={{ 
+                            borderRadius: 28, 
+                            px: 3,
+                            background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                            '&:hover': {
+                                boxShadow: 3
+                            }
+                        }}
                     >
-                      Create Account
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+                        Sign Up
+                    </Button>
+                </Box>
+            </Toolbar>
+        </AppBar>
+    );
+};
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center">
-                  <Calendar className="text-white" size={20} />
-                </div>
-                <span className="text-xl font-bold">Evently</span>
-              </div>
-              <p className="text-gray-400 mb-4">
-                The complete platform for event planning and management.
-              </p>
-              <div className="flex space-x-4">
-                <a href="#" className="h-10 w-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 transition">
-                  <span className="text-lg">𝕏</span>
-                </a>
-                <a href="#" className="h-10 w-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 transition">
-                  <span className="text-lg">f</span>
-                </a>
-                <a href="#" className="h-10 w-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 transition">
-                  <span className="text-lg">in</span>
-                </a>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-medium mb-4">Product</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Features</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Pricing</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Integrations</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Enterprise</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-medium mb-4">Resources</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Blog</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Event Ideas</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Help Center</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Community</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-medium mb-4">Company</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-white transition">About Us</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Careers</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Contact Us</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition">Legal</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 pt-8 mt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">
-              &copy; {new Date().getFullYear()} Evently. All rights reserved.
-            </p>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="#" className="text-gray-400 hover:text-white transition text-sm">Privacy Policy</a>
-              <a href="#" className="text-gray-400 hover:text-white transition text-sm">Terms of Service</a>
-              <a href="#" className="text-gray-400 hover:text-white transition text-sm">Cookie Settings</a>
-            </div>
-          </div>
-        </div>
-      </footer>
-      
-      {/* Floating CTA */}
-      <div className="fixed bottom-6 right-6">
-        <button className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white h-14 w-14 rounded-full shadow-lg hover:shadow-xl flex items-center justify-center">
-          <ChevronRight size={24} />
-        </button>
-      </div>
-    </div>
-  );
+const LandingPage = ({ onLoginSuccess }) => {
+    const theme = useTheme();
+    const [authTab, setAuthTab] = useState(0);
+
+    const handleAuthTabChange = useCallback((event, newValue) => {
+        setAuthTab(newValue);
+    }, []);
+
+    const features = [
+        {
+            icon: <EventAvailable fontSize="large" />,
+            title: "Event Management",
+            description: "Create and manage events with ease. Set dates, locations, and reminders all in one place."
+        },
+        {
+            icon: <People fontSize="large" />,
+            title: "Attendee Tracking",
+            description: "Track RSVPs, send invitations, and manage your guest list effortlessly."
+        },
+        {
+            icon: <CalendarMonth fontSize="large" />,
+            title: "Calendar Integration",
+            description: "Sync with your favorite calendar apps to keep all your events organized."
+        },
+        {
+            icon: <BarChart fontSize="large" />,
+            title: "Insightful Analytics",
+            description: "Get detailed analytics on attendance, engagement, and event performance."
+        },
+    ];
+
+    return (
+        <>
+            <NavBar />
+            <Container maxWidth="lg">
+                {/* Hero Section */}
+                <Box sx={{
+                    py: { xs: 6, md: 12 },
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: { xs: 0, md: 8 },
+                    mt: 4
+                }}>
+                    {/* Decorative elements */}
+                    <Box sx={{
+                        position: 'absolute',
+                        width: '500px',
+                        height: '500px',
+                        borderRadius: '50%',
+                        background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}22, ${theme.palette.secondary.main}22)`,
+                        top: '-200px',
+                        right: '-100px',
+                        zIndex: 0,
+                        animation: 'float 8s ease-in-out infinite',
+                        '@keyframes float': {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }} />
+                    <Box sx={{
+                        position: 'absolute',
+                        width: '400px',
+                        height: '400px',
+                        borderRadius: '50%',
+                        background: theme => `linear-gradient(135deg, ${theme.palette.secondary.main}22, ${theme.palette.primary.main}22)`,
+                        bottom: '-150px',
+                        left: '-50px',
+                        zIndex: 0,
+                        animation: 'float 10s ease-in-out infinite 1s',
+                        '@keyframes float': {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-30px)' },
+                        }
+                    }} />
+
+                    <Grid container spacing={6} alignItems="center">
+                        <Grid item xs={12} md={6} sx={{ position: 'relative', zIndex: 1 }}>
+                            <Typography
+                                variant="h1"
+                                component="h1"
+                                gutterBottom
+                                sx={{
+                                    fontWeight: 800,
+                                    lineHeight: 1.1,
+                                    fontSize: { xs: '2.5rem', md: '3.5rem', lg: '4rem' },
+                                    background: theme => theme.palette.mode === 'dark'
+                                        ? 'linear-gradient(90deg, #82b1ff, #ff80ab)'
+                                        : 'linear-gradient(90deg, #4f6af0, #ff3366)',
+                                    backgroundClip: 'text',
+                                    textFillColor: 'transparent',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    mb: 3
+                                }}
+                            >
+                                Plan, Manage, and Host Amazing Events
+                            </Typography>
+                            <Typography
+                                variant="h5"
+                                color="text.secondary"
+                                paragraph
+                                sx={{
+                                    mb: 4,
+                                    fontSize: { xs: '1.1rem', md: '1.25rem' },
+                                    lineHeight: 1.6
+                                }}
+                            >
+                                Evently simplifies event planning with powerful tools for organizers and a seamless experience for attendees.
+                            </Typography>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4 }}>
+                                <Button
+                                    variant="contained"
+                                    size="large"
+                                    color="primary"
+                                    endIcon={<KeyboardArrowRight />}
+                                    sx={{
+                                        py: 1.5,
+                                        px: 4,
+                                        borderRadius: 3,
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold',
+                                        background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                                        boxShadow: theme => `0 8px 25px ${theme.palette.primary.main}40`
+                                    }}
+                                    href="#auth-section"
+                                >
+                                    Get Started
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    size="large"
+                                    sx={{
+                                        py: 1.5,
+                                        px: 4,
+                                        borderRadius: 3,
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'medium',
+                                        borderWidth: 2
+                                    }}
+                                >
+                                    See How It Works
+                                </Button>
+                            </Stack>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <AvatarGroup max={4}>
+                                    <Avatar sx={{ bgcolor: 'primary.main' }}>JD</Avatar>
+                                    <Avatar sx={{ bgcolor: 'secondary.main' }}>KL</Avatar>
+                                    <Avatar sx={{ bgcolor: 'info.main' }}>MN</Avatar>
+                                    <Avatar sx={{ bgcolor: 'error.main' }}>OP</Avatar>
+                                </AvatarGroup>
+                                <Typography variant="body2" color="text.secondary">
+                                    Join 10,000+ event planners
+                                </Typography>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} md={6} sx={{ position: 'relative' }}>
+                            <Box sx={{
+                                position: 'absolute',
+                                width: '100%',
+                                height: '100%',
+                                background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}30, ${theme.palette.primary.dark}30)`,
+                                borderRadius: 6,
+                                transform: 'rotate(2deg)',
+                                zIndex: 0
+                            }} />
+                            <Box
+                                component="img"
+                                src="https://source.unsplash.com/random/600x400/?event"
+                                alt="Event illustration"
+                                sx={{
+                                    width: '100%',
+                                    maxWidth: 500,
+                                    height: 'auto',
+                                    borderRadius: 4,
+                                    boxShadow: 10,
+                                    transform: 'perspective(1000px) rotateY(-5deg) rotate(-2deg)',
+                                    position: 'relative',
+                                    zIndex: 1,
+                                    transition: 'all 0.6s ease-in-out',
+                                    '&:hover': {
+                                        transform: 'perspective(1000px) rotateY(0deg) rotate(0deg)',
+                                    }
+                                }}
+                            />
+                            <Paper 
+                                elevation={4} 
+                                sx={{ 
+                                    position: 'absolute', 
+                                    bottom: -20, 
+                                    right: -10, 
+                                    p: 2, 
+                                    borderRadius: 3,
+                                    zIndex: 2,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1
+                                }}
+                            >
+                                <Box 
+                                    sx={{ 
+                                        width: 10, 
+                                        height: 10, 
+                                        borderRadius: '50%', 
+                                        bgcolor: 'success.main' 
+                                    }} 
+                                />
+                                <Typography variant="body2" fontWeight="medium">
+                                    500+ Active Events
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                    </Grid>
+                </Box>
+
+                {/* Features Section */}
+                <Box sx={{ py: 10 }}>
+                    <Typography
+                        variant="h3"
+                        component="h2"
+                        align="center"
+                        gutterBottom
+                        sx={{
+                            fontWeight: 'bold',
+                            mb: 2
+                        }}
+                    >
+                        <Box 
+                            component="span" 
+                            sx={{ 
+                                background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                                backgroundClip: 'text',
+                                textFillColor: 'transparent',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}
+                        >
+                            Why Choose
+                        </Box>
+                        {" Evently"}
+                    </Typography>
+                    <Typography
+                        variant="h6"
+                        align="center"
+                        color="text.secondary"
+                        sx={{ mb: 8, maxWidth: 600, mx: 'auto' }}
+                    >
+                        Everything you need to create successful events, all in one platform
+                    </Typography>
+                    <Grid container spacing={4}>
+                        {features.map((feature, index) => (
+                            <Grid item xs={12} sm={6} md={3} key={index}>
+                                <FeatureCard {...feature} />
+                            </Grid>
+                        ))}
+                    </Grid>
+                    <Box sx={{ 
+                        mt: 12, 
+                        borderRadius: 6,
+                        background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        color: 'white',
+                        overflow: 'hidden',
+                        boxShadow: 6
+                    }}>
+                        <Grid container>
+                            <Grid item xs={12} md={6} sx={{ p: { xs: 4, md: 6 } }}>
+                                <Typography variant="h4" fontWeight="bold" gutterBottom>
+                                    Ready to plan your next event?
+                                </Typography>
+                                <Typography sx={{ mb: 4, opacity: 0.9 }}>
+                                    Join thousands of event planners using Evently to create unforgettable experiences.
+                                </Typography>
+                                <Button 
+                                    variant="contained" 
+                                    size="large"
+                                    sx={{ 
+                                        bgcolor: 'white', 
+                                        color: 'primary.dark',
+                                        '&:hover': { 
+                                            bgcolor: 'white', 
+                                            opacity: 0.9 
+                                        },
+                                        borderRadius: 3,
+                                        px: 4,
+                                        py: 1.5,
+                                        fontWeight: 'bold'
+                                    }}
+                                >
+                                    Get Started Free
+                                </Button>
+                            </Grid>
+                            <Grid item xs={12} md={6} sx={{ p: { xs: 4, md: 6 } }}>
+                                <Paper sx={{ 
+                                    p: 3, 
+                                    borderRadius: 4, 
+                                    bgcolor: 'rgba(255,255,255,0.15)', 
+                                    backdropFilter: 'blur(10px)'
+                                }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                                            <Place />
+                                        </Avatar>
+                                        <Box>
+                                            <Typography fontWeight="bold">Tech Conference 2025</Typography>
+                                            <Typography variant="body2" sx={{ opacity: 0.9 }}>April 15-17, San Francisco</Typography>
+                                        </Box>
+                                    </Box>
+                                    <Paper sx={{ p: 2, mb: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.15)' }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                            <Typography variant="body2">Total Registrations</Typography>
+                                            <Typography variant="body2" fontWeight="bold">349/500</Typography>
+                                        </Box>
+                                        <Box sx={{ 
+                                            width: '100%', 
+                                            height: 8, 
+                                            bgcolor: 'rgba(255,255,255,0.2)', 
+                                            borderRadius: 4,
+                                            overflow: 'hidden'
+                                        }}>
+                                            <Box sx={{ width: '70%', height: '100%', bgcolor: 'white' }} />
+                                        </Box>
+                                    </Paper>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="body2">Last registration: 5 min ago</Typography>
+                                        <Typography variant="body2">70% full</Typography>
+                                    </Box>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+                    </Box>
+                </Box>
+
+                {/* Auth Section */}
+                <Box id="auth-section" sx={{ py: 10 }}>
+                    <Typography
+                        variant="h3"
+                        component="h2"
+                        align="center"
+                        gutterBottom
+                        sx={{
+                            fontWeight: 'bold',
+                            mb: 6
+                        }}
+                    >
+                        Get Started Today
+                    </Typography>
+                    <Grid container spacing={4} justifyContent="center">
+                        <Grid item xs={12} md={6}>
+                            <Paper
+                                elevation={4}
+                                sx={{
+                                    borderRadius: 4,
+                                    overflow: 'hidden',
+                                    transition: 'transform 0.3s',
+                                    '&:hover': {
+                                        transform: 'translateY(-10px)',
+                                        boxShadow: 8
+                                    }
+                                }}
+                            >
+                                <Box sx={{ 
+                                    bgcolor: 'background.paper', 
+                                    p: 0
+                                }}>
+                                    <Tabs
+                                        value={authTab}
+                                        onChange={handleAuthTabChange}
+                                        variant="fullWidth"
+                                        TabIndicatorProps={{ style: { display: 'none' } }}
+                                        sx={{ 
+                                            '& .MuiTab-root': { 
+                                                py: 2,
+                                                fontSize: '1rem',
+                                                fontWeight: 'bold'
+                                            },
+                                            '& .Mui-selected': {
+                                                background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                                                color: 'white',
+                                            }
+                                        }}
+                                    >
+                                        <Tab label="Login" />
+                                        <Tab label="Create Account" />
+                                    </Tabs>
+                                </Box>
+                                <Box sx={{ p: 4 }}>
+                                    {authTab === 0 ? (
+                                        <Box component="form">
+                                            <TextField
+                                                fullWidth
+                                                margin="normal"
+                                                label="Email"
+                                                variant="outlined"
+                                                InputProps={{
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <Mail color="action" />
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
+                                                sx={{ mb: 3 }}
+                                            />
+                                            <TextField
+                                                fullWidth
+                                                margin="normal"
+                                                label="Password"
+                                                type="password"
+                                                variant="outlined"
+                                                InputProps={{
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <Lock color="action" />
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
+                                                sx={{ mb: 3 }}
+                                            />
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                                                <FormControlLabel
+                                                    control={<Checkbox />}
+                                                    label="Remember me"
+                                                />
+                                                <Link href="#" color="primary" underline="hover">Forgot password?</Link>
+                                            </Box>
+                                            <Button
+                                                fullWidth
+                                                variant="contained"
+                                                size="large"
+                                                sx={{
+                                                    py: 1.5,
+                                                    borderRadius: 3,
+                                                    fontWeight: 'bold',
+                                                    background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                                                }}
+                                            >
+                                                Sign in
+                                            </Button>
+                                        </Box>
+                                    ) : (
+                                        <Box component="form">
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={12} sm={6}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="First Name"
+                                                        variant="outlined"
+                                                        margin="normal"
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Last Name"
+                                                        variant="outlined"
+                                                        margin="normal"
+                                                    />
+                                                </Grid>
+                                            </Grid>
+                                            <TextField
+                                                fullWidth
+                                                margin="normal"
+                                                label="Email"
+                                                variant="outlined"
+                                                InputProps={{
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <Mail color="action" />
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
+                                                sx={{ mb: 3 }}
+                                            />
+                                            <TextField
+                                                fullWidth
+                                                margin="normal"
+                                                label="Password"
+                                                type="password"
+                                                variant="outlined"
+                                                InputProps={{
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <Lock color="action" />
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
+                                                sx={{ mb: 3 }}
+                                            />
+                                            <FormControlLabel
+                                                control={<Checkbox />}
+                                                label={
+                                                    <Typography variant="body2">
+                                                        I agree to the <Link href="#" color="primary" underline="hover">Terms</Link> and <Link href="#" color="primary" underline="hover">Privacy Policy</Link>
+                                                    </Typography>
+                                                }
+                                                sx={{ mb: 3 }}
+                                            />
+                                            <Button
+                                                fullWidth
+                                                variant="contained"
+                                                size="large"
+                                                sx={{
+                                                    py: 1.5,
+                                                    borderRadius: 3,
+                                                    fontWeight: 'bold',
+                                                    background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                                                }}
+                                            >
+                                                Create Account
+                                            </Button>
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Paper>
+                        </Grid>
+                    </Grid>
+                </Box>
+
+                {/* Footer */}
+                <Divider sx={{ my: 4 }} />
+                <Box component="footer" sx={{ py: 4 }}>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={4}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                <Box sx={{ 
+                                    width: 40, 
+                                    height: 40, 
+                                    borderRadius: 2, 
+                                    background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    mr: 1
+                                }}>
+                                    <CalendarMonth sx={{ color: 'white' }} />
+                                </Box>
+                                <Typography variant="h6" fontWeight="bold">Evently</Typography>
+                            </Box>
+                            <Typography color="text.secondary" sx={{ mb: 2 }}>
+                                The complete platform for event planning and management.
+                            </Typography>
+                            <Stack direction="row" spacing={2}>
+                                <IconButton size="small" sx={{ 
+                                    bgcolor: 'action.hover', 
+                                    '&:hover': { bgcolor: 'primary.main', color: 'white' } 
+                                }}>
+                                    <Twitter fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" sx={{ 
+                                    bgcolor: 'action.hover', 
+                                    '&:hover': { bgcolor: 'primary.main', color: 'white' } 
+                                }}>
+                                    <Facebook fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" sx={{ 
+                                    bgcolor: 'action.hover', 
+                                    '&:hover': { bgcolor: 'primary.main', color: 'white' } 
+                                }}>
+                                    <LinkedIn fontSize="small" />
+                                </IconButton>
+                            </Stack>
+                        </Grid>
+                        <Grid item xs={12} sm={4} md={2}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                Product
+                            </Typography>
+                            <Stack spacing={1}>
+                                <Link href="#" color="text.secondary" underline="hover">Features</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Pricing</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Integrations</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Enterprise</Link>
+                            </Stack>
+                        </Grid>
+                        <Grid item xs={12} sm={4} md={2}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                Resources
+                            </Typography>
+                            <Stack spacing={1}>
+                                <Link href="#" color="text.secondary" underline="hover">Blog</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Event Ideas</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Help Center</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Community</Link>
+                            </Stack>
+                        </Grid>
+                        <Grid item xs={12} sm={4} md={2}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                Company
+                            </Typography>
+                            <Stack spacing={1}>
+                                <Link href="#" color="text.secondary" underline="hover">About Us</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Careers</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Contact Us</Link>
+                                <Link href="#" color="text.secondary" underline="hover">Legal</Link>
+                            </Stack>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Divider sx={{ my: 3 }} />
+                            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'center', sm: 'center' }, gap: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    &copy; {new Date().getFullYear()} Evently. All rights reserved.
+                                </Typography>
+                                <Stack direction="row" spacing={3}>
+                                    <Link href="#" color="text.secondary" underline="hover" variant="body2">Privacy Policy</Link>
+                                    <Link href="#" color="text.secondary" underline="hover" variant="body2">Terms of Service</Link>
+                                    <Link href="#" color="text.secondary" underline="hover" variant="body2">Cookie Settings</Link>
+                                </Stack>
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </Box>
+                
+                {/* Floating Action Button */}
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        bottom: 24,
+                        right: 24,
+                        zIndex: 10
+                    }}
+                >
+                    <Button
+                        variant="contained"
+                        sx={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: '50%',
+                            minWidth: 'auto',
+                            background: theme => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                            boxShadow: 6,
+                            '&:hover': {
+                                boxShadow: 8
+                            }
+                        }}
+                    >
+                        <ArrowForward />
+                    </Button>
+                </Box>
+            </Container>
+        </>
+    );
 };
 
 export default LandingPage;
